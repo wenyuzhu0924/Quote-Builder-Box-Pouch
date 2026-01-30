@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Package, ShoppingBag, ArrowRight } from "lucide-react";
+import { Package, ShoppingBag, ArrowRight, Printer, Cpu } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useQuote, type ProductType } from "@/lib/quote-store";
+import { useQuote, type ProductType, type PrintingMethod } from "@/lib/quote-store";
 
 const products = [
   {
@@ -22,18 +22,48 @@ const products = [
   },
 ];
 
+const printingMethods = [
+  {
+    id: "gravure" as const,
+    name: "凹版印刷",
+    nameEn: "Gravure Printing",
+    description: "适合大批量生产，印刷质量高，色彩饱满",
+    icon: Printer,
+  },
+  {
+    id: "digital" as const,
+    name: "数码印刷",
+    nameEn: "Digital Printing",
+    description: "适合小批量、个性化定制，起订量低",
+    icon: Cpu,
+  },
+];
+
 export default function ProductSelectPage() {
   const [, navigate] = useLocation();
-  const { state, setProductType } = useQuote();
-  const [selected, setSelected] = useState<ProductType>(state.productType);
+  const { state, setProductType, setPrintingMethod } = useQuote();
+  const [selectedProduct, setSelectedProduct] = useState<ProductType>(state.productType);
+  const [selectedPrinting, setSelectedPrinting] = useState<PrintingMethod>(state.printingMethod);
 
-  const handleSelect = (productId: ProductType) => {
-    setSelected(productId);
+  const handleProductSelect = (productId: ProductType) => {
+    setSelectedProduct(productId);
+    if (productId !== "pouch") {
+      setSelectedPrinting(null);
+    }
   };
 
+  const handlePrintingSelect = (printingId: PrintingMethod) => {
+    setSelectedPrinting(printingId);
+  };
+
+  const canProceed = selectedProduct === "box" || (selectedProduct === "pouch" && selectedPrinting);
+
   const handleNext = () => {
-    if (selected) {
-      setProductType(selected);
+    if (canProceed) {
+      setProductType(selectedProduct);
+      if (selectedProduct === "pouch") {
+        setPrintingMethod(selectedPrinting);
+      }
       navigate("/survey");
     }
   };
@@ -63,10 +93,10 @@ export default function ProductSelectPage() {
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 flex-1 content-start">
+          <div className="grid gap-4 md:grid-cols-2">
             {products.map((product) => {
               const Icon = product.icon;
-              const isSelected = selected === product.id;
+              const isSelected = selectedProduct === product.id;
               return (
                 <Card
                   key={product.id}
@@ -76,7 +106,7 @@ export default function ProductSelectPage() {
                       ? "ring-2 ring-primary border-primary"
                       : "hover:border-muted-foreground/30"
                   }`}
-                  onClick={() => handleSelect(product.id)}
+                  onClick={() => handleProductSelect(product.id)}
                 >
                   <CardContent className="p-6">
                     <div className="flex items-start gap-4">
@@ -103,7 +133,7 @@ export default function ProductSelectPage() {
                         </p>
                       </div>
                       <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
                           isSelected
                             ? "border-primary bg-primary"
                             : "border-muted-foreground/30"
@@ -120,11 +150,75 @@ export default function ProductSelectPage() {
             })}
           </div>
 
+          {selectedProduct === "pouch" && (
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold text-foreground mb-4">
+                选择印刷方式
+              </h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                {printingMethods.map((method) => {
+                  const Icon = method.icon;
+                  const isSelected = selectedPrinting === method.id;
+                  return (
+                    <Card
+                      key={method.id}
+                      data-testid={`card-printing-${method.id}`}
+                      className={`cursor-pointer transition-all duration-200 hover-elevate ${
+                        isSelected
+                          ? "ring-2 ring-primary border-primary"
+                          : "hover:border-muted-foreground/30"
+                      }`}
+                      onClick={() => handlePrintingSelect(method.id)}
+                    >
+                      <CardContent className="p-6">
+                        <div className="flex items-start gap-4">
+                          <div
+                            className={`flex items-center justify-center w-12 h-12 rounded-md ${
+                              isSelected
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            <Icon className="w-6 h-6" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="text-lg font-semibold text-foreground">
+                                {method.name}
+                              </h3>
+                              <span className="text-sm text-muted-foreground">
+                                {method.nameEn}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {method.description}
+                            </p>
+                          </div>
+                          <div
+                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                              isSelected
+                                ? "border-primary bg-primary"
+                                : "border-muted-foreground/30"
+                            }`}
+                          >
+                            {isSelected && (
+                              <div className="w-2 h-2 rounded-full bg-primary-foreground" />
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="mt-8 flex justify-end">
             <Button
               data-testid="button-next"
               onClick={handleNext}
-              disabled={!selected}
+              disabled={!canProceed}
               className="gap-2"
             >
               Next
