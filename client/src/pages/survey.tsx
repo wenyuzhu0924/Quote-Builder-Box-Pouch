@@ -45,6 +45,11 @@ export default function SurveyPage() {
     notes: "",
   });
 
+  const [newSpecialProcess, setNewSpecialProcess] = useState({ name: "", priceFormula: "", minPrice: 0, notes: "" });
+  const [newZipper, setNewZipper] = useState({ name: "", pricePerMeter: 0 });
+  const [newValve, setNewValve] = useState({ name: "", pricePerUnit: 0 });
+  const [newAccessory, setNewAccessory] = useState({ name: "", price: 0, isStackable: false });
+
   if (!state.productType) {
     navigate("/");
     return null;
@@ -367,6 +372,83 @@ export default function SurveyPage() {
     const updated = [...digitalConfig.printingTiers];
     updated[index] = { ...updated[index], [field]: value };
     updateDigitalConfig({ printingTiers: updated });
+  };
+
+  const addSpecialProcess = () => {
+    if (!newSpecialProcess.name) return;
+    const process: DigitalSpecialProcess = {
+      id: `sp_${Date.now()}`,
+      name: newSpecialProcess.name,
+      priceFormula: newSpecialProcess.priceFormula,
+      minPrice: newSpecialProcess.minPrice,
+      notes: newSpecialProcess.notes,
+      enabled: true,
+    };
+    updateDigitalConfig({ specialProcesses: [...digitalConfig.specialProcesses, process] });
+    setNewSpecialProcess({ name: "", priceFormula: "", minPrice: 0, notes: "" });
+    toast({ title: "工艺已添加" });
+  };
+
+  const removeSpecialProcess = (id: string) => {
+    updateDigitalConfig({ specialProcesses: digitalConfig.specialProcesses.filter((p) => p.id !== id) });
+  };
+
+  const addZipper = () => {
+    if (!newZipper.name) return;
+    const zipper: DigitalZipperType = {
+      id: `zip_${Date.now()}`,
+      name: newZipper.name,
+      pricePerMeter: newZipper.pricePerMeter,
+      enabled: true,
+    };
+    updateDigitalConfig({ zipperTypes: [...digitalConfig.zipperTypes, zipper] });
+    setNewZipper({ name: "", pricePerMeter: 0 });
+    toast({ title: "拉链类型已添加" });
+  };
+
+  const removeZipper = (id: string) => {
+    updateDigitalConfig({ zipperTypes: digitalConfig.zipperTypes.filter((z) => z.id !== id) });
+  };
+
+  const addValve = () => {
+    if (!newValve.name) return;
+    const valve: DigitalValveType = {
+      id: `valve_${Date.now()}`,
+      name: newValve.name,
+      pricePerUnit: newValve.pricePerUnit,
+      enabled: true,
+    };
+    updateDigitalConfig({ valveTypes: [...digitalConfig.valveTypes, valve] });
+    setNewValve({ name: "", pricePerUnit: 0 });
+    toast({ title: "气阀类型已添加" });
+  };
+
+  const removeValve = (id: string) => {
+    updateDigitalConfig({ valveTypes: digitalConfig.valveTypes.filter((v) => v.id !== id) });
+  };
+
+  const addAccessory = () => {
+    if (!newAccessory.name) return;
+    const accessory: DigitalAccessory = {
+      id: `acc_${Date.now()}`,
+      name: newAccessory.name,
+      price: newAccessory.price,
+      isStackable: newAccessory.isStackable,
+      enabled: true,
+    };
+    updateDigitalConfig({ accessories: [...digitalConfig.accessories, accessory] });
+    setNewAccessory({ name: "", price: 0, isStackable: false });
+    toast({ title: "附件已添加" });
+  };
+
+  const removeAccessory = (id: string) => {
+    updateDigitalConfig({ accessories: digitalConfig.accessories.filter((a) => a.id !== id) });
+  };
+
+  const updateSystemConstant = (field: string, value: number) => {
+    updateDigitalConfig({
+      systemConstants: { ...digitalConfig.systemConstants, [field]: value },
+    });
   };
 
   if (!isGravure && !isDigital) {
@@ -1029,6 +1111,7 @@ export default function SurveyPage() {
                             <TableHead>计算公式</TableHead>
                             <TableHead className="w-[100px]">起步价 (元)</TableHead>
                             <TableHead>备注</TableHead>
+                            <TableHead className="w-[60px]"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1071,8 +1154,64 @@ export default function SurveyPage() {
                                   placeholder="备注"
                                 />
                               </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeSpecialProcess(process.id)}
+                                  className="h-8 w-8 text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
                             </TableRow>
                           ))}
+                          <TableRow>
+                            <TableCell></TableCell>
+                            <TableCell>
+                              <Input
+                                value={newSpecialProcess.name}
+                                onChange={(e) => setNewSpecialProcess({ ...newSpecialProcess, name: e.target.value })}
+                                placeholder="新工艺名称"
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={newSpecialProcess.priceFormula}
+                                onChange={(e) => setNewSpecialProcess({ ...newSpecialProcess, priceFormula: e.target.value })}
+                                placeholder="计算公式"
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={newSpecialProcess.minPrice || ""}
+                                onChange={(e) => setNewSpecialProcess({ ...newSpecialProcess, minPrice: Number(e.target.value) })}
+                                placeholder="起步价"
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={newSpecialProcess.notes}
+                                onChange={(e) => setNewSpecialProcess({ ...newSpecialProcess, notes: e.target.value })}
+                                placeholder="备注"
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={addSpecialProcess}
+                                className="h-8 w-8"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
                         </TableBody>
                       </Table>
                     </div>
@@ -1103,6 +1242,7 @@ export default function SurveyPage() {
                               <TableHead className="w-[50px]">启用</TableHead>
                               <TableHead>拉链名称</TableHead>
                               <TableHead className="w-[120px]">单价 (元/米)</TableHead>
+                              <TableHead className="w-[60px]"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1130,8 +1270,49 @@ export default function SurveyPage() {
                                     className="h-8"
                                   />
                                 </TableCell>
+                                <TableCell>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeZipper(zipper.id)}
+                                    className="h-8 w-8 text-destructive"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </TableCell>
                               </TableRow>
                             ))}
+                            <TableRow>
+                              <TableCell></TableCell>
+                              <TableCell>
+                                <Input
+                                  value={newZipper.name}
+                                  onChange={(e) => setNewZipper({ ...newZipper, name: e.target.value })}
+                                  placeholder="新拉链名称"
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={newZipper.pricePerMeter || ""}
+                                  onChange={(e) => setNewZipper({ ...newZipper, pricePerMeter: Number(e.target.value) })}
+                                  placeholder="单价"
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={addZipper}
+                                  className="h-8 w-8"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
                           </TableBody>
                         </Table>
                       </div>
@@ -1146,6 +1327,7 @@ export default function SurveyPage() {
                               <TableHead className="w-[50px]">启用</TableHead>
                               <TableHead>气阀名称</TableHead>
                               <TableHead className="w-[120px]">单价 (元/个)</TableHead>
+                              <TableHead className="w-[60px]"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1173,8 +1355,49 @@ export default function SurveyPage() {
                                     className="h-8"
                                   />
                                 </TableCell>
+                                <TableCell>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeValve(valve.id)}
+                                    className="h-8 w-8 text-destructive"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </TableCell>
                               </TableRow>
                             ))}
+                            <TableRow>
+                              <TableCell></TableCell>
+                              <TableCell>
+                                <Input
+                                  value={newValve.name}
+                                  onChange={(e) => setNewValve({ ...newValve, name: e.target.value })}
+                                  placeholder="新气阀名称"
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={newValve.pricePerUnit || ""}
+                                  onChange={(e) => setNewValve({ ...newValve, pricePerUnit: Number(e.target.value) })}
+                                  placeholder="单价"
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={addValve}
+                                  className="h-8 w-8"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
                           </TableBody>
                         </Table>
                       </div>
@@ -1190,6 +1413,7 @@ export default function SurveyPage() {
                               <TableHead>附件名称</TableHead>
                               <TableHead className="w-[120px]">单价 (元/个)</TableHead>
                               <TableHead className="w-[80px]">可叠加</TableHead>
+                              <TableHead className="w-[60px]"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1223,8 +1447,55 @@ export default function SurveyPage() {
                                     onCheckedChange={(checked) => updateDigitalAccessory(accessory.id, "isStackable", !!checked)}
                                   />
                                 </TableCell>
+                                <TableCell>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeAccessory(accessory.id)}
+                                    className="h-8 w-8 text-destructive"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </TableCell>
                               </TableRow>
                             ))}
+                            <TableRow>
+                              <TableCell></TableCell>
+                              <TableCell>
+                                <Input
+                                  value={newAccessory.name}
+                                  onChange={(e) => setNewAccessory({ ...newAccessory, name: e.target.value })}
+                                  placeholder="新附件名称"
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={newAccessory.price || ""}
+                                  onChange={(e) => setNewAccessory({ ...newAccessory, price: Number(e.target.value) })}
+                                  placeholder="单价"
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Checkbox
+                                  checked={newAccessory.isStackable}
+                                  onCheckedChange={(checked) => setNewAccessory({ ...newAccessory, isStackable: !!checked })}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={addAccessory}
+                                  className="h-8 w-8"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
                           </TableBody>
                         </Table>
                       </div>
@@ -1243,59 +1514,74 @@ export default function SurveyPage() {
                     <div className="text-left">
                       <div className="font-semibold">系统常量</div>
                       <div className="text-sm text-muted-foreground">
-                        设备限制和固定参数（不可修改）
+                        设备限制和固定参数（不同厂商可自定义）
                       </div>
                     </div>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="pb-4">
                   <div className="space-y-4">
-                    <Card className="bg-muted/50">
-                      <CardContent className="p-4">
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                          <div>
-                            <p className="text-xs text-muted-foreground">最大印刷宽度</p>
-                            <p className="font-medium">{digitalConfig.systemConstants.maxPrintWidth} mm</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">最大印刷周长</p>
-                            <p className="font-medium">{digitalConfig.systemConstants.maxPrintCircumference} mm</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">材料幅宽</p>
-                            <p className="font-medium">{digitalConfig.systemConstants.materialWidth} mm</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">每款SKU损耗</p>
-                            <p className="font-medium">{digitalConfig.systemConstants.skuWaste} 个</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">调试损耗</p>
-                            <p className="font-medium">{digitalConfig.systemConstants.adjustmentWaste} 转</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">闲置材料最小量</p>
-                            <p className="font-medium">{digitalConfig.systemConstants.idleMaterialMin} m</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <div>
-                      <p className="font-medium mb-2">无印刷起步价</p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {digitalConfig.noPrintMinPrices.map((rule, index) => (
-                          <Card key={index} className="bg-muted/30">
-                            <CardContent className="p-3">
-                              <p className="text-sm text-muted-foreground">{rule.bagTypes.join("、")}</p>
-                              <p className="font-medium">{rule.minPrice} 元</p>
-                            </CardContent>
-                          </Card>
-                        ))}
+                    <p className="text-sm text-muted-foreground">
+                      根据您的设备参数调整以下数值。
+                    </p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">最大印刷宽度 (mm)</Label>
+                        <Input
+                          type="number"
+                          value={digitalConfig.systemConstants.maxPrintWidth}
+                          onChange={(e) => updateSystemConstant("maxPrintWidth", Number(e.target.value))}
+                          className="h-8"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">最大印刷周长 (mm)</Label>
+                        <Input
+                          type="number"
+                          value={digitalConfig.systemConstants.maxPrintCircumference}
+                          onChange={(e) => updateSystemConstant("maxPrintCircumference", Number(e.target.value))}
+                          className="h-8"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">材料幅宽 (mm)</Label>
+                        <Input
+                          type="number"
+                          value={digitalConfig.systemConstants.materialWidth}
+                          onChange={(e) => updateSystemConstant("materialWidth", Number(e.target.value))}
+                          className="h-8"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">每款SKU损耗 (个)</Label>
+                        <Input
+                          type="number"
+                          value={digitalConfig.systemConstants.skuWaste}
+                          onChange={(e) => updateSystemConstant("skuWaste", Number(e.target.value))}
+                          className="h-8"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">调试损耗 (转)</Label>
+                        <Input
+                          type="number"
+                          value={digitalConfig.systemConstants.adjustmentWaste}
+                          onChange={(e) => updateSystemConstant("adjustmentWaste", Number(e.target.value))}
+                          className="h-8"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">闲置材料最小量 (m)</Label>
+                        <Input
+                          type="number"
+                          value={digitalConfig.systemConstants.idleMaterialMin}
+                          onChange={(e) => updateSystemConstant("idleMaterialMin", Number(e.target.value))}
+                          className="h-8"
+                        />
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 pt-4 border-t">
                       <Label>默认税率 (%)</Label>
                       <Input
                         type="number"

@@ -169,11 +169,6 @@ export interface DigitalSystemConstants {
   idleMaterialMin: number;
 }
 
-export interface DigitalNoPrintMinPrice {
-  bagTypes: string[];
-  minPrice: number;
-}
-
 export interface DigitalGeneratorConfig {
   customBagTypes: CustomBagType[];
   printLayerMaterials: DigitalMaterial[];
@@ -186,7 +181,6 @@ export interface DigitalGeneratorConfig {
   accessories: DigitalAccessory[];
   printingTiers: DigitalPrintingTier[];
   systemConstants: DigitalSystemConstants;
-  noPrintMinPrices: DigitalNoPrintMinPrice[];
   vatRate: number;
 }
 
@@ -380,11 +374,6 @@ const defaultDigitalSystemConstants: DigitalSystemConstants = {
   idleMaterialMin: 50,
 };
 
-const defaultDigitalNoPrintMinPrices: DigitalNoPrintMinPrice[] = [
-  { bagTypes: ["threeSide", "standupNoZip", "standupWithZip", "centerSeal", "gusset", "shapedBag"], minPrice: 1000 },
-  { bagTypes: ["eightSideNoZip", "eightSideWithZip"], minPrice: 3000 },
-];
-
 const defaultDigitalConfig: DigitalGeneratorConfig = {
   customBagTypes: defaultDigitalBagTypes,
   printLayerMaterials: defaultDigitalPrintLayerMaterials,
@@ -397,7 +386,6 @@ const defaultDigitalConfig: DigitalGeneratorConfig = {
   accessories: defaultDigitalAccessories,
   printingTiers: defaultDigitalPrintingTiers,
   systemConstants: defaultDigitalSystemConstants,
-  noPrintMinPrices: defaultDigitalNoPrintMinPrices,
   vatRate: 13,
 };
 
