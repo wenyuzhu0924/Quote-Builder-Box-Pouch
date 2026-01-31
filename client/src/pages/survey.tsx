@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, ArrowRight, Plus, Trash2, Save, Package, Layers, Printer, Combine, Scissors, Grid3X3, Calculator, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Trash2, Save, Package, Layers, Printer, Combine, Scissors, Grid3X3, Calculator, Settings, Zap, Archive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,13 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { useQuote, type CustomMaterial, type PrintingPriceRule, type LaminationPriceRule, type PostProcessingOptionConfig, type QuantityDiscountRule, type CustomBagType, parseDimensionsFromFormula } from "@/lib/quote-store";
+import { useQuote, type CustomMaterial, type PrintingPriceRule, type LaminationPriceRule, type PostProcessingOptionConfig, type QuantityDiscountRule, type CustomBagType, type DigitalMaterial, type DigitalSpecialProcess, type DigitalZipperType, type DigitalValveType, type DigitalAccessory, type DigitalPrintingTier, parseDimensionsFromFormula } from "@/lib/quote-store";
 
 export default function SurveyPage() {
   const [, navigate] = useLocation();
-  const { state, updateConfig } = useQuote();
+  const { state, updateConfig, updateDigitalConfig } = useQuote();
   const { toast } = useToast();
   const config = state.config;
+  const digitalConfig = state.digitalConfig;
 
   const [newMaterial, setNewMaterial] = useState<Partial<CustomMaterial>>({
     name: "",
@@ -35,12 +36,22 @@ export default function SurveyPage() {
   const [newLamination, setNewLamination] = useState({ name: "", pricePerSqm: 0 });
   const [newPostProcessing, setNewPostProcessing] = useState({ name: "", priceFormula: "" });
 
+  const [newDigitalMaterial, setNewDigitalMaterial] = useState<Partial<DigitalMaterial>>({
+    name: "",
+    thickness: 0,
+    density: 0,
+    price: 0,
+    squarePrice: 0,
+    notes: "",
+  });
+
   if (!state.productType) {
     navigate("/");
     return null;
   }
 
   const isGravure = state.productType === "pouch" && state.printingMethod === "gravure";
+  const isDigital = state.productType === "pouch" && state.printingMethod === "digital";
 
   const handleBack = () => {
     navigate("/");
@@ -49,7 +60,6 @@ export default function SurveyPage() {
   const handleNext = () => {
     navigate("/quote");
   };
-
 
   const addCustomBagType = () => {
     if (!newBagType.name || !newBagType.formula) return;
@@ -200,9 +210,166 @@ export default function SurveyPage() {
     bottomInsert: "底插入",
     sideExpansion: "侧面展开",
     backSeal: "背封边",
+    sideGusset: "侧琴",
+    sealEdge: "封边",
+    areaCoefficient: "面积系数",
+    quantityUnit: "数量单位",
   };
 
-  if (!isGravure) {
+  const addDigitalBagType = () => {
+    if (!newBagType.name || !newBagType.formula) return;
+    const dimensions = parseDimensionsFromFormula(newBagType.formula || "");
+    const bagType: CustomBagType = {
+      id: `custom_${Date.now()}`,
+      name: newBagType.name || "",
+      formula: newBagType.formula || "",
+      requiredDimensions: dimensions,
+      wasteCoefficient: newBagType.wasteCoefficient || 1.0,
+      isBuiltIn: false,
+    };
+    updateDigitalConfig({ customBagTypes: [...digitalConfig.customBagTypes, bagType] });
+    setNewBagType({ name: "", formula: "", wasteCoefficient: 1.0 });
+    toast({ title: "袋型已添加" });
+  };
+
+  const removeDigitalBagType = (id: string) => {
+    updateDigitalConfig({ customBagTypes: digitalConfig.customBagTypes.filter((b) => b.id !== id) });
+  };
+
+  const updateDigitalMaterial = (category: "print" | "composite" | "seal", id: string, field: keyof DigitalMaterial, value: string | number) => {
+    if (category === "print") {
+      updateDigitalConfig({
+        printLayerMaterials: digitalConfig.printLayerMaterials.map((m) =>
+          m.id === id ? { ...m, [field]: value } : m
+        ),
+      });
+    } else if (category === "composite") {
+      updateDigitalConfig({
+        compositeLayerMaterials: digitalConfig.compositeLayerMaterials.map((m) =>
+          m.id === id ? { ...m, [field]: value } : m
+        ),
+      });
+    } else {
+      updateDigitalConfig({
+        sealLayerMaterials: digitalConfig.sealLayerMaterials.map((m) =>
+          m.id === id ? { ...m, [field]: value } : m
+        ),
+      });
+    }
+  };
+
+  const addDigitalMaterial = (category: "print" | "composite" | "seal") => {
+    if (!newDigitalMaterial.name) return;
+    const material: DigitalMaterial = {
+      id: `${category}_${Date.now()}`,
+      name: newDigitalMaterial.name || "",
+      thickness: newDigitalMaterial.thickness || 0,
+      density: newDigitalMaterial.density || 0,
+      price: newDigitalMaterial.price || 0,
+      squarePrice: newDigitalMaterial.squarePrice || 0,
+      category,
+      notes: newDigitalMaterial.notes || "",
+    };
+    if (category === "print") {
+      updateDigitalConfig({ printLayerMaterials: [...digitalConfig.printLayerMaterials, material] });
+    } else if (category === "composite") {
+      updateDigitalConfig({ compositeLayerMaterials: [...digitalConfig.compositeLayerMaterials, material] });
+    } else {
+      updateDigitalConfig({ sealLayerMaterials: [...digitalConfig.sealLayerMaterials, material] });
+    }
+    setNewDigitalMaterial({ name: "", thickness: 0, density: 0, price: 0, squarePrice: 0, notes: "" });
+    toast({ title: "材料已添加" });
+  };
+
+  const removeDigitalMaterial = (category: "print" | "composite" | "seal", id: string) => {
+    if (category === "print") {
+      updateDigitalConfig({ printLayerMaterials: digitalConfig.printLayerMaterials.filter((m) => m.id !== id) });
+    } else if (category === "composite") {
+      updateDigitalConfig({ compositeLayerMaterials: digitalConfig.compositeLayerMaterials.filter((m) => m.id !== id) });
+    } else {
+      updateDigitalConfig({ sealLayerMaterials: digitalConfig.sealLayerMaterials.filter((m) => m.id !== id) });
+    }
+  };
+
+  const toggleDigitalPrintMode = (id: string) => {
+    updateDigitalConfig({
+      printModes: digitalConfig.printModes.map((m) =>
+        m.id === id ? { ...m, enabled: !m.enabled } : m
+      ),
+    });
+  };
+
+  const toggleDigitalSpecialProcess = (id: string) => {
+    updateDigitalConfig({
+      specialProcesses: digitalConfig.specialProcesses.map((p) =>
+        p.id === id ? { ...p, enabled: !p.enabled } : p
+      ),
+    });
+  };
+
+  const updateDigitalSpecialProcess = (id: string, field: keyof DigitalSpecialProcess, value: string | number) => {
+    updateDigitalConfig({
+      specialProcesses: digitalConfig.specialProcesses.map((p) =>
+        p.id === id ? { ...p, [field]: value } : p
+      ),
+    });
+  };
+
+  const toggleDigitalZipper = (id: string) => {
+    updateDigitalConfig({
+      zipperTypes: digitalConfig.zipperTypes.map((z) =>
+        z.id === id ? { ...z, enabled: !z.enabled } : z
+      ),
+    });
+  };
+
+  const updateDigitalZipper = (id: string, field: keyof DigitalZipperType, value: string | number) => {
+    updateDigitalConfig({
+      zipperTypes: digitalConfig.zipperTypes.map((z) =>
+        z.id === id ? { ...z, [field]: value } : z
+      ),
+    });
+  };
+
+  const toggleDigitalValve = (id: string) => {
+    updateDigitalConfig({
+      valveTypes: digitalConfig.valveTypes.map((v) =>
+        v.id === id ? { ...v, enabled: !v.enabled } : v
+      ),
+    });
+  };
+
+  const updateDigitalValve = (id: string, field: keyof DigitalValveType, value: string | number) => {
+    updateDigitalConfig({
+      valveTypes: digitalConfig.valveTypes.map((v) =>
+        v.id === id ? { ...v, [field]: value } : v
+      ),
+    });
+  };
+
+  const toggleDigitalAccessory = (id: string) => {
+    updateDigitalConfig({
+      accessories: digitalConfig.accessories.map((a) =>
+        a.id === id ? { ...a, enabled: !a.enabled } : a
+      ),
+    });
+  };
+
+  const updateDigitalAccessory = (id: string, field: keyof DigitalAccessory, value: string | number | boolean) => {
+    updateDigitalConfig({
+      accessories: digitalConfig.accessories.map((a) =>
+        a.id === id ? { ...a, [field]: value } : a
+      ),
+    });
+  };
+
+  const updateDigitalPrintingTier = (index: number, field: keyof DigitalPrintingTier, value: string | number) => {
+    const updated = [...digitalConfig.printingTiers];
+    updated[index] = { ...updated[index], [field]: value };
+    updateDigitalConfig({ printingTiers: updated });
+  };
+
+  if (!isGravure && !isDigital) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <header className="border-b bg-card">
@@ -227,13 +394,12 @@ export default function SurveyPage() {
                 您选择的产品类型：
                 <span className="font-medium text-foreground ml-1">
                   {state.productType === "box" ? "礼盒" : "包装袋"}
-                  {state.printingMethod === "digital" && " - 数码印刷"}
                 </span>
               </p>
             </div>
 
             <div className="flex-1 flex items-center justify-center">
-              <p className="text-muted-foreground">该印刷方式的参数配置页面（待实现）</p>
+              <p className="text-muted-foreground">该产品类型的参数配置页面（待实现）</p>
             </div>
 
             <div className="mt-8 flex justify-between">
@@ -261,11 +427,919 @@ export default function SurveyPage() {
     );
   }
 
+  if (isDigital) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <header className="border-b bg-card sticky top-0 z-10">
+          <div className="container mx-auto px-4 py-4">
+            <h1 className="text-xl font-semibold text-foreground">报价器生成器 - 数码印刷</h1>
+          </div>
+        </header>
+
+        <main className="flex-1 container mx-auto px-4 py-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-medium">
+                  2
+                </div>
+                <span className="text-sm text-muted-foreground">第 2 步，共 3 步</span>
+              </div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                配置数码印刷报价器
+              </h2>
+              <p className="text-muted-foreground">
+                配置数码印刷的袋型、材料库、印刷工艺、附件等参数。
+              </p>
+            </div>
+
+            <Accordion type="multiple" defaultValue={["bagTypes"]} className="space-y-4">
+              <AccordionItem value="bagTypes" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline py-4">
+                  <div className="flex items-center gap-3">
+                    <Package className="w-5 h-5 text-primary" />
+                    <div className="text-left">
+                      <div className="font-semibold">袋型</div>
+                      <div className="text-sm text-muted-foreground">
+                        选择或添加袋型（共 {digitalConfig.customBagTypes.length} 种）
+                      </div>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      数码印刷支持的袋型。包含三边封、自立袋、中封袋、风琴袋、八边封、卷膜、异形袋等。
+                    </p>
+                    
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[50px]">选用</TableHead>
+                            <TableHead className="w-[150px]">袋型名称</TableHead>
+                            <TableHead>展开面积公式</TableHead>
+                            <TableHead className="w-[180px]">尺寸字段</TableHead>
+                            <TableHead className="w-[60px]"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {digitalConfig.customBagTypes.map((bagType) => (
+                            <TableRow key={bagType.id}>
+                              <TableCell>
+                                <Checkbox checked={true} data-testid={`digital-bagtype-check-${bagType.id}`} />
+                              </TableCell>
+                              <TableCell>
+                                <span className="font-medium">{bagType.name}</span>
+                                {bagType.isBuiltIn && (
+                                  <span className="ml-2 text-xs text-muted-foreground">(内置)</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {bagType.isBuiltIn ? (
+                                  <span className="text-sm text-muted-foreground">{bagType.formula}</span>
+                                ) : (
+                                  <Input
+                                    value={bagType.formula}
+                                    onChange={(e) => {
+                                      const dims = parseDimensionsFromFormula(e.target.value);
+                                      updateDigitalConfig({
+                                        customBagTypes: digitalConfig.customBagTypes.map((b) =>
+                                          b.id === bagType.id
+                                            ? { ...b, formula: e.target.value, requiredDimensions: dims }
+                                            : b
+                                        ),
+                                      });
+                                    }}
+                                    className="h-8"
+                                  />
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-wrap gap-1">
+                                  {bagType.requiredDimensions.map((dim) => (
+                                    <span key={dim} className="px-2 py-0.5 bg-muted text-xs rounded">
+                                      {dimensionLabels[dim] || dim}
+                                    </span>
+                                  ))}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {!bagType.isBuiltIn && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeDigitalBagType(bagType.id)}
+                                    className="h-8 w-8 text-destructive"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          <TableRow>
+                            <TableCell></TableCell>
+                            <TableCell>
+                              <Input
+                                value={newBagType.name}
+                                onChange={(e) => setNewBagType({ ...newBagType, name: e.target.value })}
+                                placeholder="新袋型名称"
+                                className="h-8"
+                                data-testid="digital-new-bagtype-name"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={newBagType.formula}
+                                onChange={(e) => setNewBagType({ ...newBagType, formula: e.target.value })}
+                                placeholder="例如：袋宽 × 袋高 × 2"
+                                className="h-8"
+                                data-testid="digital-new-bagtype-formula"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-xs text-muted-foreground">
+                                {newBagType.formula
+                                  ? parseDimensionsFromFormula(newBagType.formula).map((d) => dimensionLabels[d] || d).join("、") || "无匹配"
+                                  : "自动匹配"}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={addDigitalBagType}
+                                className="h-8 w-8"
+                                data-testid="digital-add-bagtype"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="printMaterials" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline py-4">
+                  <div className="flex items-center gap-3">
+                    <Layers className="w-5 h-5 text-primary" />
+                    <div className="text-left">
+                      <div className="font-semibold">印刷层材料</div>
+                      <div className="text-sm text-muted-foreground">
+                        配置印刷层材料库（当前 {digitalConfig.printLayerMaterials.length} 种）
+                      </div>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      印刷层材料包括MOPP、BOPP、PET、牛皮纸等。平方价 = (厚度 × 密度 ÷ 1000) × 材料单价。
+                    </p>
+                    
+                    <div className="border rounded-lg overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[140px]">材料名</TableHead>
+                            <TableHead className="w-[80px]">厚度(μm)</TableHead>
+                            <TableHead className="w-[80px]">密度</TableHead>
+                            <TableHead className="w-[80px]">单价(元/kg)</TableHead>
+                            <TableHead className="w-[100px]">平方价(元/㎡)</TableHead>
+                            <TableHead>备注</TableHead>
+                            <TableHead className="w-[60px]"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {digitalConfig.printLayerMaterials.slice(0, 10).map((material) => (
+                            <TableRow key={material.id}>
+                              <TableCell>
+                                <Input
+                                  value={material.name}
+                                  onChange={(e) => updateDigitalMaterial("print", material.id, "name", e.target.value)}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  value={material.thickness}
+                                  onChange={(e) => updateDigitalMaterial("print", material.id, "thickness", Number(e.target.value))}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={material.density}
+                                  onChange={(e) => updateDigitalMaterial("print", material.id, "density", Number(e.target.value))}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={material.price}
+                                  onChange={(e) => updateDigitalMaterial("print", material.id, "price", Number(e.target.value))}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={material.squarePrice}
+                                  onChange={(e) => updateDigitalMaterial("print", material.id, "squarePrice", Number(e.target.value))}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  value={material.notes}
+                                  onChange={(e) => updateDigitalMaterial("print", material.id, "notes", e.target.value)}
+                                  className="h-8"
+                                  placeholder="备注"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeDigitalMaterial("print", material.id)}
+                                  className="h-8 w-8 text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    {digitalConfig.printLayerMaterials.length > 10 && (
+                      <p className="text-sm text-muted-foreground">
+                        还有 {digitalConfig.printLayerMaterials.length - 10} 种材料未显示...
+                      </p>
+                    )}
+                    <div className="flex justify-end">
+                      <Button variant="outline" onClick={() => toast({ title: "印刷层材料已保存" })} className="gap-2">
+                        <Save className="w-4 h-4" />
+                        保存印刷层材料
+                      </Button>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="compositeMaterials" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline py-4">
+                  <div className="flex items-center gap-3">
+                    <Combine className="w-5 h-5 text-primary" />
+                    <div className="text-left">
+                      <div className="font-semibold">复合层材料</div>
+                      <div className="text-sm text-muted-foreground">
+                        配置复合层材料库（当前 {digitalConfig.compositeLayerMaterials.length} 种）
+                      </div>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      复合层材料包括VMPET、AL、NY、CPP、VMCPP等。
+                    </p>
+                    
+                    <div className="border rounded-lg overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[140px]">材料名</TableHead>
+                            <TableHead className="w-[80px]">厚度(μm)</TableHead>
+                            <TableHead className="w-[80px]">密度</TableHead>
+                            <TableHead className="w-[80px]">单价(元/kg)</TableHead>
+                            <TableHead className="w-[100px]">平方价(元/㎡)</TableHead>
+                            <TableHead>备注</TableHead>
+                            <TableHead className="w-[60px]"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {digitalConfig.compositeLayerMaterials.slice(0, 10).map((material) => (
+                            <TableRow key={material.id}>
+                              <TableCell>
+                                <Input
+                                  value={material.name}
+                                  onChange={(e) => updateDigitalMaterial("composite", material.id, "name", e.target.value)}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  value={material.thickness}
+                                  onChange={(e) => updateDigitalMaterial("composite", material.id, "thickness", Number(e.target.value))}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={material.density}
+                                  onChange={(e) => updateDigitalMaterial("composite", material.id, "density", Number(e.target.value))}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={material.price}
+                                  onChange={(e) => updateDigitalMaterial("composite", material.id, "price", Number(e.target.value))}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={material.squarePrice}
+                                  onChange={(e) => updateDigitalMaterial("composite", material.id, "squarePrice", Number(e.target.value))}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  value={material.notes}
+                                  onChange={(e) => updateDigitalMaterial("composite", material.id, "notes", e.target.value)}
+                                  className="h-8"
+                                  placeholder="备注"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeDigitalMaterial("composite", material.id)}
+                                  className="h-8 w-8 text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    {digitalConfig.compositeLayerMaterials.length > 10 && (
+                      <p className="text-sm text-muted-foreground">
+                        还有 {digitalConfig.compositeLayerMaterials.length - 10} 种材料未显示...
+                      </p>
+                    )}
+                    <div className="flex justify-end">
+                      <Button variant="outline" onClick={() => toast({ title: "复合层材料已保存" })} className="gap-2">
+                        <Save className="w-4 h-4" />
+                        保存复合层材料
+                      </Button>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="sealMaterials" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline py-4">
+                  <div className="flex items-center gap-3">
+                    <Archive className="w-5 h-5 text-primary" />
+                    <div className="text-left">
+                      <div className="font-semibold">热封层材料</div>
+                      <div className="text-sm text-muted-foreground">
+                        配置热封层材料库（当前 {digitalConfig.sealLayerMaterials.length} 种）
+                      </div>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      热封层材料包括PE、PLA、CPP、APE等。袋子最少包含2层印刷层和热封层；卷膜可以只选1层。
+                    </p>
+                    
+                    <div className="border rounded-lg overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[140px]">材料名</TableHead>
+                            <TableHead className="w-[80px]">厚度(μm)</TableHead>
+                            <TableHead className="w-[80px]">密度</TableHead>
+                            <TableHead className="w-[80px]">单价(元/kg)</TableHead>
+                            <TableHead className="w-[100px]">平方价(元/㎡)</TableHead>
+                            <TableHead>备注</TableHead>
+                            <TableHead className="w-[60px]"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {digitalConfig.sealLayerMaterials.slice(0, 10).map((material) => (
+                            <TableRow key={material.id}>
+                              <TableCell>
+                                <Input
+                                  value={material.name}
+                                  onChange={(e) => updateDigitalMaterial("seal", material.id, "name", e.target.value)}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  value={material.thickness}
+                                  onChange={(e) => updateDigitalMaterial("seal", material.id, "thickness", Number(e.target.value))}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={material.density}
+                                  onChange={(e) => updateDigitalMaterial("seal", material.id, "density", Number(e.target.value))}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={material.price}
+                                  onChange={(e) => updateDigitalMaterial("seal", material.id, "price", Number(e.target.value))}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={material.squarePrice}
+                                  onChange={(e) => updateDigitalMaterial("seal", material.id, "squarePrice", Number(e.target.value))}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  value={material.notes}
+                                  onChange={(e) => updateDigitalMaterial("seal", material.id, "notes", e.target.value)}
+                                  className="h-8"
+                                  placeholder="备注"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeDigitalMaterial("seal", material.id)}
+                                  className="h-8 w-8 text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    {digitalConfig.sealLayerMaterials.length > 10 && (
+                      <p className="text-sm text-muted-foreground">
+                        还有 {digitalConfig.sealLayerMaterials.length - 10} 种材料未显示...
+                      </p>
+                    )}
+                    <div className="flex justify-end">
+                      <Button variant="outline" onClick={() => toast({ title: "热封层材料已保存" })} className="gap-2">
+                        <Save className="w-4 h-4" />
+                        保存热封层材料
+                      </Button>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="printModes" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline py-4">
+                  <div className="flex items-center gap-3">
+                    <Printer className="w-5 h-5 text-primary" />
+                    <div className="text-left">
+                      <div className="font-semibold">印刷模式</div>
+                      <div className="text-sm text-muted-foreground">
+                        配置印刷模式（已启用 {digitalConfig.printModes.filter((m) => m.enabled).length} 种）
+                      </div>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      印刷模式包括无印刷、单黑、单白、双层白。印刷费 = 正单转数 × 印刷费阶梯 + 损耗转数 × 4。
+                    </p>
+                    
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[50px]">启用</TableHead>
+                            <TableHead>印刷模式</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {digitalConfig.printModes.map((mode) => (
+                            <TableRow key={mode.id}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={mode.enabled}
+                                  onCheckedChange={() => toggleDigitalPrintMode(mode.id)}
+                                  data-testid={`digital-printmode-${mode.id}`}
+                                />
+                              </TableCell>
+                              <TableCell>{mode.name}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    <div className="mt-4">
+                      <p className="font-medium mb-2">印刷阶梯价（按米数）</p>
+                      <div className="border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>米数范围</TableHead>
+                              <TableHead className="w-[120px]">单价 (元/m)</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {digitalConfig.printingTiers.map((tier, index) => (
+                              <TableRow key={index}>
+                                <TableCell>{tier.label}</TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={tier.pricePerMeter}
+                                    onChange={(e) => updateDigitalPrintingTier(index, "pricePerMeter", Number(e.target.value))}
+                                    className="h-8"
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="specialProcesses" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline py-4">
+                  <div className="flex items-center gap-3">
+                    <Zap className="w-5 h-5 text-primary" />
+                    <div className="text-left">
+                      <div className="font-semibold">特殊工艺</div>
+                      <div className="text-sm text-muted-foreground">
+                        配置特殊工艺选项（已启用 {digitalConfig.specialProcesses.filter((p) => p.enabled).length} 种）
+                      </div>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      特殊工艺包括双面印刷、异形袋、可变码、局部UV、烫金等。
+                    </p>
+                    
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[50px]">启用</TableHead>
+                            <TableHead className="w-[180px]">工艺名称</TableHead>
+                            <TableHead>计算公式</TableHead>
+                            <TableHead className="w-[100px]">起步价 (元)</TableHead>
+                            <TableHead>备注</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {digitalConfig.specialProcesses.map((process) => (
+                            <TableRow key={process.id}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={process.enabled}
+                                  onCheckedChange={() => toggleDigitalSpecialProcess(process.id)}
+                                  data-testid={`digital-process-${process.id}`}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  value={process.name}
+                                  onChange={(e) => updateDigitalSpecialProcess(process.id, "name", e.target.value)}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  value={process.priceFormula}
+                                  onChange={(e) => updateDigitalSpecialProcess(process.id, "priceFormula", e.target.value)}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  value={process.minPrice}
+                                  onChange={(e) => updateDigitalSpecialProcess(process.id, "minPrice", Number(e.target.value))}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  value={process.notes}
+                                  onChange={(e) => updateDigitalSpecialProcess(process.id, "notes", e.target.value)}
+                                  className="h-8"
+                                  placeholder="备注"
+                                />
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="accessories" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline py-4">
+                  <div className="flex items-center gap-3">
+                    <Scissors className="w-5 h-5 text-primary" />
+                    <div className="text-left">
+                      <div className="font-semibold">附件配置</div>
+                      <div className="text-sm text-muted-foreground">
+                        配置拉链、气阀、吸嘴和其他附件
+                      </div>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="space-y-6">
+                    <div>
+                      <p className="font-medium mb-2">拉链类型（单选）</p>
+                      <div className="border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[50px]">启用</TableHead>
+                              <TableHead>拉链名称</TableHead>
+                              <TableHead className="w-[120px]">单价 (元/米)</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {digitalConfig.zipperTypes.map((zipper) => (
+                              <TableRow key={zipper.id}>
+                                <TableCell>
+                                  <Checkbox
+                                    checked={zipper.enabled}
+                                    onCheckedChange={() => toggleDigitalZipper(zipper.id)}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    value={zipper.name}
+                                    onChange={(e) => updateDigitalZipper(zipper.id, "name", e.target.value)}
+                                    className="h-8"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={zipper.pricePerMeter}
+                                    onChange={(e) => updateDigitalZipper(zipper.id, "pricePerMeter", Number(e.target.value))}
+                                    className="h-8"
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="font-medium mb-2">气阀类型（单选）</p>
+                      <div className="border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[50px]">启用</TableHead>
+                              <TableHead>气阀名称</TableHead>
+                              <TableHead className="w-[120px]">单价 (元/个)</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {digitalConfig.valveTypes.map((valve) => (
+                              <TableRow key={valve.id}>
+                                <TableCell>
+                                  <Checkbox
+                                    checked={valve.enabled}
+                                    onCheckedChange={() => toggleDigitalValve(valve.id)}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    value={valve.name}
+                                    onChange={(e) => updateDigitalValve(valve.id, "name", e.target.value)}
+                                    className="h-8"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={valve.pricePerUnit}
+                                    onChange={(e) => updateDigitalValve(valve.id, "pricePerUnit", Number(e.target.value))}
+                                    className="h-8"
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="font-medium mb-2">其他附件</p>
+                      <div className="border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[50px]">启用</TableHead>
+                              <TableHead>附件名称</TableHead>
+                              <TableHead className="w-[120px]">单价 (元/个)</TableHead>
+                              <TableHead className="w-[80px]">可叠加</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {digitalConfig.accessories.map((accessory) => (
+                              <TableRow key={accessory.id}>
+                                <TableCell>
+                                  <Checkbox
+                                    checked={accessory.enabled}
+                                    onCheckedChange={() => toggleDigitalAccessory(accessory.id)}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    value={accessory.name}
+                                    onChange={(e) => updateDigitalAccessory(accessory.id, "name", e.target.value)}
+                                    className="h-8"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={accessory.price}
+                                    onChange={(e) => updateDigitalAccessory(accessory.id, "price", Number(e.target.value))}
+                                    className="h-8"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Checkbox
+                                    checked={accessory.isStackable}
+                                    onCheckedChange={(checked) => updateDigitalAccessory(accessory.id, "isStackable", !!checked)}
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        注意：气阀、吸嘴、拉链仅为单选配件；手提扣、束口条、激光易撕线等功能选项可叠加。
+                      </p>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="systemConstants" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline py-4">
+                  <div className="flex items-center gap-3">
+                    <Settings className="w-5 h-5 text-primary" />
+                    <div className="text-left">
+                      <div className="font-semibold">系统常量</div>
+                      <div className="text-sm text-muted-foreground">
+                        设备限制和固定参数（不可修改）
+                      </div>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="space-y-4">
+                    <Card className="bg-muted/50">
+                      <CardContent className="p-4">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          <div>
+                            <p className="text-xs text-muted-foreground">最大印刷宽度</p>
+                            <p className="font-medium">{digitalConfig.systemConstants.maxPrintWidth} mm</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">最大印刷周长</p>
+                            <p className="font-medium">{digitalConfig.systemConstants.maxPrintCircumference} mm</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">材料幅宽</p>
+                            <p className="font-medium">{digitalConfig.systemConstants.materialWidth} mm</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">每款SKU损耗</p>
+                            <p className="font-medium">{digitalConfig.systemConstants.skuWaste} 个</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">调试损耗</p>
+                            <p className="font-medium">{digitalConfig.systemConstants.adjustmentWaste} 转</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">闲置材料最小量</p>
+                            <p className="font-medium">{digitalConfig.systemConstants.idleMaterialMin} m</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <div>
+                      <p className="font-medium mb-2">无印刷起步价</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {digitalConfig.noPrintMinPrices.map((rule, index) => (
+                          <Card key={index} className="bg-muted/30">
+                            <CardContent className="p-3">
+                              <p className="text-sm text-muted-foreground">{rule.bagTypes.join("、")}</p>
+                              <p className="font-medium">{rule.minPrice} 元</p>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <Label>默认税率 (%)</Label>
+                      <Input
+                        type="number"
+                        value={digitalConfig.vatRate}
+                        onChange={(e) => updateDigitalConfig({ vatRate: Number(e.target.value) })}
+                        className="w-24 h-8"
+                      />
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+
+            <div className="mt-8 flex justify-between sticky bottom-4 bg-background/95 backdrop-blur py-4 border-t">
+              <Button
+                data-testid="button-back"
+                variant="outline"
+                onClick={handleBack}
+                className="gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                返回
+              </Button>
+              <Button
+                data-testid="button-next"
+                onClick={handleNext}
+                className="gap-2"
+                size="lg"
+              >
+                生成报价器
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b bg-card sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
-          <h1 className="text-xl font-semibold text-foreground">报价器生成器</h1>
+          <h1 className="text-xl font-semibold text-foreground">报价器生成器 - 凹版印刷</h1>
         </div>
       </header>
 
