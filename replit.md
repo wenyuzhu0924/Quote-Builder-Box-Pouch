@@ -2,7 +2,10 @@
 
 ## Overview
 
-This is a product quoting application (自动报价器 - "Auto Quote Generator") built with a React frontend and Express backend. The application guides users through a multi-step flow to generate quotes for packaging products (gift boxes and pouches). Users select a product type, fill out a survey with product specifications, and receive a quote.
+This is a **Quote Generator Builder** (报价器生成器) built with a React frontend and Express backend. The application is a **meta-tool** that allows users to create custom quote calculators for packaging products (gift boxes and pouches). Users:
+1. Select a product type and printing method
+2. Choose which parameters to include in their calculator
+3. Get a dynamically generated quote calculator that only shows the selected fields and calculates costs in real-time
 
 ## User Preferences
 
@@ -86,8 +89,8 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### January 2026 - Gravure Printing Survey Implementation
-- Added printing method selection (gravure/digital) to ProductSelectPage for pouch products
+### January 2026 - Quote Generator Builder Implementation
+- **Restructured application architecture** from direct quote calculator to meta-tool (quote generator builder)
 - Implemented comprehensive gravure configuration data models in `client/src/lib/gravure-config.ts`:
   - 10 bag types with area formulas, waste coefficients, and bag making rates
   - 20+ material types with thickness, density, and price properties
@@ -95,18 +98,21 @@ Preferred communication style: Simple, everyday language.
   - Lamination types (dry, dry retort, solventless)
   - Post-processing options with pricing formulas
   - Spout prices configuration
-- Built 7-module accordion-based survey interface for gravure printing:
-  1. 袋型与尺寸 (Bag Type & Dimensions) - bag type selection and dimension fields
-  2. 材料层结构 (Material Layer Structure) - 1-4 layer material configuration
-  3. 工艺成本 (Process Cost) - printing coverage and lamination steps
-  4. 后处理 (Post-Processing) - optional features like zipper, spout, hot stamp
-  5. 制版与起订 (Plate & MOQ) - plate configuration and quantity discounts
-  6. 制袋成本 (Bag Making Cost) - waste coefficients and bag making rates
-  7. 利润设置 (Profit Settings) - profit rate configuration
-- Visual distinction between user input fields (User icon, primary color) and backend configuration fields (Settings icon, muted color)
-- State persistence to global context via QuoteProvider including all backend configuration parameters
+- **SurveyPage restructured** as parameter selection interface:
+  - 7 accordion modules with checkboxes for 40+ parameters
+  - Visual distinction: User icon (primary color) for end-user input fields, Settings icon (muted) for backend config
+  - Users check which parameters to include in the generated calculator
+- **QuotePage implemented** as dynamic quote calculator:
+  - Dynamically renders only user-selected parameter fields
+  - Real-time cost calculation using useMemo for performance
+  - Covers materials, printing, lamination, post-processing, waste, bag-making, quantity discounts, and profit
+  - "编辑参数" button to return to survey and adjust selections
+- **Updated global state management** with new types:
+  - `SelectedParameters`: tracks which fields are enabled in the calculator
+  - `BackendDefaults`: stores default configuration values
+  - `QuoteGeneratorConfig`: complete configuration for the generated calculator
 
 ## Application Flow
 1. **ProductSelectPage** (`/`) - User selects product type (box/pouch) and printing method for pouches
-2. **SurveyPage** (`/survey`) - User configures product parameters based on selected type/method
-3. **QuotePage** (`/quote`) - System calculates and displays the quotation (to be implemented)
+2. **SurveyPage** (`/survey`) - **Parameter Selection**: User checks which parameters to include in the quote calculator via checkboxes in 7 accordion modules
+3. **QuotePage** (`/quote`) - **Generated Calculator**: Displays only selected fields, calculates costs in real-time based on user inputs
