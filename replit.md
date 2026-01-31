@@ -89,19 +89,51 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 31, 2026 - Custom Bag Types and Dynamic Configuration
+- **袋型 Module Redesign**:
+  - Added `CustomBagType` interface with formula and auto-detected `requiredDimensions`
+  - Added `parseDimensionsFromFormula()` helper that detects Chinese dimension keywords (袋宽, 袋高, 底插入, etc.)
+  - Users can add custom bag types with formulas; system auto-detects required dimension fields
+  - Built-in bag types marked with "(内置)" label, formulas are read-only
+  - Custom bag types allow full editing and deletion
+
+- **材料 Module Changes**:
+  - Removed "类别" (category) column from `CustomMaterial`
+  - Removed material layer count selector from survey page (moved to quote page)
+  - Added "保存材料库" button with toast confirmation
+
+- **复合 Module Changes**:
+  - Removed lamination step count selector from survey page (moved to quote page)
+  - Added +/delete buttons for custom lamination types
+
+- **后处理 Module Changes**:
+  - Added +/delete buttons for custom post-processing options
+  - Added "保存后处理选项" button with toast confirmation
+
+- **制版 Module Changes**:
+  - Changed to informational display only in survey page
+  - Actual plate cost inputs moved to quote page
+
+- **QuotePage Dynamic Features**:
+  - Material layers are now fully dynamic (user adds/removes as needed, 1-5 layers)
+  - Lamination steps are now fully dynamic with "添加复合" button
+  - Plate cost inputs integrated into quote page
+  - Bag type dropdown uses configured `customBagTypes` from config
+
 ### January 2026 - Quote Generator Builder Complete Restructure
 - **Completely restructured SurveyPage** from parameter selection to configuration builder:
   - 7 accordion modules for comprehensive configuration
-  - Bag type selection with checkboxes (shows area formula and required dimensions)
-  - Material library editor (name, category, thickness, density, grammage, price, notes)
+  - Bag type selection with table format (add/remove custom types)
+  - Material library editor (name, thickness, density, grammage, price, notes)
   - Printing price rules (coverage percentage to price/㎡ mapping)
   - Lamination price rules (lamination type to price/㎡)
   - Post-processing options library (enable/disable with price formulas)
-  - Plate price configuration (length, circumference, color count, price per cm²)
+  - Plate price configuration (informational display)
   - Quantity discount rules (min quantity, coefficient, label)
   
-- **New data types in quote-store.tsx**:
-  - `CustomMaterial`: Material library entry with all specifications
+- **Data types in quote-store.tsx**:
+  - `CustomBagType`: Bag type with formula and auto-detected dimensions
+  - `CustomMaterial`: Material library entry (no category field)
   - `PrintingPriceRule`: Coverage-to-price mapping
   - `LaminationPriceRule`: Lamination type-to-price mapping
   - `PostProcessingOptionConfig`: Post-processing option with enable flag and price formula
@@ -109,13 +141,13 @@ Preferred communication style: Simple, everyday language.
   - `QuantityDiscountRule`: Quantity-based discount tiers
   - `GeneratorConfig`: Complete configuration for generated calculator
   
-- **Rebuilt QuotePage** as dynamic quote calculator:
+- **QuotePage** as dynamic quote calculator:
   - Bag type dropdown with dimension inputs based on selected bag
-  - Material layers with quick-add buttons for first 4 materials
-  - Lamination step selectors (configurable step count)
+  - Dynamic material layers (add/remove by user)
+  - Dynamic lamination steps (add/remove by user)
   - Post-processing option cards (checkboxes with real-time cost display)
   - Printing coverage selector
-  - Plate cost calculator (separate from per-unit price)
+  - Plate cost inputs (separate from per-unit price)
   - Profit rate and exchange rate inputs
   - Real-time cost calculation with breakdown display
   - Quote results showing unit price and total in CNY and USD
@@ -128,6 +160,7 @@ Preferred communication style: Simple, everyday language.
 ## Key Design Decisions
 - Plate cost is calculated separately from per-unit cost (版费与袋子单价分开结算)
 - Profit rate is on the generated calculator, not the configuration page
-- Material library supports configurable layer count (1-5 layers)
-- Lamination supports configurable step count (1-4 steps)
-- Area formulas are based on bag type and display required dimension fields dynamically
+- Material layer count is controlled dynamically by user in quote page (1-5 layers)
+- Lamination step count is controlled dynamically by user in quote page
+- Custom bag types support formula-based dimension detection via `parseDimensionsFromFormula()`
+- Area formulas use Chinese keywords: 袋宽, 袋高, 底插入, 侧面展开, 背封边
