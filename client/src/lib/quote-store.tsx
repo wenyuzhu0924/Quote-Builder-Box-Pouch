@@ -568,11 +568,13 @@ export function parseDimensionsFromFormula(formula: string): string[] {
     "袋高": "height",
     "底插入": "bottomInsert",
     "底部插入": "bottomInsert",
+    "底插": "bottomInsert",
     "侧面展开": "sideExpansion",
     "背封边": "backSeal",
     "侧琴": "sideGusset",
     "封边": "sealEdge",
     "面积系数": "areaCoefficient",
+    "数量单位": "quantityUnit",
   };
   
   const dimensions: string[] = [];
