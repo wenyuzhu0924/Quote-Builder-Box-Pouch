@@ -43,161 +43,156 @@ export type MaterialType =
 export type LaminationType = "dry" | "dryRetort" | "solventless";
 export type PrintCoverage = 25 | 50 | 100 | 150 | 200 | 300;
 
-export interface ParameterField {
+export interface CustomMaterial {
   id: string;
-  label: string;
+  name: string;
   category: string;
-  type: "input" | "select" | "checkbox";
-  unit?: string;
-  options?: { value: string; label: string }[];
-  defaultValue?: string | number | boolean;
-  isUserInput: boolean;
-  tooltip?: string;
+  thickness: number;
+  density: number;
+  grammage: number;
+  price: number;
+  notes: string;
 }
 
-export interface SelectedParameters {
-  bagType: boolean;
-  dimensions: {
-    width: boolean;
-    height: boolean;
-    bottomInsert: boolean;
-    sideExpansion: boolean;
-    backSeal: boolean;
-  };
-  materials: {
-    enabled: boolean;
-    layerCount: number;
-    showThickness: boolean;
-    showDensity: boolean;
-    showPrice: boolean;
-  };
-  printing: {
-    coverage: boolean;
-  };
-  lamination: {
-    enabled: boolean;
-    showPrice: boolean;
-  };
-  postProcessing: {
-    zipper: boolean;
-    punchHole: boolean;
-    laserTear: boolean;
-    hotStamp: boolean;
-    spout: boolean;
-    matteOil: boolean;
-  };
-  plate: {
-    enabled: boolean;
-    showLength: boolean;
-    showCircumference: boolean;
-    showColorCount: boolean;
-    showUnitPrice: boolean;
-  };
-  quantity: boolean;
-  profitRate: boolean;
+export interface PostProcessingOptionConfig {
+  id: string;
+  name: string;
+  enabled: boolean;
+  priceFormula: string;
+  description: string;
 }
 
-export interface BackendDefaults {
-  materialPrices: Record<string, number>;
-  printPrices: Record<number, number>;
-  laminationPrices: Record<string, number>;
-  bagMakingRates: Record<string, number>;
-  wasteCoefficients: Record<string, number>;
-  wasteFees: Record<string, number>;
-  quantityDiscounts: { min: number; coefficient: number }[];
-  profitRate: number;
+export interface PrintingPriceRule {
+  coverage: number;
+  label: string;
+  pricePerSqm: number;
 }
 
-export interface QuoteGeneratorConfig {
+export interface LaminationPriceRule {
+  id: string;
+  name: string;
+  pricePerSqm: number;
+}
+
+export interface PlatePriceConfig {
+  defaultPlateLength: number;
+  defaultPlateCircumference: number;
+  defaultColorCount: number;
+  pricePerSqcm: number;
+}
+
+export interface QuantityDiscountRule {
+  minQuantity: number;
+  coefficient: number;
+  label: string;
+}
+
+export interface GeneratorConfig {
+  selectedBagTypes: BagType[];
+  materialLibrary: CustomMaterial[];
+  printingPriceRules: PrintingPriceRule[];
+  laminationPriceRules: LaminationPriceRule[];
+  postProcessingOptions: PostProcessingOptionConfig[];
+  platePriceConfig: PlatePriceConfig;
+  quantityDiscounts: QuantityDiscountRule[];
+  materialLayerCount: number;
+  laminationStepCount: number;
+}
+
+export interface QuoteGeneratorOutput {
   name: string;
   productType: ProductType;
   printingMethod: PrintingMethod;
-  selectedParams: SelectedParameters;
-  backendDefaults: BackendDefaults;
+  config: GeneratorConfig;
 }
 
 export interface QuoteState {
   productType: ProductType;
   printingMethod: PrintingMethod;
-  selectedParams: SelectedParameters;
-  backendDefaults: BackendDefaults;
-  generatorConfig: QuoteGeneratorConfig | null;
+  config: GeneratorConfig;
+  generatorOutput: QuoteGeneratorOutput | null;
 }
 
-const defaultSelectedParams: SelectedParameters = {
-  bagType: true,
-  dimensions: {
-    width: true,
-    height: true,
-    bottomInsert: true,
-    sideExpansion: false,
-    backSeal: false,
-  },
-  materials: {
-    enabled: true,
-    layerCount: 2,
-    showThickness: true,
-    showDensity: false,
-    showPrice: false,
-  },
-  printing: {
-    coverage: true,
-  },
-  lamination: {
-    enabled: true,
-    showPrice: false,
-  },
-  postProcessing: {
-    zipper: true,
-    punchHole: false,
-    laserTear: false,
-    hotStamp: false,
-    spout: true,
-    matteOil: false,
-  },
-  plate: {
-    enabled: false,
-    showLength: false,
-    showCircumference: false,
-    showColorCount: true,
-    showUnitPrice: false,
-  },
-  quantity: true,
-  profitRate: false,
+const defaultMaterialLibrary: CustomMaterial[] = [
+  { id: "1", name: "PET", category: "薄膜", thickness: 12, density: 1.4, grammage: 16.8, price: 8, notes: "" },
+  { id: "2", name: "VMPET", category: "镀铝膜", thickness: 12, density: 1.4, grammage: 16.8, price: 9, notes: "" },
+  { id: "3", name: "PE (LDPE)", category: "热封层", thickness: 90, density: 0.92, grammage: 82.8, price: 9.5, notes: "" },
+];
+
+const defaultPrintingPriceRules: PrintingPriceRule[] = [
+  { coverage: 25, label: "25% 覆盖率", pricePerSqm: 0.11 },
+  { coverage: 50, label: "50% 覆盖率", pricePerSqm: 0.13 },
+  { coverage: 100, label: "100% 覆盖率", pricePerSqm: 0.16 },
+  { coverage: 150, label: "150% 覆盖率", pricePerSqm: 0.21 },
+  { coverage: 200, label: "200% 覆盖率", pricePerSqm: 0.26 },
+  { coverage: 300, label: "300% 覆盖率", pricePerSqm: 0.36 },
+];
+
+const defaultLaminationPriceRules: LaminationPriceRule[] = [
+  { id: "dry", name: "干式复合", pricePerSqm: 0.13 },
+  { id: "dryRetort", name: "干式复合（蒸煮型）", pricePerSqm: 0.18 },
+  { id: "solventless", name: "无溶剂复合", pricePerSqm: 0.065 },
+];
+
+const defaultPostProcessingOptions: PostProcessingOptionConfig[] = [
+  { id: "zipper_normal", name: "普通拉链", enabled: true, priceFormula: "仅适用于自立袋/八边封袋；自立袋：0.10 元/米×袋宽；八边封袋：0.22 元/米×袋宽", description: "" },
+  { id: "zipper_easyTear", name: "易撕拉链", enabled: true, priceFormula: "仅适用于自立袋/八边封袋；自立袋：0.20 元/米×袋宽；八边封袋：0.47 元/米×袋宽", description: "" },
+  { id: "zipper_eco", name: "可降解拉链", enabled: true, priceFormula: "仅适用于自立袋；自立袋：0.50 元/米×袋宽", description: "" },
+  { id: "punchHole", name: "冲孔", enabled: true, priceFormula: "包含易撕口与挂孔，0 元/个（标配免费）", description: "" },
+  { id: "laserTear", name: "激光易撕线", enabled: true, priceFormula: "0.2 元/米 × 袋宽", description: "" },
+  { id: "hotStamp", name: "烫金", enabled: true, priceFormula: "烫金面积×1.2 元/㎡ + 0.02 元/次", description: "" },
+  { id: "wire", name: "加铁丝", enabled: true, priceFormula: "铁丝成本=(袋宽+40mm)×0.00013元/mm；贴铁丝人工费：≤140mm=0.024元/个，>140mm=0.026元/个", description: "" },
+  { id: "handle", name: "手提", enabled: true, priceFormula: "+0.15 元/个", description: "" },
+  { id: "airValve", name: "透气阀", enabled: true, priceFormula: "+0.11 元/个", description: "" },
+  { id: "emboss", name: "激凸", enabled: true, priceFormula: "0.2 元/次", description: "" },
+  { id: "windowCut", name: "定点开窗", enabled: true, priceFormula: "工钱：0.03 元/个", description: "" },
+  { id: "spout", name: "吸嘴（含吸嘴+压费）", enabled: true, priceFormula: "勾选后请选择规格；不同规格单价不同（元/个）", description: "" },
+  { id: "matteOil", name: "哑油工艺", enabled: true, priceFormula: "表面哑油处理，按展开面积计价：0.15 元/㎡", description: "" },
+];
+
+const defaultPlatePriceConfig: PlatePriceConfig = {
+  defaultPlateLength: 86,
+  defaultPlateCircumference: 19,
+  defaultColorCount: 3,
+  pricePerSqcm: 0.11,
 };
 
-const defaultBackendDefaults: BackendDefaults = {
-  materialPrices: {},
-  printPrices: { 25: 1800, 50: 2200, 100: 2800, 150: 3200, 200: 3600, 300: 4200 },
-  laminationPrices: { dry: 1200, dryRetort: 1500, solventless: 1000 },
-  bagMakingRates: {},
-  wasteCoefficients: {},
-  wasteFees: {},
-  quantityDiscounts: [
-    { min: 10000, coefficient: 1.0 },
-    { min: 30000, coefficient: 0.95 },
-    { min: 50000, coefficient: 0.90 },
-    { min: 100000, coefficient: 0.85 },
-  ],
-  profitRate: 15,
+const defaultQuantityDiscounts: QuantityDiscountRule[] = [
+  { minQuantity: 100000, coefficient: 0.96, label: "≥10万 大单" },
+  { minQuantity: 50000, coefficient: 0.98, label: "≥5万 中单" },
+  { minQuantity: 30000, coefficient: 1.00, label: "≥3万 标准" },
+  { minQuantity: 20000, coefficient: 1.15, label: "≥2万 小单" },
+  { minQuantity: 10000, coefficient: 1.30, label: "≥1万 微单" },
+  { minQuantity: 0, coefficient: 1.50, label: "<1万 特殊订单" },
+];
+
+const defaultConfig: GeneratorConfig = {
+  selectedBagTypes: ["standup", "threeSide", "centerSeal"],
+  materialLibrary: defaultMaterialLibrary,
+  printingPriceRules: defaultPrintingPriceRules,
+  laminationPriceRules: defaultLaminationPriceRules,
+  postProcessingOptions: defaultPostProcessingOptions,
+  platePriceConfig: defaultPlatePriceConfig,
+  quantityDiscounts: defaultQuantityDiscounts,
+  materialLayerCount: 3,
+  laminationStepCount: 2,
 };
 
 interface QuoteContextType {
   state: QuoteState;
   setProductType: (type: ProductType) => void;
   setPrintingMethod: (method: PrintingMethod) => void;
-  setSelectedParams: (params: SelectedParameters) => void;
-  setBackendDefaults: (defaults: BackendDefaults) => void;
-  generateConfig: () => QuoteGeneratorConfig;
+  setConfig: (config: GeneratorConfig) => void;
+  updateConfig: (updates: Partial<GeneratorConfig>) => void;
+  generateOutput: () => QuoteGeneratorOutput;
   resetQuote: () => void;
 }
 
 const initialState: QuoteState = {
   productType: null,
   printingMethod: null,
-  selectedParams: defaultSelectedParams,
-  backendDefaults: defaultBackendDefaults,
-  generatorConfig: null,
+  config: defaultConfig,
+  generatorOutput: null,
 };
 
 const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
@@ -213,24 +208,26 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, printingMethod: method }));
   };
 
-  const setSelectedParams = (params: SelectedParameters) => {
-    setState((prev) => ({ ...prev, selectedParams: params }));
+  const setConfig = (config: GeneratorConfig) => {
+    setState((prev) => ({ ...prev, config }));
   };
 
-  const setBackendDefaults = (defaults: BackendDefaults) => {
-    setState((prev) => ({ ...prev, backendDefaults: defaults }));
+  const updateConfig = (updates: Partial<GeneratorConfig>) => {
+    setState((prev) => ({
+      ...prev,
+      config: { ...prev.config, ...updates },
+    }));
   };
 
-  const generateConfig = (): QuoteGeneratorConfig => {
-    const config: QuoteGeneratorConfig = {
+  const generateOutput = (): QuoteGeneratorOutput => {
+    const output: QuoteGeneratorOutput = {
       name: `${state.productType === "pouch" ? "包装袋" : "礼盒"}-${state.printingMethod === "gravure" ? "凹版" : "数码"}报价器`,
       productType: state.productType,
       printingMethod: state.printingMethod,
-      selectedParams: state.selectedParams,
-      backendDefaults: state.backendDefaults,
+      config: state.config,
     };
-    setState((prev) => ({ ...prev, generatorConfig: config }));
-    return config;
+    setState((prev) => ({ ...prev, generatorOutput: output }));
+    return output;
   };
 
   const resetQuote = () => {
@@ -243,9 +240,9 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         state,
         setProductType,
         setPrintingMethod,
-        setSelectedParams,
-        setBackendDefaults,
-        generateConfig,
+        setConfig,
+        updateConfig,
+        generateOutput,
         resetQuote,
       }}
     >
