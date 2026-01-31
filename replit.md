@@ -89,6 +89,32 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 31, 2026 - Digital Printing Configuration System
+- **Digital Printing Survey Page** with 8 accordion modules:
+  - 袋型: 15 built-in digital bag types (三边封, 自立袋变体, 八边封变体, 卷膜, 异形袋)
+  - 印刷层材料: 19 default materials (MOPP, BOPP, PET, 牛皮纸, etc.)
+  - 复合层材料: 24 default materials (VMPET, AL, NY, CPP, VMCPP, etc.)
+  - 热封层材料: 26 default materials (PE, PLA, CPP, APE, etc.)
+  - 印刷模式: 4 modes (无印刷, 单黑, 单白, 双层白) with 5-tier meter-based pricing
+  - 特殊工艺: 15 special processes (双面印刷, 异形袋, 可变码, 局部UV, 烫金, etc.)
+  - 附件配置: 8 zipper types, 3 valve types, 8 accessories with stackable flags
+  - 系统常量: Device limits (740mm width, 1120mm circumference), waste factors, VAT rate
+
+- **Digital Printing Data Types**:
+  - `DigitalMaterial`: 3-category structure (print/composite/seal) with kg price and square meter price
+  - `DigitalPrintMode`: Print mode with enable flag
+  - `DigitalSpecialProcess`: Special process with formula, min price, and notes
+  - `DigitalZipperType`, `DigitalValveType`, `DigitalAccessory`: Accessory types with pricing
+  - `DigitalPrintingTier`: Meter-based tier pricing (≤500m, 500m-1000m, etc.)
+  - `DigitalSystemConstants`: Device limits and waste coefficients
+  - `DigitalGeneratorConfig`: Complete digital printing configuration
+
+- **State Management Updates**:
+  - Added `digitalConfig` to QuoteState
+  - Added `updateDigitalConfig()` method to QuoteProvider
+  - Extended `generateOutput()` to include digitalConfig for digital printing
+  - Extended `parseDimensionsFromFormula()` to include digital dimension keywords (侧琴, 封边, 面积系数, 数量单位)
+
 ### January 31, 2026 - Custom Bag Types and Dynamic Configuration
 - **袋型 Module Redesign**:
   - Added `CustomBagType` interface with formula and auto-detected `requiredDimensions`
