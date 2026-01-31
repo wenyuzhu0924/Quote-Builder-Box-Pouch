@@ -4,8 +4,8 @@
 
 This is a **Quote Generator Builder** (报价器生成器) built with a React frontend and Express backend. The application is a **meta-tool** that allows users to create custom quote calculators for packaging products (gift boxes and pouches). Users:
 1. Select a product type and printing method
-2. Choose which parameters to include in their calculator
-3. Get a dynamically generated quote calculator that only shows the selected fields and calculates costs in real-time
+2. Configure pricing logic and libraries (materials, post-processing, discounts, etc.)
+3. Get a dynamically generated quote calculator that shows only configured options and calculates costs in real-time
 
 ## User Preferences
 
@@ -89,30 +89,45 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### January 2026 - Quote Generator Builder Implementation
-- **Restructured application architecture** from direct quote calculator to meta-tool (quote generator builder)
-- Implemented comprehensive gravure configuration data models in `client/src/lib/gravure-config.ts`:
-  - 10 bag types with area formulas, waste coefficients, and bag making rates
-  - 20+ material types with thickness, density, and price properties
-  - Print coverage options (25-300%)
-  - Lamination types (dry, dry retort, solventless)
-  - Post-processing options with pricing formulas
-  - Spout prices configuration
-- **SurveyPage restructured** as parameter selection interface:
-  - 7 accordion modules with checkboxes for 40+ parameters
-  - Visual distinction: User icon (primary color) for end-user input fields, Settings icon (muted) for backend config
-  - Users check which parameters to include in the generated calculator
-- **QuotePage implemented** as dynamic quote calculator:
-  - Dynamically renders only user-selected parameter fields
-  - Real-time cost calculation using useMemo for performance
-  - Covers materials, printing, lamination, post-processing, waste, bag-making, quantity discounts, and profit
-  - "编辑参数" button to return to survey and adjust selections
-- **Updated global state management** with new types:
-  - `SelectedParameters`: tracks which fields are enabled in the calculator
-  - `BackendDefaults`: stores default configuration values
-  - `QuoteGeneratorConfig`: complete configuration for the generated calculator
+### January 2026 - Quote Generator Builder Complete Restructure
+- **Completely restructured SurveyPage** from parameter selection to configuration builder:
+  - 7 accordion modules for comprehensive configuration
+  - Bag type selection with checkboxes (shows area formula and required dimensions)
+  - Material library editor (name, category, thickness, density, grammage, price, notes)
+  - Printing price rules (coverage percentage to price/㎡ mapping)
+  - Lamination price rules (lamination type to price/㎡)
+  - Post-processing options library (enable/disable with price formulas)
+  - Plate price configuration (length, circumference, color count, price per cm²)
+  - Quantity discount rules (min quantity, coefficient, label)
+  
+- **New data types in quote-store.tsx**:
+  - `CustomMaterial`: Material library entry with all specifications
+  - `PrintingPriceRule`: Coverage-to-price mapping
+  - `LaminationPriceRule`: Lamination type-to-price mapping
+  - `PostProcessingOptionConfig`: Post-processing option with enable flag and price formula
+  - `PlatePriceConfig`: Plate cost calculation parameters
+  - `QuantityDiscountRule`: Quantity-based discount tiers
+  - `GeneratorConfig`: Complete configuration for generated calculator
+  
+- **Rebuilt QuotePage** as dynamic quote calculator:
+  - Bag type dropdown with dimension inputs based on selected bag
+  - Material layers with quick-add buttons for first 4 materials
+  - Lamination step selectors (configurable step count)
+  - Post-processing option cards (checkboxes with real-time cost display)
+  - Printing coverage selector
+  - Plate cost calculator (separate from per-unit price)
+  - Profit rate and exchange rate inputs
+  - Real-time cost calculation with breakdown display
+  - Quote results showing unit price and total in CNY and USD
 
 ## Application Flow
 1. **ProductSelectPage** (`/`) - User selects product type (box/pouch) and printing method for pouches
-2. **SurveyPage** (`/survey`) - **Parameter Selection**: User checks which parameters to include in the quote calculator via checkboxes in 7 accordion modules
-3. **QuotePage** (`/quote`) - **Generated Calculator**: Displays only selected fields, calculates costs in real-time based on user inputs
+2. **SurveyPage** (`/survey`) - **Configuration Builder**: User configures pricing logic, material library, and options for the quote calculator
+3. **QuotePage** (`/quote`) - **Generated Calculator**: Displays configured options, calculates costs in real-time based on user inputs
+
+## Key Design Decisions
+- Plate cost is calculated separately from per-unit cost (版费与袋子单价分开结算)
+- Profit rate is on the generated calculator, not the configuration page
+- Material library supports configurable layer count (1-5 layers)
+- Lamination supports configurable step count (1-4 steps)
+- Area formulas are based on bag type and display required dimension fields dynamically
