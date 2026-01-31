@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Edit, Link2, RefreshCw, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Edit, RefreshCw, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,8 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuote, type BagType, type CustomMaterial } from "@/lib/quote-store";
-import { BAG_TYPES } from "@/lib/gravure-config";
+import { useQuote, type CustomMaterial, type CustomBagType } from "@/lib/quote-store";
 
 interface MaterialLayer {
   materialId: string;
@@ -18,17 +17,22 @@ interface MaterialLayer {
   price: number;
 }
 
+interface LaminationStep {
+  id: string;
+  laminationId: string;
+}
+
 interface SelectedPostProcessing {
   [key: string]: boolean;
 }
 
 export default function QuotePage() {
   const [, navigate] = useLocation();
-  const { state, generateOutput, resetQuote } = useQuote();
+  const { state, resetQuote } = useQuote();
   const config = state.config;
 
-  const [selectedBagType, setSelectedBagType] = useState<BagType>(
-    config.selectedBagTypes[0] || "standup"
+  const [selectedBagTypeId, setSelectedBagTypeId] = useState<string>(
+    config.customBagTypes[0]?.id || ""
   );
   const [dimensions, setDimensions] = useState({
     width: 190,
@@ -41,22 +45,21 @@ export default function QuotePage() {
   
   const [materialLayers, setMaterialLayers] = useState<MaterialLayer[]>(() => {
     const layers: MaterialLayer[] = [];
-    for (let i = 0; i < config.materialLayerCount; i++) {
-      const material = config.materialLibrary[i] || config.materialLibrary[0];
-      if (material) {
-        layers.push({
-          materialId: material.id,
-          thickness: material.thickness,
-          density: material.density,
-          price: material.price,
-        });
-      }
+    const firstMaterial = config.materialLibrary[0];
+    if (firstMaterial) {
+      layers.push({
+        materialId: firstMaterial.id,
+        thickness: firstMaterial.thickness,
+        density: firstMaterial.density,
+        price: firstMaterial.price,
+      });
     }
     return layers;
   });
 
-  const [laminationSelections, setLaminationSelections] = useState<string[]>(() => {
-    return config.laminationPriceRules.slice(0, config.laminationStepCount).map((r) => r.id);
+  const [laminationSteps, setLaminationSteps] = useState<LaminationStep[]>(() => {
+    const firstRule = config.laminationPriceRules[0];
+    return firstRule ? [{ id: "step_1", laminationId: firstRule.id }] : [];
   });
 
   const [selectedPrintCoverage, setSelectedPrintCoverage] = useState(
@@ -82,8 +85,8 @@ export default function QuotePage() {
 
   const isGravure = state.productType === "pouch" && state.printingMethod === "gravure";
 
-  const bagTypeConfig = BAG_TYPES[selectedBagType];
-  const requiredDimensions = bagTypeConfig?.requiredDimensions || [];
+  const selectedBagType = config.customBagTypes.find((b) => b.id === selectedBagTypeId);
+  const requiredDimensions = selectedBagType?.requiredDimensions || [];
 
   const calculateArea = useMemo(() => {
     const w = dimensions.width / 1000;
@@ -92,7 +95,9 @@ export default function QuotePage() {
     const se = dimensions.sideExpansion / 1000;
     const bs = dimensions.backSeal / 1000;
 
-    switch (selectedBagType) {
+    if (!selectedBagType) return w * h * 2;
+
+    switch (selectedBagType.id) {
       case "standup":
         return w * (h + bi) * 2;
       case "threeSide":
@@ -136,8 +141,8 @@ export default function QuotePage() {
     const printCostPerUnit = printRule ? area * printRule.pricePerSqm : 0;
 
     let laminationCostPerUnit = 0;
-    laminationSelections.forEach((laminationId) => {
-      const rule = config.laminationPriceRules.find((r) => r.id === laminationId);
+    laminationSteps.forEach((step) => {
+      const rule = config.laminationPriceRules.find((r) => r.id === step.laminationId);
       if (rule) {
         laminationCostPerUnit += area * rule.pricePerSqm;
       }
@@ -149,9 +154,9 @@ export default function QuotePage() {
       const widthM = dimensions.width / 1000;
       
       if (id === "zipper_normal") {
-        postProcessingCostPerUnit += selectedBagType === "eightSide" ? 0.22 * widthM : 0.10 * widthM;
+        postProcessingCostPerUnit += selectedBagType?.id === "eightSide" ? 0.22 * widthM : 0.10 * widthM;
       } else if (id === "zipper_easyTear") {
-        postProcessingCostPerUnit += selectedBagType === "eightSide" ? 0.47 * widthM : 0.20 * widthM;
+        postProcessingCostPerUnit += selectedBagType?.id === "eightSide" ? 0.47 * widthM : 0.20 * widthM;
       } else if (id === "zipper_eco") {
         postProcessingCostPerUnit += 0.50 * widthM;
       } else if (id === "punchHole") {
@@ -188,7 +193,7 @@ export default function QuotePage() {
       }
     }
 
-    const wasteCoefficient = bagTypeConfig?.wasteCoefficient || 1.1;
+    const wasteCoefficient = selectedBagType?.wasteCoefficient || 1.1;
 
     const baseCostPerUnit = materialCostPerUnit + printCostPerUnit + laminationCostPerUnit + postProcessingCostPerUnit;
     const costWithWaste = baseCostPerUnit * wasteCoefficient;
@@ -216,7 +221,7 @@ export default function QuotePage() {
     calculateArea,
     materialLayers,
     selectedPrintCoverage,
-    laminationSelections,
+    laminationSteps,
     selectedPostProcessing,
     plateConfig,
     quantity,
@@ -224,7 +229,6 @@ export default function QuotePage() {
     config,
     dimensions,
     selectedBagType,
-    bagTypeConfig,
   ]);
 
   const handleEditParams = () => {
@@ -270,6 +274,27 @@ export default function QuotePage() {
               price: material.price,
             }
           : layer
+      )
+    );
+  };
+
+  const addLaminationStep = () => {
+    const firstRule = config.laminationPriceRules[0];
+    if (!firstRule) return;
+    setLaminationSteps([
+      ...laminationSteps,
+      { id: `step_${Date.now()}`, laminationId: firstRule.id },
+    ]);
+  };
+
+  const removeLaminationStep = (index: number) => {
+    setLaminationSteps(laminationSteps.filter((_, i) => i !== index));
+  };
+
+  const updateLaminationStep = (index: number, laminationId: string) => {
+    setLaminationSteps(
+      laminationSteps.map((step, i) =>
+        i === index ? { ...step, laminationId } : step
       )
     );
   };
@@ -329,14 +354,14 @@ export default function QuotePage() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="md:col-span-2">
-                  <Select value={selectedBagType} onValueChange={(v) => setSelectedBagType(v as BagType)}>
+                  <Select value={selectedBagTypeId} onValueChange={setSelectedBagTypeId}>
                     <SelectTrigger data-testid="select-bagType">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {config.selectedBagTypes.map((bagType) => (
-                        <SelectItem key={bagType} value={bagType}>
-                          {BAG_TYPES[bagType]?.nameZh || bagType}
+                      {config.customBagTypes.map((bagType) => (
+                        <SelectItem key={bagType.id} value={bagType.id}>
+                          {bagType.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -373,7 +398,7 @@ export default function QuotePage() {
           <Card>
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">材料层结构</CardTitle>
+                <CardTitle className="text-lg">材料层结构（{materialLayers.length}层）</CardTitle>
                 <div className="flex items-center gap-2">
                   {config.materialLibrary.slice(0, 4).map((material) => (
                     <Button
@@ -407,7 +432,6 @@ export default function QuotePage() {
             <CardContent>
               <div className="space-y-4">
                 {materialLayers.map((layer, index) => {
-                  const material = getMaterialById(layer.materialId);
                   const thicknessM = layer.thickness / 1000000;
                   const materialWeight = costs.area * thicknessM * layer.density * 1000;
                   const layerCost = materialWeight * layer.price / 1000;
@@ -415,7 +439,7 @@ export default function QuotePage() {
                   return (
                     <div key={index} className="flex items-end gap-4 p-4 border rounded-lg">
                       <div className="flex-1">
-                        <Label className="text-sm text-muted-foreground mb-2 block">材料</Label>
+                        <Label className="text-sm text-muted-foreground mb-2 block">第{index + 1}层材料</Label>
                         <Select
                           value={layer.materialId}
                           onValueChange={(v) => updateMaterialLayer(index, v)}
@@ -433,7 +457,7 @@ export default function QuotePage() {
                         </Select>
                       </div>
                       <div className="w-24">
-                        <Label className="text-sm text-muted-foreground mb-2 block">厚度/克重</Label>
+                        <Label className="text-sm text-muted-foreground mb-2 block">厚度(μm)</Label>
                         <Input
                           type="number"
                           value={layer.thickness}
@@ -493,34 +517,49 @@ export default function QuotePage() {
 
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg">复合工艺（每一步按展开面积计价）</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">复合工艺（{laminationSteps.length}次复合）</CardTitle>
+                <Button variant="outline" size="sm" onClick={addLaminationStep} className="gap-2" data-testid="add-lamination-step">
+                  <Plus className="w-4 h-4" />
+                  添加复合
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {Array.from({ length: config.laminationStepCount }).map((_, index) => (
-                  <div key={index} className="flex items-center gap-4">
-                    <Label className="w-16">第{index + 1}次：</Label>
-                    <Select
-                      value={laminationSelections[index] || ""}
-                      onValueChange={(v) => {
-                        const updated = [...laminationSelections];
-                        updated[index] = v;
-                        setLaminationSelections(updated);
-                      }}
-                    >
-                      <SelectTrigger className="w-64" data-testid={`select-lamination-${index}`}>
-                        <SelectValue placeholder="选择复合类型" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {config.laminationPriceRules.map((rule) => (
-                          <SelectItem key={rule.id} value={rule.id}>
-                            {rule.name} ({rule.pricePerSqm}¥)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ))}
+                {laminationSteps.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">暂无复合工艺，点击"添加复合"添加</p>
+                ) : (
+                  laminationSteps.map((step, index) => (
+                    <div key={step.id} className="flex items-center gap-4">
+                      <Label className="w-16">第{index + 1}次：</Label>
+                      <Select
+                        value={step.laminationId}
+                        onValueChange={(v) => updateLaminationStep(index, v)}
+                      >
+                        <SelectTrigger className="w-64" data-testid={`select-lamination-${index}`}>
+                          <SelectValue placeholder="选择复合类型" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {config.laminationPriceRules.map((rule) => (
+                            <SelectItem key={rule.id} value={rule.id}>
+                              {rule.name} ({rule.pricePerSqm}¥/㎡)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeLaminationStep(index)}
+                        className="text-destructive"
+                        data-testid={`remove-lamination-step-${index}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -538,9 +577,9 @@ export default function QuotePage() {
                     let currentCost = 0;
                     
                     if (option.id === "zipper_normal") {
-                      currentCost = selectedBagType === "eightSide" ? 0.22 * widthM : 0.10 * widthM;
+                      currentCost = selectedBagType?.id === "eightSide" ? 0.22 * widthM : 0.10 * widthM;
                     } else if (option.id === "zipper_easyTear") {
-                      currentCost = selectedBagType === "eightSide" ? 0.47 * widthM : 0.20 * widthM;
+                      currentCost = selectedBagType?.id === "eightSide" ? 0.47 * widthM : 0.20 * widthM;
                     } else if (option.id === "zipper_eco") {
                       currentCost = 0.50 * widthM;
                     } else if (option.id === "laserTear") {
@@ -605,16 +644,17 @@ export default function QuotePage() {
                     );
                   })}
               </div>
-              <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-                <p className="text-sm text-muted-foreground">
-                  已选工艺：{Object.entries(selectedPostProcessing).filter(([, v]) => v).length === 0 
-                    ? "无" 
-                    : Object.entries(selectedPostProcessing)
-                        .filter(([, v]) => v)
-                        .map(([id]) => config.postProcessingOptions.find((o) => o.id === id)?.name)
-                        .join("、")}
-                </p>
-              </div>
+              {Object.entries(selectedPostProcessing).filter(([, v]) => v).length > 0 && (
+                <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    已选工艺：
+                    {Object.entries(selectedPostProcessing)
+                      .filter(([, v]) => v)
+                      .map(([id]) => config.postProcessingOptions.find((o) => o.id === id)?.name)
+                      .join("、")}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 

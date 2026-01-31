@@ -13,7 +13,8 @@ export type BagType =
   | "flatBottom"
   | "threeSideShape"
   | "taperShape"
-  | "rollFilm";
+  | "rollFilm"
+  | string;
 
 export type MaterialType =
   | "PET"
@@ -43,10 +44,18 @@ export type MaterialType =
 export type LaminationType = "dry" | "dryRetort" | "solventless";
 export type PrintCoverage = 25 | 50 | 100 | 150 | 200 | 300;
 
+export interface CustomBagType {
+  id: string;
+  name: string;
+  formula: string;
+  requiredDimensions: string[];
+  wasteCoefficient: number;
+  isBuiltIn: boolean;
+}
+
 export interface CustomMaterial {
   id: string;
   name: string;
-  category: string;
   thickness: number;
   density: number;
   grammage: number;
@@ -88,15 +97,13 @@ export interface QuantityDiscountRule {
 }
 
 export interface GeneratorConfig {
-  selectedBagTypes: BagType[];
+  customBagTypes: CustomBagType[];
   materialLibrary: CustomMaterial[];
   printingPriceRules: PrintingPriceRule[];
   laminationPriceRules: LaminationPriceRule[];
   postProcessingOptions: PostProcessingOptionConfig[];
   platePriceConfig: PlatePriceConfig;
   quantityDiscounts: QuantityDiscountRule[];
-  materialLayerCount: number;
-  laminationStepCount: number;
 }
 
 export interface QuoteGeneratorOutput {
@@ -113,10 +120,18 @@ export interface QuoteState {
   generatorOutput: QuoteGeneratorOutput | null;
 }
 
+const defaultCustomBagTypes: CustomBagType[] = [
+  { id: "standup", name: "自立袋", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.1, isBuiltIn: true },
+  { id: "threeSide", name: "三边封", formula: "袋宽 × 袋高 × 2", requiredDimensions: ["width", "height"], wasteCoefficient: 1.1, isBuiltIn: true },
+  { id: "centerSeal", name: "中封袋", formula: "(袋宽 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "backSeal"], wasteCoefficient: 1.1, isBuiltIn: true },
+  { id: "gusset", name: "风琴袋", formula: "(袋宽 + 侧面展开 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "sideExpansion", "backSeal"], wasteCoefficient: 1.1, isBuiltIn: true },
+  { id: "eightSide", name: "八边封袋", formula: "袋宽 × 袋高 × 2 + 侧面展开 × 袋高 × 2", requiredDimensions: ["width", "height", "sideExpansion"], wasteCoefficient: 1.1, isBuiltIn: true },
+];
+
 const defaultMaterialLibrary: CustomMaterial[] = [
-  { id: "1", name: "PET", category: "薄膜", thickness: 12, density: 1.4, grammage: 16.8, price: 8, notes: "" },
-  { id: "2", name: "VMPET", category: "镀铝膜", thickness: 12, density: 1.4, grammage: 16.8, price: 9, notes: "" },
-  { id: "3", name: "PE (LDPE)", category: "热封层", thickness: 90, density: 0.92, grammage: 82.8, price: 9.5, notes: "" },
+  { id: "1", name: "PET", thickness: 12, density: 1.4, grammage: 16.8, price: 8, notes: "" },
+  { id: "2", name: "VMPET", thickness: 12, density: 1.4, grammage: 16.8, price: 9, notes: "" },
+  { id: "3", name: "PE (LDPE)", thickness: 90, density: 0.92, grammage: 82.8, price: 9.5, notes: "" },
 ];
 
 const defaultPrintingPriceRules: PrintingPriceRule[] = [
@@ -167,15 +182,13 @@ const defaultQuantityDiscounts: QuantityDiscountRule[] = [
 ];
 
 const defaultConfig: GeneratorConfig = {
-  selectedBagTypes: ["standup", "threeSide", "centerSeal"],
+  customBagTypes: defaultCustomBagTypes,
   materialLibrary: defaultMaterialLibrary,
   printingPriceRules: defaultPrintingPriceRules,
   laminationPriceRules: defaultLaminationPriceRules,
   postProcessingOptions: defaultPostProcessingOptions,
   platePriceConfig: defaultPlatePriceConfig,
   quantityDiscounts: defaultQuantityDiscounts,
-  materialLayerCount: 3,
-  laminationStepCount: 2,
 };
 
 interface QuoteContextType {
@@ -257,4 +270,23 @@ export function useQuote() {
     throw new Error("useQuote must be used within a QuoteProvider");
   }
   return context;
+}
+
+export function parseDimensionsFromFormula(formula: string): string[] {
+  const dimensionMap: Record<string, string> = {
+    "袋宽": "width",
+    "袋高": "height",
+    "底插入": "bottomInsert",
+    "底部插入": "bottomInsert",
+    "侧面展开": "sideExpansion",
+    "背封边": "backSeal",
+  };
+  
+  const dimensions: string[] = [];
+  for (const [chinese, english] of Object.entries(dimensionMap)) {
+    if (formula.includes(chinese) && !dimensions.includes(english)) {
+      dimensions.push(english);
+    }
+  }
+  return dimensions;
 }

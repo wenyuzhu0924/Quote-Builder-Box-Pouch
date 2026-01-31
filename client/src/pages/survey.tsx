@@ -1,33 +1,39 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, ArrowRight, Plus, Trash2, Info, Package, Layers, Printer, Combine, Scissors, Grid3X3, Calculator } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Trash2, Save, Package, Layers, Printer, Combine, Scissors, Grid3X3, Calculator, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuote, type CustomMaterial, type PrintingPriceRule, type LaminationPriceRule, type PostProcessingOptionConfig, type QuantityDiscountRule, type BagType } from "@/lib/quote-store";
-import { BAG_TYPES } from "@/lib/gravure-config";
+import { useToast } from "@/hooks/use-toast";
+import { useQuote, type CustomMaterial, type PrintingPriceRule, type LaminationPriceRule, type PostProcessingOptionConfig, type QuantityDiscountRule, type CustomBagType, parseDimensionsFromFormula } from "@/lib/quote-store";
 
 export default function SurveyPage() {
   const [, navigate] = useLocation();
   const { state, updateConfig } = useQuote();
+  const { toast } = useToast();
   const config = state.config;
 
   const [newMaterial, setNewMaterial] = useState<Partial<CustomMaterial>>({
     name: "",
-    category: "",
     thickness: 0,
     density: 0,
     grammage: 0,
     price: 0,
     notes: "",
   });
+
+  const [newBagType, setNewBagType] = useState<Partial<CustomBagType>>({
+    name: "",
+    formula: "",
+    wasteCoefficient: 1.1,
+  });
+
+  const [newLamination, setNewLamination] = useState({ name: "", pricePerSqm: 0 });
+  const [newPostProcessing, setNewPostProcessing] = useState({ name: "", priceFormula: "" });
 
   if (!state.productType) {
     navigate("/");
@@ -44,13 +50,25 @@ export default function SurveyPage() {
     navigate("/quote");
   };
 
-  const toggleBagType = (bagType: BagType) => {
-    const current = config.selectedBagTypes;
-    if (current.includes(bagType)) {
-      updateConfig({ selectedBagTypes: current.filter((t) => t !== bagType) });
-    } else {
-      updateConfig({ selectedBagTypes: [...current, bagType] });
-    }
+
+  const addCustomBagType = () => {
+    if (!newBagType.name || !newBagType.formula) return;
+    const dimensions = parseDimensionsFromFormula(newBagType.formula || "");
+    const bagType: CustomBagType = {
+      id: `custom_${Date.now()}`,
+      name: newBagType.name || "",
+      formula: newBagType.formula || "",
+      requiredDimensions: dimensions,
+      wasteCoefficient: newBagType.wasteCoefficient || 1.1,
+      isBuiltIn: false,
+    };
+    updateConfig({ customBagTypes: [...config.customBagTypes, bagType] });
+    setNewBagType({ name: "", formula: "", wasteCoefficient: 1.1 });
+    toast({ title: "袋型已添加", description: `已自动匹配尺寸字段：${dimensions.length > 0 ? dimensions.join("、") : "无"}` });
+  };
+
+  const removeBagType = (id: string) => {
+    updateConfig({ customBagTypes: config.customBagTypes.filter((b) => b.id !== id) });
   };
 
   const addMaterial = () => {
@@ -58,7 +76,6 @@ export default function SurveyPage() {
     const material: CustomMaterial = {
       id: Date.now().toString(),
       name: newMaterial.name || "",
-      category: newMaterial.category || "",
       thickness: newMaterial.thickness || 0,
       density: newMaterial.density || 0,
       grammage: newMaterial.grammage || 0,
@@ -66,7 +83,7 @@ export default function SurveyPage() {
       notes: newMaterial.notes || "",
     };
     updateConfig({ materialLibrary: [...config.materialLibrary, material] });
-    setNewMaterial({ name: "", category: "", thickness: 0, density: 0, grammage: 0, price: 0, notes: "" });
+    setNewMaterial({ name: "", thickness: 0, density: 0, grammage: 0, price: 0, notes: "" });
   };
 
   const removeMaterial = (id: string) => {
@@ -81,10 +98,29 @@ export default function SurveyPage() {
     });
   };
 
+  const saveMaterialLibrary = () => {
+    toast({ title: "材料库已保存", description: `共 ${config.materialLibrary.length} 种材料` });
+  };
+
   const updatePrintingPrice = (index: number, field: keyof PrintingPriceRule, value: string | number) => {
     const updated = [...config.printingPriceRules];
     updated[index] = { ...updated[index], [field]: value };
     updateConfig({ printingPriceRules: updated });
+  };
+
+  const addLamination = () => {
+    if (!newLamination.name) return;
+    const rule: LaminationPriceRule = {
+      id: `lam_${Date.now()}`,
+      name: newLamination.name,
+      pricePerSqm: newLamination.pricePerSqm,
+    };
+    updateConfig({ laminationPriceRules: [...config.laminationPriceRules, rule] });
+    setNewLamination({ name: "", pricePerSqm: 0 });
+  };
+
+  const removeLamination = (id: string) => {
+    updateConfig({ laminationPriceRules: config.laminationPriceRules.filter((l) => l.id !== id) });
   };
 
   const updateLaminationPrice = (index: number, field: keyof LaminationPriceRule, value: string | number) => {
@@ -109,10 +145,33 @@ export default function SurveyPage() {
     });
   };
 
-  const updatePlateConfig = (field: keyof typeof config.platePriceConfig, value: number) => {
+  const updatePostProcessingName = (id: string, name: string) => {
     updateConfig({
-      platePriceConfig: { ...config.platePriceConfig, [field]: value },
+      postProcessingOptions: config.postProcessingOptions.map((opt) =>
+        opt.id === id ? { ...opt, name } : opt
+      ),
     });
+  };
+
+  const addPostProcessing = () => {
+    if (!newPostProcessing.name) return;
+    const option: PostProcessingOptionConfig = {
+      id: `pp_${Date.now()}`,
+      name: newPostProcessing.name,
+      enabled: true,
+      priceFormula: newPostProcessing.priceFormula,
+      description: "",
+    };
+    updateConfig({ postProcessingOptions: [...config.postProcessingOptions, option] });
+    setNewPostProcessing({ name: "", priceFormula: "" });
+  };
+
+  const removePostProcessing = (id: string) => {
+    updateConfig({ postProcessingOptions: config.postProcessingOptions.filter((p) => p.id !== id) });
+  };
+
+  const savePostProcessingLibrary = () => {
+    toast({ title: "后处理选项已保存", description: `共 ${config.postProcessingOptions.filter((o) => o.enabled).length} 个启用选项` });
   };
 
   const updateQuantityDiscount = (index: number, field: keyof QuantityDiscountRule, value: string | number) => {
@@ -133,6 +192,14 @@ export default function SurveyPage() {
   const removeQuantityDiscount = (index: number) => {
     const updated = config.quantityDiscounts.filter((_, i) => i !== index);
     updateConfig({ quantityDiscounts: updated });
+  };
+
+  const dimensionLabels: Record<string, string> = {
+    width: "袋宽",
+    height: "袋高",
+    bottomInsert: "底插入",
+    sideExpansion: "侧面展开",
+    backSeal: "背封边",
   };
 
   if (!isGravure) {
@@ -225,9 +292,9 @@ export default function SurveyPage() {
                 <div className="flex items-center gap-3">
                   <Package className="w-5 h-5 text-primary" />
                   <div className="text-left">
-                    <div className="font-semibold">袋型与尺寸</div>
+                    <div className="font-semibold">袋型</div>
                     <div className="text-sm text-muted-foreground">
-                      选择报价器中包含的袋型（已选 {config.selectedBagTypes.length} 种）
+                      选择或添加袋型（共 {config.customBagTypes.length} 种）
                     </div>
                   </div>
                 </div>
@@ -235,49 +302,154 @@ export default function SurveyPage() {
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    勾选需要包含在报价器中的袋型。尺寸字段会根据袋型的展开面积公式自动对应。
+                    勾选需要包含在报价器中的袋型，或添加自定义袋型。输入公式后会自动匹配所需尺寸字段。
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {Object.entries(BAG_TYPES).map(([key, bagType]) => (
-                      <Card
-                        key={key}
-                        className={`cursor-pointer transition-colors ${
-                          config.selectedBagTypes.includes(key as BagType)
-                            ? "border-primary bg-primary/5"
-                            : "hover-elevate"
-                        }`}
-                        onClick={() => toggleBagType(key as BagType)}
-                        data-testid={`bagtype-${key}`}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-start gap-3">
-                            <Checkbox
-                              checked={config.selectedBagTypes.includes(key as BagType)}
-                              onCheckedChange={() => toggleBagType(key as BagType)}
+                  
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[50px]">选用</TableHead>
+                          <TableHead className="w-[120px]">袋型名称</TableHead>
+                          <TableHead>展开面积公式</TableHead>
+                          <TableHead className="w-[180px]">尺寸字段</TableHead>
+                          <TableHead className="w-[80px]">损耗率</TableHead>
+                          <TableHead className="w-[60px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {config.customBagTypes.map((bagType) => (
+                          <TableRow key={bagType.id}>
+                            <TableCell>
+                              <Checkbox
+                                checked={true}
+                                data-testid={`bagtype-check-${bagType.id}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <span className="font-medium">{bagType.name}</span>
+                              {bagType.isBuiltIn && (
+                                <span className="ml-2 text-xs text-muted-foreground">(内置)</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {bagType.isBuiltIn ? (
+                                <span className="text-sm text-muted-foreground">{bagType.formula}</span>
+                              ) : (
+                                <Input
+                                  value={bagType.formula}
+                                  onChange={(e) => {
+                                    const dims = parseDimensionsFromFormula(e.target.value);
+                                    updateConfig({
+                                      customBagTypes: config.customBagTypes.map((b) =>
+                                        b.id === bagType.id
+                                          ? { ...b, formula: e.target.value, requiredDimensions: dims }
+                                          : b
+                                      ),
+                                    });
+                                  }}
+                                  className="h-8"
+                                />
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1">
+                                {bagType.requiredDimensions.map((dim) => (
+                                  <span
+                                    key={dim}
+                                    className="px-2 py-0.5 bg-muted text-xs rounded"
+                                  >
+                                    {dimensionLabels[dim] || dim}
+                                  </span>
+                                ))}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={bagType.wasteCoefficient}
+                                onChange={(e) => {
+                                  updateConfig({
+                                    customBagTypes: config.customBagTypes.map((b) =>
+                                      b.id === bagType.id
+                                        ? { ...b, wasteCoefficient: Number(e.target.value) }
+                                        : b
+                                    ),
+                                  });
+                                }}
+                                className="h-8 w-20"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              {!bagType.isBuiltIn && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeBagType(bagType.id)}
+                                  className="h-8 w-8 text-destructive"
+                                  data-testid={`remove-bagtype-${bagType.id}`}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow>
+                          <TableCell></TableCell>
+                          <TableCell>
+                            <Input
+                              value={newBagType.name}
+                              onChange={(e) => setNewBagType({ ...newBagType, name: e.target.value })}
+                              placeholder="新袋型名称"
+                              className="h-8"
+                              data-testid="new-bagtype-name"
                             />
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium">{bagType.nameZh}</div>
-                              <div className="text-xs text-muted-foreground mt-1">
-                                公式：{bagType.areaFormula}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                尺寸字段：{bagType.requiredDimensions.map(d => {
-                                  const labels: Record<string, string> = {
-                                    width: "袋宽",
-                                    height: "袋高",
-                                    bottomInsert: "底插入",
-                                    sideExpansion: "侧面展开",
-                                    backSeal: "背封边",
-                                  };
-                                  return labels[d] || d;
-                                }).join("、")}
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              value={newBagType.formula}
+                              onChange={(e) => setNewBagType({ ...newBagType, formula: e.target.value })}
+                              placeholder="例如：袋宽 × 袋高 × 2"
+                              className="h-8"
+                              data-testid="new-bagtype-formula"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs text-muted-foreground">
+                              {newBagType.formula
+                                ? parseDimensionsFromFormula(newBagType.formula).map((d) => dimensionLabels[d] || d).join("、") || "无匹配"
+                                : "自动匹配"}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={newBagType.wasteCoefficient}
+                              onChange={(e) => setNewBagType({ ...newBagType, wasteCoefficient: Number(e.target.value) })}
+                              className="h-8 w-20"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={addCustomBagType}
+                              className="h-8 w-8"
+                              data-testid="add-bagtype"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    提示：在公式中使用"袋宽"、"袋高"、"底插入"、"侧面展开"、"背封边"等关键词，系统会自动识别所需尺寸字段
+                  </p>
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -287,7 +459,7 @@ export default function SurveyPage() {
                 <div className="flex items-center gap-3">
                   <Layers className="w-5 h-5 text-primary" />
                   <div className="text-left">
-                    <div className="font-semibold">材料层结构</div>
+                    <div className="font-semibold">材料</div>
                     <div className="text-sm text-muted-foreground">
                       配置材料库（当前 {config.materialLibrary.length} 种材料）
                     </div>
@@ -296,38 +468,19 @@ export default function SurveyPage() {
               </AccordionTrigger>
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      填入您的材料库信息，这些材料将在报价器中供用户选择。
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-sm">报价器中材料层数：</Label>
-                      <Select
-                        value={String(config.materialLayerCount)}
-                        onValueChange={(v) => updateConfig({ materialLayerCount: Number(v) })}
-                      >
-                        <SelectTrigger className="w-20" data-testid="select-layerCount">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1, 2, 3, 4, 5].map((n) => (
-                            <SelectItem key={n} value={String(n)}>{n} 层</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    填入您的材料库信息，这些材料将在报价器中供用户选择。材料层数在生成的报价器中由使用者自定义。
+                  </p>
                   
                   <div className="border rounded-lg overflow-hidden">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[120px]">材料名</TableHead>
-                          <TableHead className="w-[80px]">类别</TableHead>
-                          <TableHead className="w-[80px]">厚度</TableHead>
-                          <TableHead className="w-[80px]">密度</TableHead>
-                          <TableHead className="w-[80px]">克重</TableHead>
-                          <TableHead className="w-[80px]">价格</TableHead>
+                          <TableHead className="w-[140px]">材料名</TableHead>
+                          <TableHead className="w-[80px]">厚度(μm)</TableHead>
+                          <TableHead className="w-[80px]">密度(g/cm³)</TableHead>
+                          <TableHead className="w-[80px]">克重(g/㎡)</TableHead>
+                          <TableHead className="w-[80px]">价格(元/kg)</TableHead>
                           <TableHead>备注</TableHead>
                           <TableHead className="w-[60px]"></TableHead>
                         </TableRow>
@@ -341,13 +494,6 @@ export default function SurveyPage() {
                                 onChange={(e) => updateMaterialField(material.id, "name", e.target.value)}
                                 className="h-8"
                                 data-testid={`material-name-${material.id}`}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                value={material.category}
-                                onChange={(e) => updateMaterialField(material.id, "category", e.target.value)}
-                                className="h-8"
                               />
                             </TableCell>
                             <TableCell>
@@ -417,14 +563,6 @@ export default function SurveyPage() {
                           </TableCell>
                           <TableCell>
                             <Input
-                              value={newMaterial.category}
-                              onChange={(e) => setNewMaterial({ ...newMaterial, category: e.target.value })}
-                              placeholder="类别"
-                              className="h-8"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
                               type="number"
                               value={newMaterial.thickness || ""}
                               onChange={(e) => setNewMaterial({ ...newMaterial, thickness: Number(e.target.value) })}
@@ -484,6 +622,12 @@ export default function SurveyPage() {
                         </TableRow>
                       </TableBody>
                     </Table>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button variant="outline" onClick={saveMaterialLibrary} className="gap-2" data-testid="save-materials">
+                      <Save className="w-4 h-4" />
+                      保存材料库
+                    </Button>
                   </div>
                 </div>
               </AccordionContent>
@@ -558,40 +702,23 @@ export default function SurveyPage() {
                   <div className="text-left">
                     <div className="font-semibold">复合</div>
                     <div className="text-sm text-muted-foreground">
-                      配置复合价格逻辑
+                      配置复合价格逻辑（共 {config.laminationPriceRules.length} 种）
                     </div>
                   </div>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      设置不同复合类型的单价（元/㎡），每一步按展开面积计价。
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-sm">报价器中复合次数：</Label>
-                      <Select
-                        value={String(config.laminationStepCount)}
-                        onValueChange={(v) => updateConfig({ laminationStepCount: Number(v) })}
-                      >
-                        <SelectTrigger className="w-20" data-testid="select-laminationCount">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1, 2, 3, 4].map((n) => (
-                            <SelectItem key={n} value={String(n)}>{n} 次</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    设置不同复合类型的单价（元/㎡）。复合次数在生成的报价器中由使用者自定义。
+                  </p>
                   <div className="border rounded-lg overflow-hidden">
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>复合类型</TableHead>
                           <TableHead className="w-[120px]">单价 (元/㎡)</TableHead>
+                          <TableHead className="w-[60px]"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -613,8 +740,51 @@ export default function SurveyPage() {
                                 className="h-8"
                               />
                             </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeLamination(rule.id)}
+                                className="h-8 w-8 text-destructive"
+                                data-testid={`remove-lamination-${rule.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))}
+                        <TableRow>
+                          <TableCell>
+                            <Input
+                              value={newLamination.name}
+                              onChange={(e) => setNewLamination({ ...newLamination, name: e.target.value })}
+                              placeholder="新复合类型名称"
+                              className="h-8"
+                              data-testid="new-lamination-name"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step="0.001"
+                              value={newLamination.pricePerSqm || ""}
+                              onChange={(e) => setNewLamination({ ...newLamination, pricePerSqm: Number(e.target.value) })}
+                              placeholder="单价"
+                              className="h-8"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={addLamination}
+                              className="h-8 w-8"
+                              data-testid="add-lamination"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
                       </TableBody>
                     </Table>
                   </div>
@@ -639,34 +809,93 @@ export default function SurveyPage() {
                   <p className="text-sm text-muted-foreground">
                     勾选需要包含在报价器中的后处理选项，并配置价格公式。
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {config.postProcessingOptions.map((option) => (
-                      <Card
-                        key={option.id}
-                        className={`${option.enabled ? "border-primary/50" : ""}`}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-start gap-3">
-                            <Checkbox
-                              checked={option.enabled}
-                              onCheckedChange={() => togglePostProcessing(option.id)}
-                              data-testid={`postprocess-${option.id}`}
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[50px]">启用</TableHead>
+                          <TableHead className="w-[140px]">选项名称</TableHead>
+                          <TableHead>价格公式/说明</TableHead>
+                          <TableHead className="w-[60px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {config.postProcessingOptions.map((option) => (
+                          <TableRow key={option.id}>
+                            <TableCell>
+                              <Checkbox
+                                checked={option.enabled}
+                                onCheckedChange={() => togglePostProcessing(option.id)}
+                                data-testid={`postprocess-${option.id}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={option.name}
+                                onChange={(e) => updatePostProcessingName(option.id, e.target.value)}
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={option.priceFormula}
+                                onChange={(e) => updatePostProcessingFormula(option.id, e.target.value)}
+                                placeholder="价格公式说明"
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removePostProcessing(option.id)}
+                                className="h-8 w-8 text-destructive"
+                                data-testid={`remove-postprocess-${option.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow>
+                          <TableCell></TableCell>
+                          <TableCell>
+                            <Input
+                              value={newPostProcessing.name}
+                              onChange={(e) => setNewPostProcessing({ ...newPostProcessing, name: e.target.value })}
+                              placeholder="新选项名称"
+                              className="h-8"
+                              data-testid="new-postprocess-name"
                             />
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium">{option.name}</div>
-                              <div className="mt-2">
-                                <Input
-                                  value={option.priceFormula}
-                                  onChange={(e) => updatePostProcessingFormula(option.id, e.target.value)}
-                                  placeholder="价格公式说明"
-                                  className="h-8 text-xs"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              value={newPostProcessing.priceFormula}
+                              onChange={(e) => setNewPostProcessing({ ...newPostProcessing, priceFormula: e.target.value })}
+                              placeholder="价格公式说明"
+                              className="h-8"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={addPostProcessing}
+                              className="h-8 w-8"
+                              data-testid="add-postprocess"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button variant="outline" onClick={savePostProcessingLibrary} className="gap-2" data-testid="save-postprocess">
+                      <Save className="w-4 h-4" />
+                      保存后处理选项
+                    </Button>
                   </div>
                 </div>
               </AccordionContent>
@@ -679,63 +908,44 @@ export default function SurveyPage() {
                   <div className="text-left">
                     <div className="font-semibold">制版</div>
                     <div className="text-sm text-muted-foreground">
-                      配置制版价格逻辑
+                      制版费用说明（在报价器中填写）
                     </div>
                   </div>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    设置制版费用计算参数。版费 = 版长 × 版周 × 色数 × 单价
-                  </p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <Label className="text-sm text-muted-foreground mb-2 block">默认版长 (cm)</Label>
-                      <Input
-                        type="number"
-                        value={config.platePriceConfig.defaultPlateLength}
-                        onChange={(e) => updatePlateConfig("defaultPlateLength", Number(e.target.value))}
-                        data-testid="plate-length"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm text-muted-foreground mb-2 block">默认版周 (cm)</Label>
-                      <Input
-                        type="number"
-                        value={config.platePriceConfig.defaultPlateCircumference}
-                        onChange={(e) => updatePlateConfig("defaultPlateCircumference", Number(e.target.value))}
-                        data-testid="plate-circumference"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm text-muted-foreground mb-2 block">默认色数 (支)</Label>
-                      <Input
-                        type="number"
-                        value={config.platePriceConfig.defaultColorCount}
-                        onChange={(e) => updatePlateConfig("defaultColorCount", Number(e.target.value))}
-                        data-testid="plate-colors"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm text-muted-foreground mb-2 block">单价 (元/cm²)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={config.platePriceConfig.pricePerSqcm}
-                        onChange={(e) => updatePlateConfig("pricePerSqcm", Number(e.target.value))}
-                        data-testid="plate-price"
-                      />
-                    </div>
-                  </div>
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <p className="text-sm">
-                      预览：版费合计 = {config.platePriceConfig.defaultPlateLength} × {config.platePriceConfig.defaultPlateCircumference} × {config.platePriceConfig.defaultColorCount} × {config.platePriceConfig.pricePerSqcm} = 
-                      <span className="font-semibold ml-1">
-                        {(config.platePriceConfig.defaultPlateLength * config.platePriceConfig.defaultPlateCircumference * config.platePriceConfig.defaultColorCount * config.platePriceConfig.pricePerSqcm).toFixed(2)} 元
-                      </span>
-                    </p>
-                  </div>
+                  <Card className="bg-muted/50">
+                    <CardContent className="p-4">
+                      <div className="space-y-3">
+                        <p className="font-medium">制版费用计算说明</p>
+                        <p className="text-sm text-muted-foreground">
+                          版费 = 版长(cm) × 版周(cm) × 色数(支) × 单价(元/cm²)
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          制版费用在生成的报价器中由使用者填写具体参数，与袋子单价分开结算。
+                        </p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 p-3 bg-background rounded-lg">
+                          <div>
+                            <p className="text-xs text-muted-foreground">默认版长</p>
+                            <p className="font-medium">{config.platePriceConfig.defaultPlateLength} cm</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">默认版周</p>
+                            <p className="font-medium">{config.platePriceConfig.defaultPlateCircumference} cm</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">默认色数</p>
+                            <p className="font-medium">{config.platePriceConfig.defaultColorCount} 支</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">单价</p>
+                            <p className="font-medium">{config.platePriceConfig.pricePerSqcm} 元/cm²</p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               </AccordionContent>
             </AccordionItem>
