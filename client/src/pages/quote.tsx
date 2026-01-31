@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Edit, RefreshCw, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Edit, RefreshCw, Plus, Trash2, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuote, type CustomMaterial, type CustomBagType } from "@/lib/quote-store";
+import { useQuote, type CustomMaterial, type CustomBagType, type DigitalMaterial } from "@/lib/quote-store";
 
 interface MaterialLayer {
   materialId: string;
@@ -26,13 +26,30 @@ interface SelectedPostProcessing {
   [key: string]: boolean;
 }
 
+interface DigitalMaterialLayer {
+  id: string;
+  layerType: "print" | "composite" | "seal";
+  materialId: string;
+  thickness: number;
+  density: number;
+  priceKg: number;
+  squarePrice: number;
+  notes: string;
+}
+
 export default function QuotePage() {
   const [, navigate] = useLocation();
   const { state, resetQuote } = useQuote();
   const config = state.config;
+  const digitalConfig = state.digitalConfig;
+
+  const isDigital = state.productType === "pouch" && state.printingMethod === "digital";
+  const isGravure = state.productType === "pouch" && state.printingMethod === "gravure";
 
   const [selectedBagTypeId, setSelectedBagTypeId] = useState<string>(
-    config.customBagTypes[0]?.id || ""
+    isDigital 
+      ? (digitalConfig.customBagTypes[0]?.id || "")
+      : (config.customBagTypes[0]?.id || "")
   );
   const [dimensions, setDimensions] = useState({
     width: 190,
@@ -40,9 +57,32 @@ export default function QuotePage() {
     bottomInsert: 40,
     sideExpansion: 30,
     backSeal: 10,
+    sideGusset: 50,
+    sealEdge: 10,
+    areaCoefficient: 1.0,
+    quantityUnit: 1,
   });
   const [quantity, setQuantity] = useState(30000);
-  
+  const [skuCount, setSkuCount] = useState(1);
+  const [taxRate, setTaxRate] = useState(13);
+  const [exchangeRate, setExchangeRate] = useState(7.2);
+
+  const [digitalLayers, setDigitalLayers] = useState<DigitalMaterialLayer[]>([]);
+
+  const [selectedPrintModeId, setSelectedPrintModeId] = useState<string>(
+    digitalConfig.printModes.find(m => m.enabled)?.id || "none"
+  );
+
+  const [selectedSpecialProcesses, setSelectedSpecialProcesses] = useState<Record<string, boolean>>({});
+
+  const [selectedZipperId, setSelectedZipperId] = useState<string>("none");
+  const [selectedValveId, setSelectedValveId] = useState<string>("none");
+  const [selectedSpoutId, setSelectedSpoutId] = useState<string | null>(null);
+  const [selectedAccessories, setSelectedAccessories] = useState<Record<string, boolean>>({});
+
+  const [moldCost, setMoldCost] = useState(0);
+  const [specialProcessPlateCost, setSpecialProcessPlateCost] = useState(0);
+
   const [materialLayers, setMaterialLayers] = useState<MaterialLayer[]>(() => {
     const layers: MaterialLayer[] = [];
     const firstMaterial = config.materialLibrary[0];
@@ -76,59 +116,335 @@ export default function QuotePage() {
   });
 
   const [profitRate, setProfitRate] = useState(10);
-  const [exchangeRate, setExchangeRate] = useState(7.2);
 
   if (!state.productType) {
     navigate("/");
     return null;
   }
 
-  const isGravure = state.productType === "pouch" && state.printingMethod === "gravure";
-
-  const selectedBagType = config.customBagTypes.find((b) => b.id === selectedBagTypeId);
+  const currentBagTypes = isDigital ? digitalConfig.customBagTypes : config.customBagTypes;
+  const selectedBagType = currentBagTypes.find((b) => b.id === selectedBagTypeId);
   const requiredDimensions = selectedBagType?.requiredDimensions || [];
 
-  const calculateArea = useMemo(() => {
+  const dimensionLabels: Record<string, string> = {
+    width: "袋宽",
+    height: "袋高",
+    bottomInsert: "底琴",
+    sideExpansion: "侧面展开",
+    backSeal: "背封边",
+    sideGusset: "侧琴",
+    sealEdge: "封边",
+    areaCoefficient: "面积系数",
+    quantityUnit: "数量单位",
+  };
+
+  const validLayerCount = digitalLayers.filter(l => l.materialId !== "").length;
+  const hasValidStructure = validLayerCount >= 2;
+
+  const totalSquarePrice = useMemo(() => {
+    return digitalLayers.reduce((sum, layer) => sum + (layer.squarePrice || 0), 0);
+  }, [digitalLayers]);
+
+  const addDigitalLayer = (layerType: "print" | "composite" | "seal") => {
+    const newLayer: DigitalMaterialLayer = {
+      id: `layer_${Date.now()}`,
+      layerType,
+      materialId: "",
+      thickness: 0,
+      density: 0,
+      priceKg: 0,
+      squarePrice: 0,
+      notes: "",
+    };
+    setDigitalLayers([...digitalLayers, newLayer]);
+  };
+
+  const removeDigitalLayer = (id: string) => {
+    setDigitalLayers(digitalLayers.filter(l => l.id !== id));
+  };
+
+  const updateDigitalLayer = (id: string, materialId: string) => {
+    const layer = digitalLayers.find(l => l.id === id);
+    if (!layer) return;
+
+    let materials: DigitalMaterial[] = [];
+    if (layer.layerType === "print") materials = digitalConfig.printLayerMaterials;
+    else if (layer.layerType === "composite") materials = digitalConfig.compositeLayerMaterials;
+    else if (layer.layerType === "seal") materials = digitalConfig.sealLayerMaterials;
+
+    const material = materials.find(m => m.id === materialId);
+    if (!material) return;
+
+    setDigitalLayers(digitalLayers.map(l => 
+      l.id === id ? {
+        ...l,
+        materialId,
+        thickness: material.thickness,
+        density: material.density,
+        priceKg: material.price,
+        squarePrice: material.squarePrice,
+        notes: material.notes,
+      } : l
+    ));
+  };
+
+  const getMaterialsForLayerType = (layerType: "print" | "composite" | "seal") => {
+    if (layerType === "print") return digitalConfig.printLayerMaterials;
+    if (layerType === "composite") return digitalConfig.compositeLayerMaterials;
+    return digitalConfig.sealLayerMaterials;
+  };
+
+  const getLayerTypeName = (layerType: "print" | "composite" | "seal") => {
+    if (layerType === "print") return "印刷层";
+    if (layerType === "composite") return "复合层";
+    return "热封层";
+  };
+
+  const spoutAccessories = digitalConfig.accessories.filter(a => 
+    a.name.includes("吸嘴") || a.name.includes("嘴")
+  );
+  const stackableAccessories = digitalConfig.accessories.filter(a => 
+    a.isStackable && !a.name.includes("吸嘴") && !a.name.includes("嘴")
+  );
+
+  const calculateDigitalCosts = useMemo(() => {
+    const w = dimensions.width;
+    const h = dimensions.height;
+    const bi = dimensions.bottomInsert;
+    const se = dimensions.sideExpansion;
+    const bs = dimensions.backSeal;
+    const sg = dimensions.sideGusset;
+    const sealE = dimensions.sealEdge;
+    const areaCoef = dimensions.areaCoefficient;
+
+    let unfoldedLengthMM = 0;
+    let unfoldedWidthMM = 0;
+
+    switch (selectedBagType?.id) {
+      case "threeSide":
+      case "threeSideDouble":
+        unfoldedLengthMM = h * 2 + sealE * 2;
+        unfoldedWidthMM = w + sealE;
+        break;
+      case "standupNoZip":
+      case "standupWithZip":
+      case "standupDouble":
+      case "standupSplitBottom":
+        unfoldedLengthMM = (h + bi) * 2;
+        unfoldedWidthMM = w + sealE;
+        break;
+      case "centerSeal":
+      case "sideSeal":
+        unfoldedLengthMM = h;
+        unfoldedWidthMM = (w + bs) * 2;
+        break;
+      case "gusset":
+        unfoldedLengthMM = h;
+        unfoldedWidthMM = (w + se + bs) * 2;
+        break;
+      case "eightSideNoZip":
+      case "eightSideWithZip":
+      case "eightSideDouble":
+      case "eightSideSplitBottom":
+        unfoldedLengthMM = h * 2 + sg * 2;
+        unfoldedWidthMM = w + sg * 2;
+        break;
+      case "rollFilm":
+        unfoldedLengthMM = h;
+        unfoldedWidthMM = w;
+        break;
+      case "shapedBag":
+        unfoldedLengthMM = h * 2 * areaCoef;
+        unfoldedWidthMM = w;
+        break;
+      default:
+        unfoldedLengthMM = h * 2;
+        unfoldedWidthMM = w;
+    }
+
+    const { maxPrintWidth, maxPrintCircumference, materialWidth } = digitalConfig.systemConstants;
+
+    const acrossCount = Math.floor(maxPrintWidth / unfoldedWidthMM);
+    const aroundCount = Math.floor(maxPrintCircumference / unfoldedLengthMM);
+    const bagsPerRevolution = acrossCount * aroundCount;
+
+    const orderRevolutions = Math.ceil((quantity * skuCount) / bagsPerRevolution);
+    const wasteRevolutions = skuCount * digitalConfig.systemConstants.skuWaste;
+    const totalRevolutions = orderRevolutions + wasteRevolutions;
+
+    const orderMeters = (orderRevolutions * maxPrintCircumference) / 1000;
+    const wasteMeters = (wasteRevolutions * maxPrintCircumference) / 1000;
+    const idleMeters = digitalConfig.systemConstants.idleMaterialMin;
+    const totalMeters = orderMeters + wasteMeters + idleMeters;
+
+    const feedAreaSqm = (totalMeters * materialWidth) / 1000;
+
+    const bagAreaSqm = (unfoldedLengthMM * unfoldedWidthMM) / 1000000;
+
+    const materialCostTotal = feedAreaSqm * totalSquarePrice;
+    const materialCostPerUnit = materialCostTotal / (quantity * skuCount);
+
+    let printCostPerMeter = 0;
+    const selectedMode = digitalConfig.printModes.find(m => m.id === selectedPrintModeId);
+    if (selectedMode && selectedMode.id !== "none") {
+      for (const tier of digitalConfig.printingTiers) {
+        if (totalMeters <= tier.maxMeters) {
+          printCostPerMeter = tier.pricePerMeter;
+          break;
+        }
+      }
+      if (printCostPerMeter === 0 && digitalConfig.printingTiers.length > 0) {
+        printCostPerMeter = digitalConfig.printingTiers[digitalConfig.printingTiers.length - 1].pricePerMeter;
+      }
+      if (selectedMode.id === "doubleWhite") {
+        printCostPerMeter *= 2;
+      }
+    }
+    const printCostTotal = totalMeters * printCostPerMeter;
+    const printCostPerUnit = printCostTotal / (quantity * skuCount);
+
+    let specialProcessCostTotal = 0;
+    Object.entries(selectedSpecialProcesses).forEach(([id, isSelected]) => {
+      if (!isSelected) return;
+      const process = digitalConfig.specialProcesses.find(p => p.id === id);
+      if (!process) return;
+      
+      let cost = 0;
+      if (process.priceFormula.includes("×总数量")) {
+        const match = process.priceFormula.match(/(\d+\.?\d*)/);
+        const rate = match ? parseFloat(match[1]) : 0.05;
+        cost = rate * quantity * skuCount;
+      } else if (process.priceFormula.includes("×印刷米数") || process.priceFormula.includes("×投料米数")) {
+        const match = process.priceFormula.match(/(\d+\.?\d*)/);
+        const rate = match ? parseFloat(match[1]) : 1;
+        cost = rate * totalMeters;
+      } else if (process.priceFormula.includes("印刷费×2")) {
+        cost = printCostTotal;
+      }
+      
+      if (process.minPrice > 0 && cost < process.minPrice) {
+        cost = process.minPrice;
+      }
+      specialProcessCostTotal += cost;
+    });
+    const specialProcessCostPerUnit = specialProcessCostTotal / (quantity * skuCount);
+
+    let accessoryCostPerUnit = 0;
+    
+    if (selectedZipperId !== "none") {
+      const zipper = digitalConfig.zipperTypes.find(z => z.id === selectedZipperId);
+      if (zipper) {
+        accessoryCostPerUnit += (dimensions.width / 1000) * zipper.pricePerMeter;
+      }
+    }
+    
+    if (selectedValveId !== "none") {
+      const valve = digitalConfig.valveTypes.find(v => v.id === selectedValveId);
+      if (valve) {
+        accessoryCostPerUnit += valve.pricePerUnit;
+      }
+    }
+    
+    if (selectedSpoutId) {
+      const spout = digitalConfig.accessories.find(a => a.id === selectedSpoutId);
+      if (spout) {
+        accessoryCostPerUnit += spout.price;
+      }
+    }
+    
+    Object.entries(selectedAccessories).forEach(([id, isSelected]) => {
+      if (!isSelected) return;
+      const acc = digitalConfig.accessories.find(a => a.id === id);
+      if (acc) {
+        if (acc.price > 0) {
+          accessoryCostPerUnit += acc.price;
+        } else if (acc.name.includes("束口条")) {
+          if (dimensions.width <= 140) accessoryCostPerUnit += 0.5;
+          else if (dimensions.width <= 200) accessoryCostPerUnit += 0.6;
+          else if (dimensions.width <= 250) accessoryCostPerUnit += 0.7;
+          else accessoryCostPerUnit += 0.8;
+        } else if (acc.name.includes("激光易撕线")) {
+          accessoryCostPerUnit += 0.35 * totalMeters / (quantity * skuCount);
+        }
+      }
+    });
+
+    const baseCostPerUnit = materialCostPerUnit + printCostPerUnit + specialProcessCostPerUnit + accessoryCostPerUnit;
+    
+    const fixedCosts = moldCost + specialProcessPlateCost;
+    const fixedCostPerUnit = fixedCosts / (quantity * skuCount);
+    
+    const subtotalPerUnit = baseCostPerUnit + fixedCostPerUnit;
+    const taxMultiplier = 1 + taxRate / 100;
+    const finalCostPerUnit = subtotalPerUnit * taxMultiplier;
+    
+    const totalCostCNY = finalCostPerUnit * quantity * skuCount + fixedCosts;
+    const totalCostUSD = totalCostCNY / exchangeRate;
+
+    return {
+      unfoldedLength: unfoldedLengthMM,
+      unfoldedWidth: unfoldedWidthMM,
+      acrossCount,
+      aroundCount,
+      bagsPerRevolution,
+      orderRevolutions,
+      wasteRevolutions,
+      totalRevolutions,
+      orderMeters,
+      wasteMeters,
+      idleMeters,
+      totalMeters,
+      feedAreaSqm,
+      bagAreaSqm,
+      materialCostTotal,
+      materialCostPerUnit,
+      printCostPerMeter,
+      printCostTotal,
+      printCostPerUnit,
+      specialProcessCostTotal,
+      specialProcessCostPerUnit,
+      accessoryCostPerUnit,
+      baseCostPerUnit,
+      fixedCosts,
+      fixedCostPerUnit,
+      subtotalPerUnit,
+      finalCostPerUnit,
+      totalCostCNY,
+      totalCostUSD,
+    };
+  }, [dimensions, selectedBagType, quantity, skuCount, digitalConfig, totalSquarePrice, selectedPrintModeId, selectedSpecialProcesses, selectedZipperId, selectedValveId, selectedSpoutId, selectedAccessories, moldCost, specialProcessPlateCost, taxRate, exchangeRate]);
+
+  const getMaterialById = (id: string): CustomMaterial | undefined => {
+    return config.materialLibrary.find((m) => m.id === id);
+  };
+
+  const gravureCosts = useMemo(() => {
     const w = dimensions.width / 1000;
     const h = dimensions.height / 1000;
     const bi = dimensions.bottomInsert / 1000;
     const se = dimensions.sideExpansion / 1000;
     const bs = dimensions.backSeal / 1000;
 
-    if (!selectedBagType) return w * h * 2;
-
-    switch (selectedBagType.id) {
-      case "standup":
-        return w * (h + bi) * 2;
-      case "threeSide":
-        return w * h * 2;
-      case "centerSeal":
-        return (w + bs) * 2 * h;
-      case "gusset":
-        return (w + se + bs) * 2 * h;
-      case "eightSide":
-        return w * h * 2 + se * h * 2;
-      case "taperBottom":
-        return ((w + se) * 2 + 0.02) * (h + 0.01);
-      case "flatBottom":
-        return ((w + se) * 2 + 0.03) * (h + se / 2 + 0.015);
-      case "threeSideShape":
-        return (w * 2 + 0.01) * (h + 0.005);
-      case "taperShape":
-        return ((h + bi) * 2 + 0.03) * (w + 0.005);
-      case "rollFilm":
-        return w;
-      default:
-        return w * h * 2;
+    let area = w * h * 2;
+    if (selectedBagType) {
+      switch (selectedBagType.id) {
+        case "standup":
+          area = w * (h + bi) * 2;
+          break;
+        case "threeSide":
+          area = w * h * 2;
+          break;
+        case "centerSeal":
+          area = (w + bs) * 2 * h;
+          break;
+        case "gusset":
+          area = (w + se + bs) * 2 * h;
+          break;
+        case "eightSide":
+          area = w * h * 2 + se * h * 2;
+          break;
+      }
     }
-  }, [selectedBagType, dimensions]);
-
-  const getMaterialById = (id: string): CustomMaterial | undefined => {
-    return config.materialLibrary.find((m) => m.id === id);
-  };
-
-  const costs = useMemo(() => {
-    const area = calculateArea;
 
     let materialCostPerUnit = 0;
     materialLayers.forEach((layer) => {
@@ -159,8 +475,6 @@ export default function QuotePage() {
         postProcessingCostPerUnit += selectedBagType?.id === "eightSide" ? 0.47 * widthM : 0.20 * widthM;
       } else if (id === "zipper_eco") {
         postProcessingCostPerUnit += 0.50 * widthM;
-      } else if (id === "punchHole") {
-        postProcessingCostPerUnit += 0;
       } else if (id === "laserTear") {
         postProcessingCostPerUnit += 0.2 * widthM;
       } else if (id === "hotStamp") {
@@ -218,7 +532,7 @@ export default function QuotePage() {
       wasteCoefficient,
     };
   }, [
-    calculateArea,
+    dimensions,
     materialLayers,
     selectedPrintCoverage,
     laminationSteps,
@@ -227,7 +541,6 @@ export default function QuotePage() {
     quantity,
     profitRate,
     config,
-    dimensions,
     selectedBagType,
   ]);
 
@@ -299,6 +612,533 @@ export default function QuotePage() {
     );
   };
 
+  if (isDigital) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b bg-card sticky top-0 z-10">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl font-semibold text-foreground">包装袋自动报价器</h1>
+                <Badge variant="secondary">数码印刷</Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleEditParams} className="gap-2" data-testid="button-edit">
+                  <Edit className="w-4 h-4" />
+                  编辑参数
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleRestart} className="gap-2" data-testid="button-restart">
+                  <RefreshCw className="w-4 h-4" />
+                  重新开始
+                </Button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="container mx-auto px-4 py-6">
+          <div className="max-w-5xl mx-auto space-y-6">
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">袋型与尺寸</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-2 block">袋型</Label>
+                    <Select value={selectedBagTypeId} onValueChange={setSelectedBagTypeId}>
+                      <SelectTrigger data-testid="select-bagType">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {digitalConfig.customBagTypes.map((bagType) => (
+                          <SelectItem key={bagType.id} value={bagType.id}>
+                            {bagType.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {requiredDimensions.filter(d => d !== "quantityUnit" && d !== "areaCoefficient").map((dim) => (
+                    <div key={dim}>
+                      <Label className="text-sm text-muted-foreground mb-2 block">
+                        {dimensionLabels[dim]} (mm)
+                      </Label>
+                      <Input
+                        type="number"
+                        value={dimensions[dim as keyof typeof dimensions]}
+                        onChange={(e) =>
+                          setDimensions({ ...dimensions, [dim]: Number(e.target.value) })
+                        }
+                        data-testid={`input-${dim}`}
+                      />
+                    </div>
+                  ))}
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-2 block">数量（个）</Label>
+                    <Input
+                      type="number"
+                      value={quantity}
+                      onChange={(e) => setQuantity(Number(e.target.value))}
+                      data-testid="input-quantity"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">订单信息配置</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-2 block">款数 (SKU)</Label>
+                    <Input
+                      type="number"
+                      value={skuCount}
+                      onChange={(e) => setSkuCount(Number(e.target.value))}
+                      data-testid="input-skuCount"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-2 block">税率 (%)</Label>
+                    <Input
+                      type="number"
+                      value={taxRate}
+                      onChange={(e) => setTaxRate(Number(e.target.value))}
+                      data-testid="input-taxRate"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-2 block">汇率 (CNY/USD)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={exchangeRate}
+                      onChange={(e) => setExchangeRate(Number(e.target.value))}
+                      data-testid="input-exchangeRate"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">材料层结构</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {!hasValidStructure && (
+                  <div className="flex items-center gap-2 text-destructive mb-4">
+                    <X className="w-4 h-4" />
+                    <span>层数不足 | 普通袋要求≥2层 | 当前有效层数: {validLayerCount} / 总层数: {digitalLayers.length}</span>
+                  </div>
+                )}
+                {hasValidStructure && (
+                  <div className="flex items-center gap-2 text-green-600 mb-4">
+                    <Check className="w-4 h-4" />
+                    <span>材料结构有效 | 当前有效层数: {validLayerCount} / 总层数: {digitalLayers.length}</span>
+                  </div>
+                )}
+                
+                <div className="flex gap-2 mb-4">
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    onClick={() => addDigitalLayer("print")}
+                    data-testid="add-print-layer"
+                  >
+                    + 印刷层
+                  </Button>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    onClick={() => addDigitalLayer("composite")}
+                    className="bg-blue-600 hover:bg-blue-700"
+                    data-testid="add-composite-layer"
+                  >
+                    + 复合层
+                  </Button>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    onClick={() => addDigitalLayer("seal")}
+                    className="bg-green-600 hover:bg-green-700"
+                    data-testid="add-seal-layer"
+                  >
+                    + 热封层
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {digitalLayers.map((layer) => (
+                    <div key={layer.id} className="grid grid-cols-8 gap-2 items-end p-3 border rounded-lg">
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">层级类型</Label>
+                        <div className="font-medium text-sm">{getLayerTypeName(layer.layerType)}</div>
+                      </div>
+                      <div className="col-span-2">
+                        <Label className="text-xs text-muted-foreground mb-1 block">材料选择</Label>
+                        <Select value={layer.materialId} onValueChange={(v) => updateDigitalLayer(layer.id, v)}>
+                          <SelectTrigger data-testid={`select-layer-${layer.id}`}>
+                            <SelectValue placeholder="无" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getMaterialsForLayerType(layer.layerType).map((m) => (
+                              <SelectItem key={m.id} value={m.id}>
+                                {m.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">厚度 (mm)</Label>
+                        <Input type="number" value={layer.thickness || ""} readOnly className="bg-muted" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">密度 (g/cm³)</Label>
+                        <Input type="number" value={layer.density || ""} readOnly className="bg-muted" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">单价 (元/kg)</Label>
+                        <Input type="number" value={layer.priceKg || ""} readOnly className="bg-muted" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">平方价 (元/㎡)</Label>
+                        <div className="h-9 flex items-center text-sm">{layer.squarePrice ? layer.squarePrice.toFixed(2) : "自动计算"}</div>
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <div className="flex-1">
+                          <Label className="text-xs text-muted-foreground mb-1 block">备注</Label>
+                          <div className="text-xs text-muted-foreground truncate">{layer.notes || "无特殊说明"}</div>
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => removeDigitalLayer(layer.id)}
+                          data-testid={`remove-layer-${layer.id}`}
+                        >
+                          删除
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 flex items-center gap-2 text-primary">
+                  <Check className="w-4 h-4" />
+                  <span>材料结构平方价合计：{totalSquarePrice.toFixed(4)} 元/㎡</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">印刷工艺</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div>
+                  <Label className="text-sm text-muted-foreground mb-2 block">印刷模式</Label>
+                  <Select value={selectedPrintModeId} onValueChange={setSelectedPrintModeId}>
+                    <SelectTrigger data-testid="select-printMode">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {digitalConfig.printModes.filter(m => m.enabled).map((mode) => (
+                        <SelectItem key={mode.id} value={mode.id}>
+                          {mode.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">特殊工艺（可多选）</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {digitalConfig.specialProcesses.filter(p => p.enabled).map((process) => (
+                    <div
+                      key={process.id}
+                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                        selectedSpecialProcesses[process.id] ? "border-primary bg-primary/5" : "hover-elevate"
+                      }`}
+                      onClick={() => setSelectedSpecialProcesses({
+                        ...selectedSpecialProcesses,
+                        [process.id]: !selectedSpecialProcesses[process.id]
+                      })}
+                      data-testid={`special-process-${process.id}`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <Checkbox 
+                          checked={selectedSpecialProcesses[process.id] || false}
+                          onCheckedChange={() => setSelectedSpecialProcesses({
+                            ...selectedSpecialProcesses,
+                            [process.id]: !selectedSpecialProcesses[process.id]
+                          })}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm">{process.name}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {process.minPrice > 0 && `最低${process.minPrice}元，`}
+                            {process.priceFormula}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 text-sm text-muted-foreground">
+                  已选工艺：{Object.entries(selectedSpecialProcesses).filter(([,v]) => v).length > 0 
+                    ? Object.entries(selectedSpecialProcesses)
+                        .filter(([,v]) => v)
+                        .map(([id]) => digitalConfig.specialProcesses.find(p => p.id === id)?.name)
+                        .join("、")
+                    : "无"
+                  }
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">附件配置</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-2 block">拉链类型</Label>
+                    <Select value={selectedZipperId} onValueChange={setSelectedZipperId}>
+                      <SelectTrigger data-testid="select-zipper">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">无</SelectItem>
+                        {digitalConfig.zipperTypes.map((z) => (
+                          <SelectItem key={z.id} value={z.id}>
+                            {z.name} ({z.pricePerMeter}元/米)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-2 block">气阀类型</Label>
+                    <Select value={selectedValveId} onValueChange={setSelectedValveId}>
+                      <SelectTrigger data-testid="select-valve">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">无</SelectItem>
+                        {digitalConfig.valveTypes.map((v) => (
+                          <SelectItem key={v.id} value={v.id}>
+                            {v.name} ({v.pricePerUnit}元/个)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {spoutAccessories.length > 0 && (
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-2 block">其他附件（单选）</Label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {spoutAccessories.map((acc) => (
+                        <div
+                          key={acc.id}
+                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedSpoutId === acc.id ? "border-primary bg-primary/5" : "hover-elevate"
+                          }`}
+                          onClick={() => setSelectedSpoutId(selectedSpoutId === acc.id ? null : acc.id)}
+                          data-testid={`spout-${acc.id}`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <Checkbox 
+                              checked={selectedSpoutId === acc.id}
+                              onCheckedChange={() => setSelectedSpoutId(selectedSpoutId === acc.id ? null : acc.id)}
+                            />
+                            <div>
+                              <div className="font-medium text-sm">{acc.name}</div>
+                              <div className="text-xs text-muted-foreground">单价: {acc.price} 元/个</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {stackableAccessories.length > 0 && (
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-2 block">额外功能选项（可多选）</Label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {stackableAccessories.map((acc) => (
+                        <div
+                          key={acc.id}
+                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedAccessories[acc.id] ? "border-primary bg-primary/5" : "hover-elevate"
+                          }`}
+                          onClick={() => setSelectedAccessories({
+                            ...selectedAccessories,
+                            [acc.id]: !selectedAccessories[acc.id]
+                          })}
+                          data-testid={`accessory-${acc.id}`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <Checkbox 
+                              checked={selectedAccessories[acc.id] || false}
+                              onCheckedChange={() => setSelectedAccessories({
+                                ...selectedAccessories,
+                                [acc.id]: !selectedAccessories[acc.id]
+                              })}
+                            />
+                            <div>
+                              <div className="font-medium text-sm">{acc.name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {acc.price > 0 ? `${acc.price}元/个` : "按袋宽阶梯计价"}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">自定义成本设置</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-2 block">模具费</Label>
+                    <Input
+                      type="number"
+                      value={moldCost}
+                      onChange={(e) => setMoldCost(Number(e.target.value))}
+                      data-testid="input-moldCost"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-2 block">特殊工艺版费</Label>
+                    <Input
+                      type="number"
+                      value={specialProcessPlateCost}
+                      onChange={(e) => setSpecialProcessPlateCost(Number(e.target.value))}
+                      data-testid="input-specialProcessPlateCost"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">中间过程数据（核对用）</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 text-sm">
+                  <div><strong>展开尺寸：</strong>长度 {calculateDigitalCosts.unfoldedLength.toFixed(2)} mm，宽度 {calculateDigitalCosts.unfoldedWidth.toFixed(2)} mm</div>
+                  <div><strong>排版参数：</strong>横排 {calculateDigitalCosts.acrossCount} 个，周排 {calculateDigitalCosts.aroundCount} 个，每转产出 {calculateDigitalCosts.bagsPerRevolution} 个</div>
+                  <div><strong>转数：</strong>订单转数 {calculateDigitalCosts.orderRevolutions.toFixed(2)} 转，损耗转数 {calculateDigitalCosts.wasteRevolutions.toFixed(2)} 转</div>
+                  <div><strong>米数：</strong>订单 {calculateDigitalCosts.orderMeters.toFixed(2)} m，损耗 {calculateDigitalCosts.wasteMeters.toFixed(2)} m，闲置 {calculateDigitalCosts.idleMeters.toFixed(2)} m，总投料 {calculateDigitalCosts.totalMeters.toFixed(2)} m</div>
+                  <div><strong>投料面积：</strong>{calculateDigitalCosts.feedAreaSqm.toFixed(2)} ㎡</div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-primary bg-primary/5">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">报价结果</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <div className="p-4 bg-background rounded-lg">
+                    <div className="text-sm text-muted-foreground">材料成本/个</div>
+                    <div className="text-xl font-semibold">{calculateDigitalCosts.materialCostPerUnit.toFixed(4)} 元</div>
+                  </div>
+                  <div className="p-4 bg-background rounded-lg">
+                    <div className="text-sm text-muted-foreground">印刷成本/个</div>
+                    <div className="text-xl font-semibold">{calculateDigitalCosts.printCostPerUnit.toFixed(4)} 元</div>
+                  </div>
+                  <div className="p-4 bg-background rounded-lg">
+                    <div className="text-sm text-muted-foreground">特殊工艺成本/个</div>
+                    <div className="text-xl font-semibold">{calculateDigitalCosts.specialProcessCostPerUnit.toFixed(4)} 元</div>
+                  </div>
+                  <div className="p-4 bg-background rounded-lg">
+                    <div className="text-sm text-muted-foreground">附件成本/个</div>
+                    <div className="text-xl font-semibold">{calculateDigitalCosts.accessoryCostPerUnit.toFixed(4)} 元</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <div className="p-4 bg-background rounded-lg">
+                    <div className="text-sm text-muted-foreground">基础成本/个</div>
+                    <div className="text-xl font-semibold">{calculateDigitalCosts.baseCostPerUnit.toFixed(4)} 元</div>
+                  </div>
+                  <div className="p-4 bg-background rounded-lg">
+                    <div className="text-sm text-muted-foreground">固定费用分摊/个</div>
+                    <div className="text-xl font-semibold">{calculateDigitalCosts.fixedCostPerUnit.toFixed(4)} 元</div>
+                  </div>
+                  <div className="p-4 bg-background rounded-lg">
+                    <div className="text-sm text-muted-foreground">税率</div>
+                    <div className="text-xl font-semibold">{taxRate}%</div>
+                  </div>
+                  <div className="p-4 bg-background rounded-lg">
+                    <div className="text-sm text-muted-foreground">汇率</div>
+                    <div className="text-xl font-semibold">{exchangeRate.toFixed(2)}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-6 bg-primary text-primary-foreground rounded-lg">
+                  <div>
+                    <div className="text-sm opacity-80">单价（含税）</div>
+                    <div className="text-3xl font-bold">¥{calculateDigitalCosts.finalCostPerUnit.toFixed(4)}/个</div>
+                    <div className="text-sm opacity-80 mt-1">
+                      ${(calculateDigitalCosts.finalCostPerUnit / exchangeRate).toFixed(4)}/个
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm opacity-80">总价（{(quantity * skuCount).toLocaleString()} 个 + 固定费用）</div>
+                    <div className="text-3xl font-bold">¥{calculateDigitalCosts.totalCostCNY.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    <div className="text-sm opacity-80 mt-1">
+                      ${calculateDigitalCosts.totalCostUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                  </div>
+                </div>
+
+                {calculateDigitalCosts.fixedCosts > 0 && (
+                  <div className="mt-4 p-3 bg-muted/50 rounded-lg text-sm">
+                    <strong>固定费用明细：</strong>模具费 {moldCost.toFixed(2)} 元 + 特殊工艺版费 {specialProcessPlateCost.toFixed(2)} 元 = {calculateDigitalCosts.fixedCosts.toFixed(2)} 元
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Button 
+              size="lg" 
+              className="w-full gap-2 py-6 text-lg" 
+              data-testid="button-generate"
+            >
+              生成报价
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   if (!isGravure) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -313,14 +1153,6 @@ export default function QuotePage() {
       </div>
     );
   }
-
-  const dimensionLabels: Record<string, string> = {
-    width: "袋宽",
-    height: "袋高",
-    bottomInsert: "底部插入",
-    sideExpansion: "侧面展开",
-    backSeal: "背封边",
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -433,7 +1265,7 @@ export default function QuotePage() {
               <div className="space-y-4">
                 {materialLayers.map((layer, index) => {
                   const thicknessM = layer.thickness / 1000000;
-                  const materialWeight = costs.area * thicknessM * layer.density * 1000;
+                  const materialWeight = gravureCosts.area * thicknessM * layer.density * 1000;
                   const layerCost = materialWeight * layer.price / 1000;
 
                   return (
@@ -585,7 +1417,7 @@ export default function QuotePage() {
                     } else if (option.id === "laserTear") {
                       currentCost = 0.2 * widthM;
                     } else if (option.id === "hotStamp") {
-                      currentCost = costs.area * 1.2 + 0.02;
+                      currentCost = gravureCosts.area * 1.2 + 0.02;
                     } else if (option.id === "wire") {
                       const wireCost = (dimensions.width + 40) * 0.00013;
                       const laborCost = dimensions.width <= 140 ? 0.024 : 0.026;
@@ -599,7 +1431,7 @@ export default function QuotePage() {
                     } else if (option.id === "windowCut") {
                       currentCost = 0.03;
                     } else if (option.id === "matteOil") {
-                      currentCost = costs.area * 0.15;
+                      currentCost = gravureCosts.area * 0.15;
                     }
 
                     return (
@@ -736,7 +1568,7 @@ export default function QuotePage() {
                 </div>
                 <div className="mt-4 text-right">
                   <span className="text-muted-foreground">版费合计：</span>
-                  <span className="font-semibold text-lg ml-2">{costs.plateCost.toFixed(2)} 元</span>
+                  <span className="font-semibold text-lg ml-2">{gravureCosts.plateCost.toFixed(2)} 元</span>
                 </div>
               </CardContent>
             </Card>
@@ -786,34 +1618,34 @@ export default function QuotePage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="p-4 bg-background rounded-lg">
                   <div className="text-sm text-muted-foreground">展开面积</div>
-                  <div className="text-xl font-semibold">{(costs.area * 10000).toFixed(2)} cm²</div>
+                  <div className="text-xl font-semibold">{(gravureCosts.area * 10000).toFixed(2)} cm²</div>
                 </div>
                 <div className="p-4 bg-background rounded-lg">
                   <div className="text-sm text-muted-foreground">材料成本/个</div>
-                  <div className="text-xl font-semibold">{costs.materialCostPerUnit.toFixed(4)} 元</div>
+                  <div className="text-xl font-semibold">{gravureCosts.materialCostPerUnit.toFixed(4)} 元</div>
                 </div>
                 <div className="p-4 bg-background rounded-lg">
                   <div className="text-sm text-muted-foreground">印刷成本/个</div>
-                  <div className="text-xl font-semibold">{costs.printCostPerUnit.toFixed(4)} 元</div>
+                  <div className="text-xl font-semibold">{gravureCosts.printCostPerUnit.toFixed(4)} 元</div>
                 </div>
                 <div className="p-4 bg-background rounded-lg">
                   <div className="text-sm text-muted-foreground">复合成本/个</div>
-                  <div className="text-xl font-semibold">{costs.laminationCostPerUnit.toFixed(4)} 元</div>
+                  <div className="text-xl font-semibold">{gravureCosts.laminationCostPerUnit.toFixed(4)} 元</div>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="p-4 bg-background rounded-lg">
                   <div className="text-sm text-muted-foreground">后处理成本/个</div>
-                  <div className="text-xl font-semibold">{costs.postProcessingCostPerUnit.toFixed(4)} 元</div>
+                  <div className="text-xl font-semibold">{gravureCosts.postProcessingCostPerUnit.toFixed(4)} 元</div>
                 </div>
                 <div className="p-4 bg-background rounded-lg">
                   <div className="text-sm text-muted-foreground">损耗系数</div>
-                  <div className="text-xl font-semibold">×{costs.wasteCoefficient.toFixed(2)}</div>
+                  <div className="text-xl font-semibold">×{gravureCosts.wasteCoefficient.toFixed(2)}</div>
                 </div>
                 <div className="p-4 bg-background rounded-lg">
                   <div className="text-sm text-muted-foreground">数量系数</div>
-                  <div className="text-xl font-semibold">×{costs.quantityCoefficient.toFixed(2)}</div>
+                  <div className="text-xl font-semibold">×{gravureCosts.quantityCoefficient.toFixed(2)}</div>
                 </div>
                 <div className="p-4 bg-background rounded-lg">
                   <div className="text-sm text-muted-foreground">利润系数</div>
@@ -824,16 +1656,16 @@ export default function QuotePage() {
               <div className="flex items-center justify-between p-6 bg-primary text-primary-foreground rounded-lg">
                 <div>
                   <div className="text-sm opacity-80">单价</div>
-                  <div className="text-3xl font-bold">¥{costs.finalCostPerUnit.toFixed(4)}/个</div>
+                  <div className="text-3xl font-bold">¥{gravureCosts.finalCostPerUnit.toFixed(4)}/个</div>
                   <div className="text-sm opacity-80 mt-1">
-                    ${(costs.finalCostPerUnit / exchangeRate).toFixed(4)}/个
+                    ${(gravureCosts.finalCostPerUnit / exchangeRate).toFixed(4)}/个
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="text-sm opacity-80">总价（{quantity.toLocaleString()} 个）</div>
-                  <div className="text-3xl font-bold">¥{costs.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  <div className="text-3xl font-bold">¥{gravureCosts.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                   <div className="text-sm opacity-80 mt-1">
-                    ${(costs.totalCost / exchangeRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ${(gravureCosts.totalCost / exchangeRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
               </div>
