@@ -209,45 +209,39 @@ const defaultCustomBagTypes: CustomBagType[] = [
 ];
 
 const defaultDigitalBagTypes: CustomBagType[] = [
-  { id: "threeSide", name: "三边封", formula: "袋宽 × 袋高 × 2", requiredDimensions: ["width", "height"], wasteCoefficient: 1.0, isBuiltIn: true },
-  { id: "threeSideDouble", name: "三边封双放", formula: "袋宽 × 袋高 × 2", requiredDimensions: ["width", "height"], wasteCoefficient: 1.0, isBuiltIn: true },
-  { id: "standupNoZip", name: "自立袋（无拉链）", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.0, isBuiltIn: true },
-  { id: "standupWithZip", name: "自立袋（有拉链）", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.0, isBuiltIn: true },
-  { id: "standupDouble", name: "自立袋双放", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.0, isBuiltIn: true },
-  { id: "standupSplitBottom", name: "自立袋分底", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.0, isBuiltIn: true },
-  { id: "centerSeal", name: "中封袋", formula: "(袋宽 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "backSeal", "sideGusset"], wasteCoefficient: 1.0, isBuiltIn: true },
-  { id: "sideSeal", name: "侧封袋", formula: "(袋宽 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "backSeal", "sideGusset"], wasteCoefficient: 1.0, isBuiltIn: true },
-  { id: "gusset", name: "风琴袋", formula: "(袋宽 + 侧面展开 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "backSeal", "sideExpansion"], wasteCoefficient: 1.0, isBuiltIn: true },
-  { id: "eightSideNoZip", name: "八边封（无拉链）", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset"], wasteCoefficient: 1.0, isBuiltIn: true },
-  { id: "eightSideWithZip", name: "八边封（有拉链）", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset", "sealEdge"], wasteCoefficient: 1.0, isBuiltIn: true },
-  { id: "eightSideDouble", name: "八边封双放", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset"], wasteCoefficient: 1.0, isBuiltIn: true },
-  { id: "eightSideSplitBottom", name: "八边封分底", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset"], wasteCoefficient: 1.0, isBuiltIn: true },
-  { id: "rollFilm", name: "卷膜", formula: "袋宽 × 袋高", requiredDimensions: ["width", "height", "quantityUnit"], wasteCoefficient: 1.0, isBuiltIn: true },
-  { id: "shapedBag", name: "异形袋", formula: "袋宽 × 袋高 × 面积系数", requiredDimensions: ["width", "height", "areaCoefficient"], wasteCoefficient: 1.0, isBuiltIn: true },
+  { id: "threeSide", name: "三边封", formula: "袋宽 × 袋高 × 2", requiredDimensions: ["width", "height"], wasteCoefficient: 1.0, isBuiltIn: false },
+  { id: "threeSideDouble", name: "三边封双放", formula: "袋宽 × 袋高 × 2", requiredDimensions: ["width", "height"], wasteCoefficient: 1.0, isBuiltIn: false },
+  { id: "standupNoZip", name: "自立袋（无拉链）", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.0, isBuiltIn: false },
+  { id: "standupWithZip", name: "自立袋（有拉链）", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.0, isBuiltIn: false },
+  { id: "standupDouble", name: "自立袋双放", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.0, isBuiltIn: false },
+  { id: "standupSplitBottom", name: "自立袋分底", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.0, isBuiltIn: false },
+  { id: "centerSeal", name: "中封袋", formula: "(袋宽 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "backSeal", "sideGusset"], wasteCoefficient: 1.0, isBuiltIn: false },
+  { id: "sideSeal", name: "侧封袋", formula: "(袋宽 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "backSeal", "sideGusset"], wasteCoefficient: 1.0, isBuiltIn: false },
+  { id: "gusset", name: "风琴袋", formula: "(袋宽 + 侧面展开 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "backSeal", "sideExpansion"], wasteCoefficient: 1.0, isBuiltIn: false },
+  { id: "eightSideNoZip", name: "八边封（无拉链）", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset"], wasteCoefficient: 1.0, isBuiltIn: false },
+  { id: "eightSideWithZip", name: "八边封（有拉链）", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset", "sealEdge"], wasteCoefficient: 1.0, isBuiltIn: false },
+  { id: "eightSideDouble", name: "八边封双放", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset"], wasteCoefficient: 1.0, isBuiltIn: false },
+  { id: "eightSideSplitBottom", name: "八边封分底", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset"], wasteCoefficient: 1.0, isBuiltIn: false },
+  { id: "rollFilm", name: "卷膜", formula: "袋宽 × 袋高", requiredDimensions: ["width", "height", "quantityUnit"], wasteCoefficient: 1.0, isBuiltIn: false },
+  { id: "shapedBag", name: "异形袋", formula: "袋宽 × 袋高 × 面积系数", requiredDimensions: ["width", "height", "areaCoefficient"], wasteCoefficient: 1.0, isBuiltIn: false },
 ];
 
 const defaultDigitalPrintLayerMaterials: DigitalMaterial[] = [
   { id: "mopp25", name: "MOPP25", thickness: 25, density: 0.91, price: 18.6, squarePrice: 0.42, category: "print", notes: "" },
   { id: "bopp25", name: "BOPP25", thickness: 25, density: 0.93, price: 15, squarePrice: 0.35, category: "print", notes: "" },
   { id: "pet12", name: "PET12", thickness: 12, density: 1.41, price: 17, squarePrice: 0.29, category: "print", notes: "" },
-  { id: "nybopa", name: "NY/BOPA", thickness: 15, density: 1.14, price: 35, squarePrice: 0.60, category: "print", notes: "" },
-  { id: "yellowkraft50", name: "黄牛皮纸50", thickness: 50, density: 1, price: 20, squarePrice: 1.00, category: "print", notes: "" },
 ];
 
 const defaultDigitalCompositeLayerMaterials: DigitalMaterial[] = [
   { id: "vmpet12", name: "VMPET普通12", thickness: 12, density: 1.41, price: 17, squarePrice: 0.29, category: "composite", notes: "" },
   { id: "al7", name: "AL", thickness: 7, density: 2.7, price: 40, squarePrice: 0.76, category: "composite", notes: "" },
   { id: "pet12_comp", name: "PET", thickness: 12, density: 1.41, price: 15, squarePrice: 0.25, category: "composite", notes: "" },
-  { id: "ny15", name: "NY", thickness: 15, density: 1.14, price: 35, squarePrice: 0.60, category: "composite", notes: "" },
-  { id: "cpp30", name: "CPP30", thickness: 30, density: 0.91, price: 16.5, squarePrice: 0.45, category: "composite", notes: "" },
 ];
 
 const defaultDigitalSealLayerMaterials: DigitalMaterial[] = [
   { id: "pe40_seal", name: "PE40", thickness: 40, density: 0.93, price: 16.5, squarePrice: 0.61, category: "seal", notes: "" },
   { id: "pe80", name: "PE80", thickness: 80, density: 0.93, price: 16.5, squarePrice: 1.23, category: "seal", notes: "" },
   { id: "cpp30_seal", name: "CPP30", thickness: 30, density: 0.91, price: 16, squarePrice: 0.44, category: "seal", notes: "" },
-  { id: "pla50", name: "PLA50", thickness: 50, density: 1.27, price: 48, squarePrice: 3.05, category: "seal", notes: "" },
-  { id: "ape40", name: "APE 40", thickness: 40, density: 0.95, price: 35, squarePrice: 1.33, category: "seal", notes: "" },
 ];
 
 const defaultDigitalPrintModes: DigitalPrintMode[] = [
