@@ -1,31 +1,68 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, ArrowRight, Plus, Trash2, Info, Settings, User } from "lucide-react";
+import { ArrowLeft, ArrowRight, Settings, User, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useQuote, type BagType, type MaterialType, type MaterialLayer, type PrintCoverage, type LaminationType, type RowCount, type GravureSurveyData } from "@/lib/quote-store";
-import { BAG_TYPES, MATERIALS, PRINT_COVERAGE, LAMINATION_TYPES, QUANTITY_DISCOUNTS, POST_PROCESSING_OPTIONS, SPOUT_PRICES, DEFAULT_PLATE_CONFIG, DIMENSION_FIELDS, THREE_SIDE_ROW_RATES } from "@/lib/gravure-config";
+import { useQuote, type SelectedParameters } from "@/lib/quote-store";
 
-interface FieldState {
-  key: string;
+interface ParameterOption {
+  id: string;
   label: string;
-  enabled: boolean;
-  value: number;
-  unit: string;
-  isUserInput: boolean;
   tooltip: string;
+  isUserInput: boolean;
 }
+
+const DIMENSION_OPTIONS: ParameterOption[] = [
+  { id: "width", label: "袋宽", tooltip: "包装袋的宽度", isUserInput: true },
+  { id: "height", label: "袋高", tooltip: "包装袋的高度", isUserInput: true },
+  { id: "bottomInsert", label: "底插入", tooltip: "站立袋底部插入深度", isUserInput: true },
+  { id: "sideExpansion", label: "侧面展开", tooltip: "侧面展开宽度", isUserInput: true },
+  { id: "backSeal", label: "背封边", tooltip: "背封边宽度", isUserInput: true },
+];
+
+const MATERIAL_OPTIONS: ParameterOption[] = [
+  { id: "showThickness", label: "显示厚度", tooltip: "让用户输入材料厚度", isUserInput: true },
+  { id: "showDensity", label: "显示密度", tooltip: "让用户查看/修改材料密度", isUserInput: false },
+  { id: "showPrice", label: "显示单价", tooltip: "让用户查看/修改材料单价", isUserInput: false },
+];
+
+const POST_PROCESSING_OPTIONS: ParameterOption[] = [
+  { id: "zipper", label: "拉链", tooltip: "添加拉链选项", isUserInput: true },
+  { id: "punchHole", label: "打孔", tooltip: "添加挂孔选项", isUserInput: true },
+  { id: "laserTear", label: "激光易撕线", tooltip: "添加激光易撕线选项", isUserInput: true },
+  { id: "hotStamp", label: "烫金/烫银", tooltip: "添加烫印选项", isUserInput: true },
+  { id: "spout", label: "吸嘴", tooltip: "添加吸嘴选项", isUserInput: true },
+  { id: "matteOil", label: "哑油", tooltip: "添加哑油处理选项", isUserInput: true },
+];
+
+const PLATE_OPTIONS: ParameterOption[] = [
+  { id: "showLength", label: "版长", tooltip: "制版长度", isUserInput: false },
+  { id: "showCircumference", label: "版周长", tooltip: "制版周长", isUserInput: false },
+  { id: "showColorCount", label: "色数", tooltip: "印刷色数", isUserInput: true },
+  { id: "showUnitPrice", label: "版费单价", tooltip: "每色版费单价", isUserInput: false },
+];
 
 export default function SurveyPage() {
   const [, navigate] = useLocation();
-  const { state } = useQuote();
+  const { state, setSelectedParams, setBackendDefaults } = useQuote();
+
+  const [params, setParams] = useState<SelectedParameters>(state.selectedParams);
+  const [layerCount, setLayerCount] = useState(state.selectedParams.materials.layerCount);
+  const [profitRate, setProfitRate] = useState(state.backendDefaults.profitRate);
+
+  useEffect(() => {
+    setSelectedParams(params);
+  }, [params, setSelectedParams]);
+
+  useEffect(() => {
+    setBackendDefaults({ ...state.backendDefaults, profitRate });
+  }, [profitRate]);
 
   if (!state.productType) {
     navigate("/");
@@ -42,12 +79,40 @@ export default function SurveyPage() {
     navigate("/quote");
   };
 
+  const updateDimension = (key: keyof typeof params.dimensions, value: boolean) => {
+    setParams((prev) => ({
+      ...prev,
+      dimensions: { ...prev.dimensions, [key]: value },
+    }));
+  };
+
+  const updateMaterial = (key: keyof typeof params.materials, value: boolean | number) => {
+    setParams((prev) => ({
+      ...prev,
+      materials: { ...prev.materials, [key]: value },
+    }));
+  };
+
+  const updatePostProcessing = (key: keyof typeof params.postProcessing, value: boolean) => {
+    setParams((prev) => ({
+      ...prev,
+      postProcessing: { ...prev.postProcessing, [key]: value },
+    }));
+  };
+
+  const updatePlate = (key: keyof typeof params.plate, value: boolean) => {
+    setParams((prev) => ({
+      ...prev,
+      plate: { ...prev.plate, [key]: value },
+    }));
+  };
+
   if (!isGravure) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <header className="border-b bg-card">
           <div className="container mx-auto px-4 py-4">
-            <h1 className="text-xl font-semibold text-foreground">自动报价器</h1>
+            <h1 className="text-xl font-semibold text-foreground">报价器生成器</h1>
           </div>
         </header>
 
@@ -61,7 +126,7 @@ export default function SurveyPage() {
                 <span className="text-sm text-muted-foreground">第 2 步，共 3 步</span>
               </div>
               <h2 className="text-2xl font-bold text-foreground mb-2">
-                填写产品详情
+                选择报价器参数
               </h2>
               <p className="text-muted-foreground">
                 您选择的产品类型：
@@ -84,14 +149,14 @@ export default function SurveyPage() {
                 className="gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />
-                Back
+                返回
               </Button>
               <Button
                 data-testid="button-next"
                 onClick={handleNext}
                 className="gap-2"
               >
-                Next
+                生成报价器
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </div>
@@ -101,215 +166,11 @@ export default function SurveyPage() {
     );
   }
 
-  return <GravureSurvey onBack={handleBack} onNext={handleNext} />;
-}
-
-interface GravureSurveyProps {
-  onBack: () => void;
-  onNext: () => void;
-}
-
-function GravureSurvey({ onBack, onNext }: GravureSurveyProps) {
-  const { state, setGravureSurvey } = useQuote();
-  const [openSections, setOpenSections] = useState<string[]>(["bag-type"]);
-
-  const [bagType, setBagType] = useState<BagType | "">(state.gravureSurvey.bagType || "");
-  const [rowCount, setRowCount] = useState<RowCount>(state.gravureSurvey.rowCount || 1);
-
-  const [dimensionFields, setDimensionFields] = useState<FieldState[]>(
-    DIMENSION_FIELDS.map(f => ({
-      key: f.key,
-      label: f.label,
-      enabled: f.key === "width" || f.key === "height",
-      value: f.defaultValue,
-      unit: f.unit,
-      isUserInput: f.isUserInput,
-      tooltip: f.tooltip,
-    }))
-  );
-
-  const [layers, setLayers] = useState<MaterialLayer[]>(
-    state.gravureSurvey.layers || [
-      { material: "PET", thickness: 12, density: 1.4, price: 8 },
-      { material: "PE", thickness: 70, density: 0.92, price: 9.5 },
-    ]
-  );
-
-  const [materialPrices, setMaterialPrices] = useState<Record<MaterialType, number>>(
-    Object.fromEntries(
-      Object.entries(MATERIALS).map(([key, val]) => [key, val.defaultPrice])
-    ) as Record<MaterialType, number>
-  );
-
-  const [printCoverage, setPrintCoverage] = useState<PrintCoverage>(100);
-  const [printPrices, setPrintPrices] = useState<Record<PrintCoverage, number>>(
-    Object.fromEntries(
-      Object.entries(PRINT_COVERAGE).map(([key, val]) => [Number(key), val.price])
-    ) as Record<PrintCoverage, number>
-  );
-
-  const [laminationSteps, setLaminationSteps] = useState<{ type: LaminationType; price: number }[]>([
-    { type: "dry", price: 0.13 },
-  ]);
-
-  const [plateConfig, setPlateConfig] = useState({
-    ...DEFAULT_PLATE_CONFIG,
-    enabled: true,
-  });
-
-  const [quantity, setQuantity] = useState(state.gravureSurvey.quantity || 30000);
-  const [profitRate, setProfitRate] = useState(state.gravureSurvey.backendConfig?.profitRate || 15);
-
-  const [postProcessing, setPostProcessing] = useState<Record<string, boolean>>({});
-  const [zipperType, setZipperType] = useState<"normal" | "easyTear" | "eco">("normal");
-  const [spoutSize, setSpoutSize] = useState<string>("");
-  const [hotStampArea, setHotStampArea] = useState(10);
-
-  const syncToGlobalState = useCallback(() => {
-    const dimFieldsState = dimensionFields.map(f => ({
-      key: f.key,
-      enabled: f.enabled,
-      value: f.value,
-    }));
-
-    const widthField = dimensionFields.find(f => f.key === "width");
-    const heightField = dimensionFields.find(f => f.key === "height");
-    const bottomInsertField = dimensionFields.find(f => f.key === "bottomInsert");
-    const sideExpansionField = dimensionFields.find(f => f.key === "sideExpansion");
-    const backSealField = dimensionFields.find(f => f.key === "backSeal");
-
-    const wasteCoeffs = Object.fromEntries(
-      Object.entries(BAG_TYPES).map(([key, config]) => [key, config.wasteCoefficient])
-    ) as Record<BagType, number>;
-
-    const wasteFees = Object.fromEntries(
-      Object.entries(BAG_TYPES).map(([key, config]) => [key, config.wasteFee])
-    ) as Record<BagType, number>;
-
-    const bagMakingRates = Object.fromEntries(
-      Object.entries(BAG_TYPES).map(([key, config]) => [key, config.bagMakingRate])
-    ) as Record<BagType, number>;
-
-    const laminationPricesMap = Object.fromEntries(
-      laminationSteps.map(s => [s.type, s.price])
-    ) as Record<LaminationType, number>;
-
-    const data: GravureSurveyData = {
-      bagType: bagType || undefined,
-      dimensions: {
-        width: widthField?.value || 100,
-        height: heightField?.value || 150,
-        bottomInsert: bottomInsertField?.enabled ? bottomInsertField.value : undefined,
-        sideExpansion: sideExpansionField?.enabled ? sideExpansionField.value : undefined,
-        backSeal: backSealField?.enabled ? backSealField.value : undefined,
-      },
-      dimensionFields: dimFieldsState,
-      rowCount,
-      layers,
-      printing: { coverage: printCoverage },
-      lamination: laminationSteps.map(s => ({ type: s.type, price: s.price })),
-      plate: {
-        enabled: plateConfig.enabled,
-        plateLength: plateConfig.plateLength,
-        plateCircumference: plateConfig.plateCircumference,
-        colorCount: plateConfig.colorCount,
-        unitPrice: plateConfig.unitPrice,
-      },
-      postProcessing: {
-        zipper: postProcessing.zipper ? zipperType : undefined,
-        punchHole: postProcessing.punchHole,
-        laserTear: postProcessing.laserTear,
-        hotStamp: postProcessing.hotStamp,
-        hotStampArea: postProcessing.hotStamp ? hotStampArea : undefined,
-        wire: postProcessing.wire,
-        handle: postProcessing.handle,
-        airValve: postProcessing.airValve,
-        emboss: postProcessing.emboss,
-        windowCut: postProcessing.windowCut,
-        spout: spoutSize || undefined,
-        matteOil: postProcessing.matteOil,
-      },
-      quantity,
-      backendConfig: {
-        materialPrices,
-        printPrices,
-        laminationPrices: laminationPricesMap,
-        bagMakingRates,
-        wasteCoefficients: wasteCoeffs,
-        wasteFees,
-        quantityDiscounts: QUANTITY_DISCOUNTS.map(d => ({ min: d.min, coefficient: d.coefficient })),
-        profitRate,
-      },
-    };
-
-    setGravureSurvey(data);
-  }, [bagType, rowCount, dimensionFields, layers, printCoverage, laminationSteps, plateConfig, postProcessing, zipperType, spoutSize, hotStampArea, quantity, profitRate, materialPrices, printPrices, setGravureSurvey]);
-
-  useEffect(() => {
-    syncToGlobalState();
-  }, [syncToGlobalState]);
-
-  const updateDimensionField = (key: string, updates: Partial<FieldState>) => {
-    setDimensionFields(fields =>
-      fields.map(f => f.key === key ? { ...f, ...updates } : f)
-    );
-  };
-
-  const handleBagTypeChange = (type: BagType) => {
-    setBagType(type);
-    const config = BAG_TYPES[type];
-    setDimensionFields(fields =>
-      fields.map(f => ({
-        ...f,
-        enabled: f.key === "width" || f.key === "height" || config.requiredDimensions.includes(f.key),
-      }))
-    );
-  };
-
-  const addLayer = () => {
-    if (layers.length < 4) {
-      setLayers([...layers, { material: "PE", thickness: 70, density: 0.92, price: 9.5 }]);
-    }
-  };
-
-  const removeLayer = (index: number) => {
-    if (layers.length > 1) {
-      setLayers(layers.filter((_, i) => i !== index));
-    }
-  };
-
-  const updateLayer = (index: number, updates: Partial<MaterialLayer>) => {
-    setLayers(layers.map((layer, i) => {
-      if (i !== index) return layer;
-      const newLayer = { ...layer, ...updates };
-      if (updates.material) {
-        const mat = MATERIALS[updates.material];
-        newLayer.density = mat.density;
-        newLayer.thickness = mat.defaultThickness;
-        newLayer.price = materialPrices[updates.material] || mat.defaultPrice;
-        newLayer.isGsm = mat.isGsm;
-      }
-      return newLayer;
-    }));
-  };
-
-  const addLaminationStep = () => {
-    if (laminationSteps.length < 3) {
-      setLaminationSteps([...laminationSteps, { type: "dry", price: 0.13 }]);
-    }
-  };
-
-  const removeLaminationStep = (index: number) => {
-    if (laminationSteps.length > 0) {
-      setLaminationSteps(laminationSteps.filter((_, i) => i !== index));
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="border-b bg-card">
+      <header className="border-b bg-card sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
-          <h1 className="text-xl font-semibold text-foreground">自动报价器</h1>
+          <h1 className="text-xl font-semibold text-foreground">报价器生成器</h1>
         </div>
       </header>
 
@@ -323,726 +184,351 @@ function GravureSurvey({ onBack, onNext }: GravureSurveyProps) {
               <span className="text-sm text-muted-foreground">第 2 步，共 3 步</span>
             </div>
             <h2 className="text-2xl font-bold text-foreground mb-2">
-              凹版印刷参数配置
+              选择报价器包含的参数
             </h2>
             <p className="text-muted-foreground mb-4">
-              请配置报价所需的各项参数
+              勾选您希望在报价器中显示的参数字段。
+              <span className="font-medium text-foreground ml-1">凹版印刷 - 包装袋</span>
             </p>
-            <div className="flex items-center gap-4 text-sm">
+            
+            <div className="flex gap-6 text-sm">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-primary" />
-                <span className="text-muted-foreground">用户输入参数</span>
-                <User className="w-3.5 h-3.5 text-primary" />
+                <User className="w-4 h-4 text-primary" />
+                <span className="text-muted-foreground">用户输入字段</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-muted-foreground" />
-                <span className="text-muted-foreground">后台计算参数</span>
-                <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+                <Settings className="w-4 h-4 text-muted-foreground" />
+                <span className="text-muted-foreground">后台配置字段</span>
               </div>
             </div>
           </div>
 
-          <Accordion
-            type="multiple"
-            value={openSections}
-            onValueChange={setOpenSections}
-            className="space-y-4"
-          >
-            {/* Module 1: Bag Type Selection */}
-            <AccordionItem value="bag-type" className="border rounded-md bg-card">
-              <AccordionTrigger className="px-6 py-4 hover:no-underline" data-testid="accordion-bag-type">
+          <Accordion type="multiple" defaultValue={["dimensions", "materials", "printing"]} className="space-y-4">
+            {/* Module 1: Bag Type & Dimensions */}
+            <AccordionItem value="dimensions" className="border rounded-md bg-card">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline" data-testid="accordion-dimensions">
                 <div className="flex items-center gap-3">
-                  <Badge variant="outline">1</Badge>
-                  <span className="font-semibold">袋型选择</span>
-                  {bagType && (
-                    <Badge variant="secondary" className="ml-2">
-                      {BAG_TYPES[bagType]?.nameZh}
-                    </Badge>
-                  )}
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                    1
+                  </div>
+                  <span className="font-medium">袋型与尺寸</span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
-                <div className="space-y-6">
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <User className="w-4 h-4 text-primary" />
-                      <Label className="text-sm font-medium">选择袋型（用户选择）</Label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {Object.entries(BAG_TYPES).map(([key, config]) => (
-                        <Card
-                          key={key}
-                          data-testid={`card-bagtype-${key}`}
-                          className={`cursor-pointer p-4 hover-elevate transition-all ${
-                            bagType === key ? "ring-2 ring-primary border-primary" : ""
-                          }`}
-                          onClick={() => handleBagTypeChange(key as BagType)}
-                        >
-                          <div className="text-sm font-medium">{config.nameZh}</div>
-                          <div className="text-xs text-muted-foreground mt-1">{config.name}</div>
-                          <div className="text-xs text-muted-foreground mt-2 line-clamp-2">{config.description}</div>
-                        </Card>
-                      ))}
-                    </div>
+              <AccordionContent className="px-4 pb-4">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
+                    <Checkbox
+                      id="bagType"
+                      checked={params.bagType}
+                      onCheckedChange={(checked) => setParams((p) => ({ ...p, bagType: !!checked }))}
+                      data-testid="checkbox-bagType"
+                    />
+                    <User className="w-4 h-4 text-primary" />
+                    <Label htmlFor="bagType" className="flex-1 cursor-pointer">袋型选择</Label>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Info className="w-4 h-4 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent>让用户选择袋型（站立袋、三边封等）</TooltipContent>
+                    </Tooltip>
                   </div>
 
-                  {(bagType === "threeSide" || bagType === "threeSideShape") && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <User className="w-4 h-4 text-primary" />
-                        <Label className="text-sm font-medium">排数（用户选择）</Label>
-                      </div>
-                      <Select value={String(rowCount)} onValueChange={(v) => setRowCount(Number(v) as RowCount)}>
-                        <SelectTrigger className="w-32" data-testid="select-row-count">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(THREE_SIDE_ROW_RATES).map(([key, val]) => (
-                            <SelectItem key={key} value={key}>{val.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <User className="w-4 h-4 text-primary" />
-                      <Label className="text-sm font-medium">尺寸参数（用户输入）</Label>
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-4">勾选的参数将在报价器中要求使用者输入</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {dimensionFields.map((field) => (
-                        <div
-                          key={field.key}
-                          className={`flex items-center gap-3 p-3 rounded-md border ${
-                            field.enabled ? "bg-card border-primary/30" : "bg-muted/50 opacity-60"
-                          }`}
-                        >
-                          <Switch
-                            checked={field.enabled}
-                            onCheckedChange={(checked) => updateDimensionField(field.key, { enabled: checked })}
-                            data-testid={`switch-dim-${field.key}`}
+                  <div className="pl-4 space-y-2">
+                    <Label className="text-sm text-muted-foreground">尺寸字段</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {DIMENSION_OPTIONS.map((opt) => (
+                        <div key={opt.id} className="flex items-center gap-3 p-3 rounded-md bg-muted/30">
+                          <Checkbox
+                            id={`dim-${opt.id}`}
+                            checked={params.dimensions[opt.id as keyof typeof params.dimensions]}
+                            onCheckedChange={(checked) => updateDimension(opt.id as keyof typeof params.dimensions, !!checked)}
+                            data-testid={`checkbox-dim-${opt.id}`}
                           />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">{field.label}</span>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Info className="w-3.5 h-3.5 text-muted-foreground" />
-                                </TooltipTrigger>
-                                <TooltipContent>{field.tooltip}</TooltipContent>
-                              </Tooltip>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="number"
-                              value={field.value}
-                              onChange={(e) => updateDimensionField(field.key, { value: Number(e.target.value) })}
-                              className="w-20 h-8 text-sm"
-                              disabled={!field.enabled}
-                              data-testid={`input-dim-${field.key}`}
-                            />
-                            <span className="text-xs text-muted-foreground w-8">{field.unit}</span>
-                          </div>
+                          {opt.isUserInput ? (
+                            <User className="w-4 h-4 text-primary" />
+                          ) : (
+                            <Settings className="w-4 h-4 text-muted-foreground" />
+                          )}
+                          <Label htmlFor={`dim-${opt.id}`} className="flex-1 cursor-pointer text-sm">{opt.label}</Label>
                         </div>
                       ))}
                     </div>
                   </div>
-
-                  {bagType && (
-                    <Card className="p-4 bg-muted/30">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Settings className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">展开面积公式（后台计算）</span>
-                      </div>
-                      <code className="text-xs text-muted-foreground block">
-                        {BAG_TYPES[bagType].areaFormula}
-                      </code>
-                    </Card>
-                  )}
                 </div>
               </AccordionContent>
             </AccordionItem>
 
-            {/* Module 2: Material Layers */}
+            {/* Module 2: Materials */}
             <AccordionItem value="materials" className="border rounded-md bg-card">
-              <AccordionTrigger className="px-6 py-4 hover:no-underline" data-testid="accordion-materials">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline" data-testid="accordion-materials">
                 <div className="flex items-center gap-3">
-                  <Badge variant="outline">2</Badge>
-                  <span className="font-semibold">材料层结构</span>
-                  <Badge variant="secondary" className="ml-2">{layers.length} 层</Badge>
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                    2
+                  </div>
+                  <span className="font-medium">材料层结构</span>
+                  {params.materials.enabled && (
+                    <Badge variant="secondary">{layerCount}层</Badge>
+                  )}
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
+              <AccordionContent className="px-4 pb-4">
                 <div className="space-y-4">
-                  <p className="text-xs text-muted-foreground">配置复合材料的层数和材料类型（1-4层），复合次数 = 层数 - 1</p>
-                  
-                  {layers.map((layer, index) => (
-                    <Card key={index} className="p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4 text-primary" />
-                          <span className="text-sm font-medium">第 {index + 1} 层（用户选择）</span>
-                        </div>
-                        {layers.length > 1 && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeLayer(index)}
-                            data-testid={`button-remove-layer-${index}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div>
-                          <Label className="text-xs">材料类型</Label>
-                          <Select
-                            value={layer.material}
-                            onValueChange={(v) => updateLayer(index, { material: v as MaterialType })}
-                          >
-                            <SelectTrigger className="mt-1" data-testid={`select-material-${index}`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(MATERIALS).map(([key, mat]) => (
-                                <SelectItem key={key} value={key}>
-                                  {mat.nameZh}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label className="text-xs">
-                            {MATERIALS[layer.material]?.isGsm ? "克重 (gsm)" : "厚度 (μm)"}
-                          </Label>
-                          <Input
-                            type="number"
-                            value={layer.thickness}
-                            onChange={(e) => updateLayer(index, { thickness: Number(e.target.value) })}
-                            className="mt-1"
-                            data-testid={`input-thickness-${index}`}
-                          />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-1">
-                            <Settings className="w-3 h-3 text-muted-foreground" />
-                            <Label className="text-xs">密度 (g/cm³)</Label>
-                          </div>
-                          <Input
-                            type="number"
-                            value={layer.density}
-                            onChange={(e) => updateLayer(index, { density: Number(e.target.value) })}
-                            className="mt-1"
-                            disabled={MATERIALS[layer.material]?.isGsm}
-                            data-testid={`input-density-${index}`}
-                          />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-1">
-                            <Settings className="w-3 h-3 text-muted-foreground" />
-                            <Label className="text-xs">单价 (元/kg)</Label>
-                          </div>
-                          <Input
-                            type="number"
-                            value={layer.price}
-                            onChange={(e) => updateLayer(index, { price: Number(e.target.value) })}
-                            className="mt-1"
-                            data-testid={`input-price-${index}`}
-                          />
-                        </div>
-                      </div>
-                      <div className="mt-3 flex items-center gap-2">
-                        <Switch
-                          checked={layer.enableSplice || false}
-                          onCheckedChange={(checked) => updateLayer(index, { enableSplice: checked })}
-                          data-testid={`switch-splice-${index}`}
-                        />
-                        <span className="text-sm">启用开窗拼接</span>
-                      </div>
-                    </Card>
-                  ))}
+                  <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
+                    <Checkbox
+                      id="materials-enabled"
+                      checked={params.materials.enabled}
+                      onCheckedChange={(checked) => updateMaterial("enabled", !!checked)}
+                      data-testid="checkbox-materials-enabled"
+                    />
+                    <User className="w-4 h-4 text-primary" />
+                    <Label htmlFor="materials-enabled" className="flex-1 cursor-pointer">启用材料配置</Label>
+                  </div>
 
-                  {layers.length < 4 && (
-                    <Button variant="outline" onClick={addLayer} className="w-full gap-2" data-testid="button-add-layer">
-                      <Plus className="w-4 h-4" />
-                      添加材料层
-                    </Button>
+                  {params.materials.enabled && (
+                    <>
+                      <div className="flex items-center gap-4 p-3 rounded-md bg-muted/30">
+                        <Label className="text-sm">材料层数</Label>
+                        <div className="flex items-center gap-2">
+                          {[1, 2, 3, 4].map((n) => (
+                            <Button
+                              key={n}
+                              size="sm"
+                              variant={layerCount === n ? "default" : "outline"}
+                              onClick={() => {
+                                setLayerCount(n);
+                                updateMaterial("layerCount", n);
+                              }}
+                              data-testid={`button-layer-${n}`}
+                            >
+                              {n}层
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="pl-4 space-y-2">
+                        <Label className="text-sm text-muted-foreground">显示字段</Label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {MATERIAL_OPTIONS.map((opt) => (
+                            <div key={opt.id} className="flex items-center gap-3 p-3 rounded-md bg-muted/30">
+                              <Checkbox
+                                id={`mat-${opt.id}`}
+                                checked={params.materials[opt.id as keyof typeof params.materials] as boolean}
+                                onCheckedChange={(checked) => updateMaterial(opt.id as keyof typeof params.materials, !!checked)}
+                                data-testid={`checkbox-mat-${opt.id}`}
+                              />
+                              {opt.isUserInput ? (
+                                <User className="w-4 h-4 text-primary" />
+                              ) : (
+                                <Settings className="w-4 h-4 text-muted-foreground" />
+                              )}
+                              <Label htmlFor={`mat-${opt.id}`} className="flex-1 cursor-pointer text-sm">{opt.label}</Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
               </AccordionContent>
             </AccordionItem>
 
-            {/* Module 3: Material Cost Calculation */}
-            <AccordionItem value="material-cost" className="border rounded-md bg-card">
-              <AccordionTrigger className="px-6 py-4 hover:no-underline" data-testid="accordion-material-cost">
+            {/* Module 3: Printing */}
+            <AccordionItem value="printing" className="border rounded-md bg-card">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline" data-testid="accordion-printing">
                 <div className="flex items-center gap-3">
-                  <Badge variant="outline">3</Badge>
-                  <span className="font-semibold">材料成本计算</span>
-                  <Badge variant="secondary" className="ml-2">
-                    <Settings className="w-3 h-3 mr-1" />
-                    后台配置
-                  </Badge>
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                    3
+                  </div>
+                  <span className="font-medium">印刷</span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
-                <div className="space-y-4">
-                  <Card className="p-4 bg-muted/30">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Settings className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">计算公式</span>
-                    </div>
-                    <code className="text-xs text-muted-foreground block mb-2">
-                      薄膜: C = 展开面积(m²) × 厚度(μm) × 密度(g/cm³) × 单价(元/kg) / 1000
-                    </code>
-                    <code className="text-xs text-muted-foreground block">
-                      纸类: C = 展开面积(m²) × 克重(gsm) / 1000 × 单价(元/kg)
-                    </code>
-                  </Card>
-                  
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Settings className="w-4 h-4 text-muted-foreground" />
-                      <Label className="text-sm font-medium">材料单价设置（后台配置）</Label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {Object.entries(MATERIALS).map(([key, mat]) => (
-                        <div key={key} className="flex items-center gap-2 p-2 border rounded-md">
-                          <Label className="text-xs flex-1 truncate" title={mat.nameZh}>{mat.nameZh}</Label>
-                          <Input
-                            type="number"
-                            value={materialPrices[key as MaterialType]}
-                            onChange={(e) => setMaterialPrices(prev => ({
-                              ...prev,
-                              [key]: Number(e.target.value)
-                            }))}
-                            className="w-16 h-7 text-xs"
-                            data-testid={`input-mat-price-${key}`}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+              <AccordionContent className="px-4 pb-4">
+                <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
+                  <Checkbox
+                    id="printing-coverage"
+                    checked={params.printing.coverage}
+                    onCheckedChange={(checked) => setParams((p) => ({ ...p, printing: { ...p.printing, coverage: !!checked } }))}
+                    data-testid="checkbox-printing-coverage"
+                  />
+                  <User className="w-4 h-4 text-primary" />
+                  <Label htmlFor="printing-coverage" className="flex-1 cursor-pointer">印刷覆盖率</Label>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="w-4 h-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>让用户选择印刷覆盖率（25%-300%）</TooltipContent>
+                  </Tooltip>
                 </div>
               </AccordionContent>
             </AccordionItem>
 
-            {/* Module 4: Process Cost */}
-            <AccordionItem value="process-cost" className="border rounded-md bg-card">
-              <AccordionTrigger className="px-6 py-4 hover:no-underline" data-testid="accordion-process-cost">
+            {/* Module 4: Lamination */}
+            <AccordionItem value="lamination" className="border rounded-md bg-card">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline" data-testid="accordion-lamination">
                 <div className="flex items-center gap-3">
-                  <Badge variant="outline">4</Badge>
-                  <span className="font-semibold">工艺成本</span>
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                    4
+                  </div>
+                  <span className="font-medium">复合</span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
-                <div className="space-y-6">
-                  {/* Printing */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <User className="w-4 h-4 text-primary" />
-                      <Label className="text-sm font-medium">印刷覆盖率（用户选择）</Label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {Object.entries(PRINT_COVERAGE).map(([key, config]) => {
-                        const coverage = Number(key) as PrintCoverage;
-                        return (
-                          <Card
-                            key={key}
-                            className={`cursor-pointer p-3 hover-elevate ${
-                              printCoverage === coverage ? "ring-2 ring-primary border-primary" : ""
-                            }`}
-                            onClick={() => setPrintCoverage(coverage)}
-                            data-testid={`card-coverage-${key}`}
-                          >
-                            <div className="text-sm font-medium">{config.labelShort}</div>
-                            <div className="text-xs text-muted-foreground">{config.description}</div>
-                            <div className="flex items-center justify-between mt-2">
-                              <div className="flex items-center gap-1">
-                                <Settings className="w-3 h-3 text-muted-foreground" />
-                                <span className="text-xs text-muted-foreground">单价</span>
-                              </div>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={printPrices[coverage]}
-                                onChange={(e) => {
-                                  e.stopPropagation();
-                                  setPrintPrices(prev => ({
-                                    ...prev,
-                                    [coverage]: Number(e.target.value)
-                                  }));
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                                className="w-16 h-6 text-xs"
-                                data-testid={`input-coverage-price-${key}`}
-                              />
-                              <span className="text-xs text-muted-foreground">元/㎡</span>
-                            </div>
-                          </Card>
-                        );
-                      })}
-                    </div>
+              <AccordionContent className="px-4 pb-4">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
+                    <Checkbox
+                      id="lamination-enabled"
+                      checked={params.lamination.enabled}
+                      onCheckedChange={(checked) => setParams((p) => ({ ...p, lamination: { ...p.lamination, enabled: !!checked } }))}
+                      data-testid="checkbox-lamination-enabled"
+                    />
+                    <User className="w-4 h-4 text-primary" />
+                    <Label htmlFor="lamination-enabled" className="flex-1 cursor-pointer">启用复合配置</Label>
                   </div>
 
-                  {/* Lamination */}
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
+                  {params.lamination.enabled && (
+                    <div className="flex items-center gap-3 p-3 rounded-md bg-muted/30 ml-4">
+                      <Checkbox
+                        id="lamination-price"
+                        checked={params.lamination.showPrice}
+                        onCheckedChange={(checked) => setParams((p) => ({ ...p, lamination: { ...p.lamination, showPrice: !!checked } }))}
+                        data-testid="checkbox-lamination-price"
+                      />
+                      <Settings className="w-4 h-4 text-muted-foreground" />
+                      <Label htmlFor="lamination-price" className="flex-1 cursor-pointer text-sm">显示复合单价</Label>
+                    </div>
+                  )}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Module 5: Post-Processing */}
+            <AccordionItem value="post-processing" className="border rounded-md bg-card">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline" data-testid="accordion-post-processing">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                    5
+                  </div>
+                  <span className="font-medium">后处理</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4">
+                <div className="grid grid-cols-2 gap-2">
+                  {POST_PROCESSING_OPTIONS.map((opt) => (
+                    <div key={opt.id} className="flex items-center gap-3 p-3 rounded-md bg-muted/30">
+                      <Checkbox
+                        id={`pp-${opt.id}`}
+                        checked={params.postProcessing[opt.id as keyof typeof params.postProcessing]}
+                        onCheckedChange={(checked) => updatePostProcessing(opt.id as keyof typeof params.postProcessing, !!checked)}
+                        data-testid={`checkbox-pp-${opt.id}`}
+                      />
+                      {opt.isUserInput ? (
+                        <User className="w-4 h-4 text-primary" />
+                      ) : (
                         <Settings className="w-4 h-4 text-muted-foreground" />
-                        <Label className="text-sm font-medium">复合工艺（后台配置）</Label>
-                      </div>
-                      <span className="text-xs text-muted-foreground">复合次数 = 层数 - 1</span>
-                    </div>
-                    <div className="space-y-3">
-                      {laminationSteps.map((step, index) => (
-                        <div key={index} className="flex items-center gap-3 p-3 border rounded-md">
-                          <span className="text-sm text-muted-foreground w-16">第 {index + 1} 次</span>
-                          <Select
-                            value={step.type}
-                            onValueChange={(v) => {
-                              const newSteps = [...laminationSteps];
-                              newSteps[index] = { type: v as LaminationType, price: LAMINATION_TYPES[v as LaminationType].price };
-                              setLaminationSteps(newSteps);
-                            }}
-                          >
-                            <SelectTrigger className="flex-1" data-testid={`select-lamination-${index}`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(LAMINATION_TYPES).map(([key, config]) => (
-                                <SelectItem key={key} value={key}>
-                                  <div>
-                                    <div>{config.label}</div>
-                                    <div className="text-xs text-muted-foreground">{config.description}</div>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={step.price}
-                              onChange={(e) => {
-                                const newSteps = [...laminationSteps];
-                                newSteps[index] = { ...step, price: Number(e.target.value) };
-                                setLaminationSteps(newSteps);
-                              }}
-                              className="w-20 h-9"
-                              data-testid={`input-lamination-price-${index}`}
-                            />
-                            <span className="text-xs text-muted-foreground">元/㎡</span>
-                          </div>
-                          {laminationSteps.length > 0 && (
-                            <Button variant="ghost" size="icon" onClick={() => removeLaminationStep(index)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                      {laminationSteps.length < 3 && (
-                        <Button variant="outline" onClick={addLaminationStep} className="w-full gap-2" data-testid="button-add-lamination">
-                          <Plus className="w-4 h-4" />
-                          添加复合步骤
-                        </Button>
                       )}
+                      <Label htmlFor={`pp-${opt.id}`} className="flex-1 cursor-pointer text-sm">{opt.label}</Label>
                     </div>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Module 6: Plate */}
+            <AccordionItem value="plate" className="border rounded-md bg-card">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline" data-testid="accordion-plate">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                    6
+                  </div>
+                  <span className="font-medium">制版</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
+                    <Checkbox
+                      id="plate-enabled"
+                      checked={params.plate.enabled}
+                      onCheckedChange={(checked) => updatePlate("enabled", !!checked)}
+                      data-testid="checkbox-plate-enabled"
+                    />
+                    <User className="w-4 h-4 text-primary" />
+                    <Label htmlFor="plate-enabled" className="flex-1 cursor-pointer">启用制版配置</Label>
                   </div>
 
-                  {/* Post Processing */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <User className="w-4 h-4 text-primary" />
-                      <Label className="text-sm font-medium">附加工艺（用户选择）</Label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {POST_PROCESSING_OPTIONS.map((opt) => (
-                        <div key={opt.id} className="p-3 border rounded-md">
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              checked={postProcessing[opt.id] || false}
-                              onCheckedChange={(checked) => setPostProcessing(prev => ({ ...prev, [opt.id]: checked }))}
-                              data-testid={`switch-post-${opt.id}`}
-                            />
-                            <span className="text-sm font-medium">{opt.nameZh}</span>
-                          </div>
-                          {opt.priceFormula && (
-                            <div className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
-                              <Settings className="w-3 h-3" />
-                              {opt.priceFormula}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-
-                    {postProcessing.zipper && (
-                      <Card className="mt-3 p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <User className="w-4 h-4 text-primary" />
-                          <Label className="text-xs">拉链类型（用户选择）</Label>
-                        </div>
-                        <Select value={zipperType} onValueChange={(v) => setZipperType(v as typeof zipperType)}>
-                          <SelectTrigger data-testid="select-zipper-type">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="normal">普通拉链</SelectItem>
-                            <SelectItem value="easyTear">易撕拉链</SelectItem>
-                            <SelectItem value="eco">可降解拉链</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </Card>
-                    )}
-
-                    {postProcessing.hotStamp && (
-                      <Card className="mt-3 p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <User className="w-4 h-4 text-primary" />
-                          <Label className="text-xs">烫金面积（用户输入）</Label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            value={hotStampArea}
-                            onChange={(e) => setHotStampArea(Number(e.target.value))}
-                            className="w-24"
-                            data-testid="input-hotstamp-area"
+                  {params.plate.enabled && (
+                    <div className="grid grid-cols-2 gap-2 ml-4">
+                      {PLATE_OPTIONS.map((opt) => (
+                        <div key={opt.id} className="flex items-center gap-3 p-3 rounded-md bg-muted/30">
+                          <Checkbox
+                            id={`plate-${opt.id}`}
+                            checked={params.plate[opt.id as keyof typeof params.plate] as boolean}
+                            onCheckedChange={(checked) => updatePlate(opt.id as keyof typeof params.plate, !!checked)}
+                            data-testid={`checkbox-plate-${opt.id}`}
                           />
-                          <span className="text-sm text-muted-foreground">cm²</span>
+                          {opt.isUserInput ? (
+                            <User className="w-4 h-4 text-primary" />
+                          ) : (
+                            <Settings className="w-4 h-4 text-muted-foreground" />
+                          )}
+                          <Label htmlFor={`plate-${opt.id}`} className="flex-1 cursor-pointer text-sm">{opt.label}</Label>
                         </div>
-                      </Card>
-                    )}
-                  </div>
-
-                  {/* Spout Selection */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <User className="w-4 h-4 text-primary" />
-                      <Label className="text-sm font-medium">吸嘴规格（用户选择，可选）</Label>
-                    </div>
-                    <Select value={spoutSize || "none"} onValueChange={(v) => setSpoutSize(v === "none" ? "" : v)}>
-                      <SelectTrigger className="w-64" data-testid="select-spout">
-                        <SelectValue placeholder="选择吸嘴规格" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">不使用吸嘴</SelectItem>
-                        {Object.entries(SPOUT_PRICES).map(([size, price]) => (
-                          <SelectItem key={size} value={size}>
-                            {size} - {price}元/个
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Module 5: Plate & Setup */}
-            <AccordionItem value="plate-setup" className="border rounded-md bg-card">
-              <AccordionTrigger className="px-6 py-4 hover:no-underline" data-testid="accordion-plate-setup">
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline">5</Badge>
-                  <span className="font-semibold">制版与上机</span>
-                  <Badge variant="secondary" className="ml-2">
-                    <Settings className="w-3 h-3 mr-1" />
-                    后台配置
-                  </Badge>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Switch
-                      checked={plateConfig.enabled}
-                      onCheckedChange={(checked) => setPlateConfig(prev => ({ ...prev, enabled: checked }))}
-                      data-testid="switch-plate-enabled"
-                    />
-                    <span className="text-sm">启用制版费计算</span>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <div className="flex items-center gap-1">
-                        <Settings className="w-3 h-3 text-muted-foreground" />
-                        <Label className="text-xs">版长 (cm)</Label>
-                      </div>
-                      <Input
-                        type="number"
-                        value={plateConfig.plateLength}
-                        onChange={(e) => setPlateConfig(prev => ({ ...prev, plateLength: Number(e.target.value) }))}
-                        className="mt-1"
-                        disabled={!plateConfig.enabled}
-                        data-testid="input-plate-length"
-                      />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1">
-                        <Settings className="w-3 h-3 text-muted-foreground" />
-                        <Label className="text-xs">版周 (cm)</Label>
-                      </div>
-                      <Input
-                        type="number"
-                        value={plateConfig.plateCircumference}
-                        onChange={(e) => setPlateConfig(prev => ({ ...prev, plateCircumference: Number(e.target.value) }))}
-                        className="mt-1"
-                        disabled={!plateConfig.enabled}
-                        data-testid="input-plate-circumference"
-                      />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1">
-                        <Settings className="w-3 h-3 text-muted-foreground" />
-                        <Label className="text-xs">色数</Label>
-                      </div>
-                      <Input
-                        type="number"
-                        value={plateConfig.colorCount}
-                        onChange={(e) => setPlateConfig(prev => ({ ...prev, colorCount: Number(e.target.value) }))}
-                        className="mt-1"
-                        disabled={!plateConfig.enabled}
-                        data-testid="input-color-count"
-                      />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1">
-                        <Settings className="w-3 h-3 text-muted-foreground" />
-                        <Label className="text-xs">单价 (元/cm²)</Label>
-                      </div>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={plateConfig.unitPrice}
-                        onChange={(e) => setPlateConfig(prev => ({ ...prev, unitPrice: Number(e.target.value) }))}
-                        className="mt-1"
-                        disabled={!plateConfig.enabled}
-                        data-testid="input-plate-unit-price"
-                      />
-                    </div>
-                  </div>
-
-                  <Card className="p-4 bg-muted/30">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Settings className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">计算公式</span>
-                    </div>
-                    <code className="text-xs text-muted-foreground block mb-2">
-                      版费 = 版长(cm) × 版周(cm) × 色数 × 单价(元/cm²)
-                    </code>
-                    <code className="text-xs text-muted-foreground block">
-                      上机费 = min(200 × 色数, 1800)（仅当数量 &lt; 10,000时）
-                    </code>
-                  </Card>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Module 6: MOQ & Discount */}
-            <AccordionItem value="moq-discount" className="border rounded-md bg-card">
-              <AccordionTrigger className="px-6 py-4 hover:no-underline" data-testid="accordion-moq-discount">
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline">6</Badge>
-                  <span className="font-semibold">起订量与折扣</span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <User className="w-4 h-4 text-primary" />
-                      <Label className="text-sm font-medium">数量（用户输入）</Label>
-                    </div>
-                    <Input
-                      type="number"
-                      value={quantity}
-                      onChange={(e) => setQuantity(Number(e.target.value))}
-                      className="w-48"
-                      data-testid="input-quantity"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Settings className="w-4 h-4 text-muted-foreground" />
-                      <Label className="text-sm font-medium">数量折扣系数表（后台配置）</Label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {QUANTITY_DISCOUNTS.map((tier, index) => (
-                        <Card
-                          key={index}
-                          className={`p-3 ${quantity >= tier.min && (index === QUANTITY_DISCOUNTS.length - 1 || quantity < QUANTITY_DISCOUNTS[index - 1]?.min) ? "ring-2 ring-primary border-primary" : ""}`}
-                        >
-                          <div className="text-sm font-medium">{tier.label}</div>
-                          <div className="text-lg font-bold text-primary mt-1">×{tier.coefficient}</div>
-                        </Card>
                       ))}
                     </div>
-                  </div>
+                  )}
                 </div>
               </AccordionContent>
             </AccordionItem>
 
-            {/* Module 7: Waste & Profit */}
-            <AccordionItem value="waste-profit" className="border rounded-md bg-card">
-              <AccordionTrigger className="px-6 py-4 hover:no-underline" data-testid="accordion-waste-profit">
+            {/* Module 7: Quantity & Profit */}
+            <AccordionItem value="quantity-profit" className="border rounded-md bg-card">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline" data-testid="accordion-quantity-profit">
                 <div className="flex items-center gap-3">
-                  <Badge variant="outline">7</Badge>
-                  <span className="font-semibold">损耗与利润</span>
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                    7
+                  </div>
+                  <span className="font-medium">数量与利润</span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
+              <AccordionContent className="px-4 pb-4">
                 <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
+                    <Checkbox
+                      id="quantity"
+                      checked={params.quantity}
+                      onCheckedChange={(checked) => setParams((p) => ({ ...p, quantity: !!checked }))}
+                      data-testid="checkbox-quantity"
+                    />
+                    <User className="w-4 h-4 text-primary" />
+                    <Label htmlFor="quantity" className="flex-1 cursor-pointer">订购数量</Label>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
+                    <Checkbox
+                      id="profitRate"
+                      checked={params.profitRate}
+                      onCheckedChange={(checked) => setParams((p) => ({ ...p, profitRate: !!checked }))}
+                      data-testid="checkbox-profitRate"
+                    />
+                    <Settings className="w-4 h-4 text-muted-foreground" />
+                    <Label htmlFor="profitRate" className="flex-1 cursor-pointer">利润率设置</Label>
+                  </div>
+
+                  {!params.profitRate && (
+                    <div className="flex items-center gap-4 p-3 rounded-md bg-muted/30 ml-4">
                       <Settings className="w-4 h-4 text-muted-foreground" />
-                      <Label className="text-sm font-medium">利润率（后台配置）</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
+                      <Label className="text-sm">默认利润率</Label>
                       <Input
                         type="number"
                         value={profitRate}
                         onChange={(e) => setProfitRate(Number(e.target.value))}
                         className="w-24"
-                        data-testid="input-profit-rate"
+                        data-testid="input-default-profit"
                       />
                       <span className="text-sm text-muted-foreground">%</span>
                     </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Settings className="w-4 h-4 text-muted-foreground" />
-                      <Label className="text-sm font-medium">损耗系数表（按袋型，后台配置）</Label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {Object.entries(BAG_TYPES).map(([key, config]) => (
-                        <Card key={key} className={`p-3 ${bagType === key ? "ring-2 ring-primary border-primary" : ""}`}>
-                          <div className="text-sm font-medium truncate">{config.nameZh}</div>
-                          <div className="flex items-center justify-between mt-1">
-                            <span className="text-lg font-bold text-primary">×{config.wasteCoefficient}</span>
-                            <span className="text-xs text-muted-foreground">{config.wasteFee}元</span>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Card className="p-4 bg-muted/30">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Settings className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">利润计算公式</span>
-                    </div>
-                    <code className="text-xs text-muted-foreground block">
-                      利润系数 = 1 + 利润率(%) / 100 = {(1 + profitRate / 100).toFixed(2)}
-                    </code>
-                  </Card>
+                  )}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -1052,18 +538,18 @@ function GravureSurvey({ onBack, onNext }: GravureSurveyProps) {
             <Button
               data-testid="button-back"
               variant="outline"
-              onClick={onBack}
+              onClick={handleBack}
               className="gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back
+              返回
             </Button>
             <Button
               data-testid="button-next"
-              onClick={onNext}
+              onClick={handleNext}
               className="gap-2"
             >
-              Next
+              生成报价器
               <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
