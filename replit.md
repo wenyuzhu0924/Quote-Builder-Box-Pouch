@@ -89,6 +89,37 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 31, 2026 - Digital Printing Quote Page (Complete)
+- **Digital Quote Page** with 9 major sections:
+  - 袋型与尺寸: Bag type dropdown with dynamic dimension fields based on formula
+  - 订单信息配置: Quantity, SKU count, tax rate, exchange rate inputs
+  - 材料层结构: Dynamic layer system with +印刷层/+复合层/+热封层 buttons, material selection from configured libraries, auto-populate properties
+  - 印刷工艺: Print mode dropdown from enabled modes in config
+  - 特殊工艺: Multi-select checkbox grid with formula and min price display
+  - 附件配置: Zipper/valve dropdowns, spout single-select, stackable accessories multi-select
+  - 自定义成本设置: Mold cost and special process plate cost inputs
+  - 中间过程数据: Calculated layout params (dimensions, across/around counts, revolutions, meters, feed area)
+  - 报价结果: Cost breakdown display with final pricing in CNY/USD
+
+- **Digital Pricing Calculation**:
+  - Material costs: feedAreaSqm × totalSquarePrice (sum of material layer square prices)
+  - Print costs: totalMeters × tierPrice (5-tier meter-based pricing, doubleWhite mode doubles)
+  - Special process costs: Formula parsing with patterns (×总数量, ×印刷米数, 印刷费×2), min price enforcement
+  - Accessory costs: Zipper (pricePerMeter × width), valve/spout (fixed), stackable (fixed or tiered)
+  - Fixed costs distribution: (moldCost + plateCost) / totalQuantity
+  - Tax application: subtotal × (1 + taxRate/100)
+  - Exchange rate conversion: CNY → USD
+
+- **Layout Optimization Calculation**:
+  - Unfolded dimensions from bag type formula (default: width × height × 2)
+  - Across count: floor(maxWidth / unfoldedWidth)
+  - Around count: floor(maxCircumference / unfoldedLength)
+  - Bags per revolution: acrossCount × aroundCount
+  - Order revolutions: ceil(totalQuantity / bagsPerRevolution)
+  - Waste revolutions: skuCount × skuWasteCoefficient
+  - Total meters: orderMeters + wasteMeters + idleMeters
+  - Feed area: totalMeters × materialWidth / 1000
+
 ### January 31, 2026 - Digital Printing Configuration System
 - **Digital Printing Survey Page** with 8 accordion modules:
   - 袋型: 15 built-in digital bag types (三边封, 自立袋变体, 八边封变体, 卷膜, 异形袋)
