@@ -76,6 +76,7 @@ export default function SurveyPage() {
       requiredDimensions: dimensions,
       wasteCoefficient: newBagType.wasteCoefficient || 1.1,
       isBuiltIn: false,
+      enabled: true,
     };
     updateConfig({ customBagTypes: [...config.customBagTypes, bagType] });
     setNewBagType({ name: "", formula: "", wasteCoefficient: 1.1 });
@@ -231,6 +232,7 @@ export default function SurveyPage() {
       requiredDimensions: dimensions,
       wasteCoefficient: newBagType.wasteCoefficient || 1.0,
       isBuiltIn: false,
+      enabled: true,
     };
     updateDigitalConfig({ customBagTypes: [...digitalConfig.customBagTypes, bagType] });
     setNewBagType({ name: "", formula: "", wasteCoefficient: 1.0 });
@@ -239,6 +241,14 @@ export default function SurveyPage() {
 
   const removeDigitalBagType = (id: string) => {
     updateDigitalConfig({ customBagTypes: digitalConfig.customBagTypes.filter((b) => b.id !== id) });
+  };
+
+  const toggleDigitalBagType = (id: string) => {
+    updateDigitalConfig({
+      customBagTypes: digitalConfig.customBagTypes.map((b) =>
+        b.id === id ? { ...b, enabled: !b.enabled } : b
+      ),
+    });
   };
 
   const updateDigitalMaterial = (category: "print" | "composite" | "seal", id: string, field: keyof DigitalMaterial, value: string | number) => {
@@ -567,7 +577,11 @@ export default function SurveyPage() {
                           {digitalConfig.customBagTypes.map((bagType) => (
                             <TableRow key={bagType.id}>
                               <TableCell>
-                                <Checkbox checked={true} data-testid={`digital-bagtype-check-${bagType.id}`} />
+                                <Checkbox 
+                                  checked={bagType.enabled} 
+                                  onCheckedChange={() => toggleDigitalBagType(bagType.id)}
+                                  data-testid={`digital-bagtype-check-${bagType.id}`} 
+                                />
                               </TableCell>
                               <TableCell>
                                 <span className="font-medium">{bagType.name}</span>
@@ -686,11 +700,11 @@ export default function SurveyPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-[140px]">材料名</TableHead>
-                            <TableHead className="w-[80px]">厚度(μm)</TableHead>
-                            <TableHead className="w-[80px]">密度</TableHead>
-                            <TableHead className="w-[80px]">单价(元/kg)</TableHead>
-                            <TableHead className="w-[100px]">平方价(元/㎡)</TableHead>
+                            <TableHead className="w-[120px]">材料名</TableHead>
+                            <TableHead className="w-[100px]">厚度(μm)</TableHead>
+                            <TableHead className="w-[100px]">密度</TableHead>
+                            <TableHead className="w-[100px]">单价(元/kg)</TableHead>
+                            <TableHead className="w-[110px]">平方价(元/㎡)</TableHead>
                             <TableHead>备注</TableHead>
                             <TableHead className="w-[60px]"></TableHead>
                           </TableRow>
@@ -804,11 +818,11 @@ export default function SurveyPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-[140px]">材料名</TableHead>
-                            <TableHead className="w-[80px]">厚度(μm)</TableHead>
-                            <TableHead className="w-[80px]">密度</TableHead>
-                            <TableHead className="w-[80px]">单价(元/kg)</TableHead>
-                            <TableHead className="w-[100px]">平方价(元/㎡)</TableHead>
+                            <TableHead className="w-[120px]">材料名</TableHead>
+                            <TableHead className="w-[100px]">厚度(μm)</TableHead>
+                            <TableHead className="w-[100px]">密度</TableHead>
+                            <TableHead className="w-[100px]">单价(元/kg)</TableHead>
+                            <TableHead className="w-[110px]">平方价(元/㎡)</TableHead>
                             <TableHead>备注</TableHead>
                             <TableHead className="w-[60px]"></TableHead>
                           </TableRow>
@@ -922,11 +936,11 @@ export default function SurveyPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-[140px]">材料名</TableHead>
-                            <TableHead className="w-[80px]">厚度(μm)</TableHead>
-                            <TableHead className="w-[80px]">密度</TableHead>
-                            <TableHead className="w-[80px]">单价(元/kg)</TableHead>
-                            <TableHead className="w-[100px]">平方价(元/㎡)</TableHead>
+                            <TableHead className="w-[120px]">材料名</TableHead>
+                            <TableHead className="w-[100px]">厚度(μm)</TableHead>
+                            <TableHead className="w-[100px]">密度</TableHead>
+                            <TableHead className="w-[100px]">单价(元/kg)</TableHead>
+                            <TableHead className="w-[110px]">平方价(元/㎡)</TableHead>
                             <TableHead>备注</TableHead>
                             <TableHead className="w-[60px]"></TableHead>
                           </TableRow>
