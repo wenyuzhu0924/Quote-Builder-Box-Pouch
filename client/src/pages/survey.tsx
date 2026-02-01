@@ -264,16 +264,15 @@ export default function SurveyPage() {
   };
 
   const addDigitalMaterial = (category: "print" | "composite" | "seal") => {
-    if (!newDigitalMaterial.name) return;
     const material: DigitalMaterial = {
       id: `${category}_${Date.now()}`,
-      name: newDigitalMaterial.name || "",
-      thickness: newDigitalMaterial.thickness || 0,
-      density: newDigitalMaterial.density || 0,
-      price: newDigitalMaterial.price || 0,
-      squarePrice: newDigitalMaterial.squarePrice || 0,
+      name: "新材料",
+      thickness: 25,
+      density: 0.91,
+      price: 20,
+      squarePrice: 0.46,
       category,
-      notes: newDigitalMaterial.notes || "",
+      notes: "",
     };
     if (category === "print") {
       updateDigitalConfig({ printLayerMaterials: [...digitalConfig.printLayerMaterials, material] });
@@ -282,8 +281,7 @@ export default function SurveyPage() {
     } else {
       updateDigitalConfig({ sealLayerMaterials: [...digitalConfig.sealLayerMaterials, material] });
     }
-    setNewDigitalMaterial({ name: "", thickness: 0, density: 0, price: 0, squarePrice: 0, notes: "" });
-    toast({ title: "材料已添加" });
+    toast({ title: "已添加新材料，请编辑详情" });
   };
 
   const removeDigitalMaterial = (category: "print" | "composite" | "seal", id: string) => {
@@ -770,7 +768,11 @@ export default function SurveyPage() {
                         还有 {digitalConfig.printLayerMaterials.length - 10} 种材料未显示...
                       </p>
                     )}
-                    <div className="flex justify-end">
+                    <div className="flex justify-between">
+                      <Button variant="outline" onClick={() => addDigitalMaterial("print")} className="gap-2" data-testid="button-addPrintMaterial">
+                        <Plus className="w-4 h-4" />
+                        添加材料
+                      </Button>
                       <Button variant="outline" onClick={() => toast({ title: "印刷层材料已保存" })} className="gap-2">
                         <Save className="w-4 h-4" />
                         保存印刷层材料
@@ -884,7 +886,11 @@ export default function SurveyPage() {
                         还有 {digitalConfig.compositeLayerMaterials.length - 10} 种材料未显示...
                       </p>
                     )}
-                    <div className="flex justify-end">
+                    <div className="flex justify-between">
+                      <Button variant="outline" onClick={() => addDigitalMaterial("composite")} className="gap-2" data-testid="button-addCompositeMaterial">
+                        <Plus className="w-4 h-4" />
+                        添加材料
+                      </Button>
                       <Button variant="outline" onClick={() => toast({ title: "复合层材料已保存" })} className="gap-2">
                         <Save className="w-4 h-4" />
                         保存复合层材料
@@ -998,7 +1004,11 @@ export default function SurveyPage() {
                         还有 {digitalConfig.sealLayerMaterials.length - 10} 种材料未显示...
                       </p>
                     )}
-                    <div className="flex justify-end">
+                    <div className="flex justify-between">
+                      <Button variant="outline" onClick={() => addDigitalMaterial("seal")} className="gap-2" data-testid="button-addSealMaterial">
+                        <Plus className="w-4 h-4" />
+                        添加材料
+                      </Button>
                       <Button variant="outline" onClick={() => toast({ title: "热封层材料已保存" })} className="gap-2">
                         <Save className="w-4 h-4" />
                         保存热封层材料
