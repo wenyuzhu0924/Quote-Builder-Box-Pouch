@@ -1853,6 +1853,10 @@ export default function SurveyPage() {
                   <p className="text-xs text-muted-foreground">
                     提示：在公式中使用"袋宽"、"袋高"、"底插入"、"侧面展开"、"背封边"等关键词，系统会自动识别所需尺寸字段
                   </p>
+                  <Button variant="outline" onClick={() => toast({ title: "袋型已保存", description: `共 ${config.customBagTypes.length} 种袋型` })} className="gap-2" data-testid="button-save-bagtypes">
+                    <Save className="w-4 h-4" />
+                    保存袋型
+                  </Button>
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -2109,10 +2113,16 @@ export default function SurveyPage() {
                       </TableBody>
                     </Table>
                   </div>
-                  <Button variant="outline" onClick={addPrintingRule} className="gap-2" data-testid="button-add-printing-rule">
-                    <Plus className="w-4 h-4" />
-                    添加印刷规则
-                  </Button>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <Button variant="outline" onClick={addPrintingRule} className="gap-2" data-testid="button-add-printing-rule">
+                      <Plus className="w-4 h-4" />
+                      添加印刷规则
+                    </Button>
+                    <Button variant="outline" onClick={() => toast({ title: "印刷规则已保存", description: `共 ${config.printingPriceRules.length} 条规则` })} className="gap-2" data-testid="button-save-printing">
+                      <Save className="w-4 h-4" />
+                      保存印刷规则
+                    </Button>
+                  </div>
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -2210,6 +2220,10 @@ export default function SurveyPage() {
                       </TableBody>
                     </Table>
                   </div>
+                  <Button variant="outline" onClick={() => toast({ title: "复合规则已保存", description: `共 ${config.laminationPriceRules.length} 种复合类型` })} className="gap-2" data-testid="button-save-lamination">
+                    <Save className="w-4 h-4" />
+                    保存复合规则
+                  </Button>
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -2219,9 +2233,9 @@ export default function SurveyPage() {
                 <div className="flex items-center gap-3">
                   <Zap className="w-5 h-5 text-primary" />
                   <div className="text-left">
-                    <div className="font-semibold">制袋费</div>
+                    <div className="font-semibold">制袋</div>
                     <div className="text-sm text-muted-foreground">
-                      已自动匹配 {config.customBagTypes.filter(b => b.enabled).length} 种已启用袋型的制袋费公式
+                      已自动匹配 {config.customBagTypes.filter(b => b.enabled).length} 种已启用袋型的制袋公式
                     </div>
                   </div>
                 </div>
@@ -2229,7 +2243,7 @@ export default function SurveyPage() {
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    系统已自动匹配袋型模块中启用的袋型。请为每种袋型确认或编辑制袋费计算公式。
+                    系统已自动匹配袋型模块中启用的袋型。请为每种袋型确认或编辑制袋计算公式。
                     公式格式示例："0.09 × 袋宽"、"0.04 × 袋高"、"0.03 × min(袋宽,袋高) + 0.009"
                   </p>
                   <div className="space-y-3">
@@ -2240,7 +2254,7 @@ export default function SurveyPage() {
                           <span className="text-xs text-muted-foreground truncate">展开面积: {bagType.formula}</span>
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-sm">制袋费公式</Label>
+                          <Label className="text-sm">制袋公式</Label>
                           <Input
                             value={bagType.makingCostFormula}
                             onChange={(e) => {
@@ -2272,6 +2286,10 @@ export default function SurveyPage() {
                       </div>
                     )}
                   </div>
+                  <Button variant="outline" onClick={() => toast({ title: "制袋公式已保存" })} className="gap-2" data-testid="button-save-making">
+                    <Save className="w-4 h-4" />
+                    保存制袋公式
+                  </Button>
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -2488,16 +2506,22 @@ export default function SurveyPage() {
                       </TableBody>
                     </Table>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={addQuantityDiscount}
-                    className="gap-2"
-                    data-testid="add-discount"
-                  >
-                    <Plus className="w-4 h-4" />
-                    添加折扣档位
-                  </Button>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={addQuantityDiscount}
+                      className="gap-2"
+                      data-testid="add-discount"
+                    >
+                      <Plus className="w-4 h-4" />
+                      添加折扣档位
+                    </Button>
+                    <Button variant="outline" onClick={() => toast({ title: "折扣规则已保存", description: `共 ${config.quantityDiscounts.length} 个档位` })} className="gap-2" data-testid="button-save-discount">
+                      <Save className="w-4 h-4" />
+                      保存折扣规则
+                    </Button>
+                  </div>
                 </div>
               </AccordionContent>
             </AccordionItem>

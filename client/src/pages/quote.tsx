@@ -2082,7 +2082,7 @@ export default function QuotePage() {
                           结果 = <b>{f4(gc.makingCostPerUnit)} 元/个</b>
                         </>
                       ) : (
-                        <>未配置制袋公式，制袋费 = <b>0 元/个</b></>
+                        <>未配置制袋公式，制袋 = <b>0 元/个</b></>
                       )}
                     </div>
 
