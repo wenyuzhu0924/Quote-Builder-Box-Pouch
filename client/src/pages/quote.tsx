@@ -103,10 +103,15 @@ export default function QuotePage() {
     return layers;
   });
 
-  const [laminationSteps, setLaminationSteps] = useState<LaminationStep[]>(() => {
+  const laminationSteps: LaminationStep[] = useMemo(() => {
+    const stepCount = Math.max(0, materialLayers.length - 1);
     const firstRule = config.laminationPriceRules[0];
-    return firstRule ? [{ id: "step_1", laminationId: firstRule.id }] : [];
-  });
+    if (!firstRule) return [];
+    return Array.from({ length: stepCount }, (_, i) => ({
+      id: `step_${i + 1}`,
+      laminationId: firstRule.id,
+    }));
+  }, [materialLayers.length, config.laminationPriceRules]);
 
   const [selectedPrintCoverage, setSelectedPrintCoverage] = useState(
     config.printingPriceRules[2]?.coverage || 100
@@ -668,26 +673,6 @@ export default function QuotePage() {
     );
   };
 
-  const addLaminationStep = () => {
-    const firstRule = config.laminationPriceRules[0];
-    if (!firstRule) return;
-    setLaminationSteps([
-      ...laminationSteps,
-      { id: `step_${Date.now()}`, laminationId: firstRule.id },
-    ]);
-  };
-
-  const removeLaminationStep = (index: number) => {
-    setLaminationSteps(laminationSteps.filter((_, i) => i !== index));
-  };
-
-  const updateLaminationStep = (index: number, laminationId: string) => {
-    setLaminationSteps(
-      laminationSteps.map((step, i) =>
-        i === index ? { ...step, laminationId } : step
-      )
-    );
-  };
 
   if (isDigital) {
     return (
@@ -1306,34 +1291,12 @@ export default function QuotePage() {
 
           <Card>
             <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">材料层结构（{materialLayers.length}层）</CardTitle>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <CardTitle className="text-lg">材料层结构（{materialLayers.length}层，自动{Math.max(0, materialLayers.length - 1)}次复合）</CardTitle>
                 <div className="flex items-center gap-2">
-                  {config.materialLibrary.slice(0, 4).map((material) => (
-                    <Button
-                      key={material.id}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        if (materialLayers.length < 5) {
-                          setMaterialLayers([
-                            ...materialLayers,
-                            {
-                              materialId: material.id,
-                              thickness: material.thickness,
-                              density: material.density,
-                              price: material.price,
-                            },
-                          ]);
-                        }
-                      }}
-                      data-testid={`quick-add-${material.id}`}
-                    >
-                      + {material.name}
-                    </Button>
-                  ))}
-                  <Button variant="outline" size="sm" onClick={addMaterialLayer} data-testid="add-custom-material">
-                    + 自定义
+                  <Button variant="outline" size="sm" onClick={addMaterialLayer} disabled={materialLayers.length >= 5} data-testid="add-material-layer">
+                    <Plus className="w-4 h-4" />
+                    添加层
                   </Button>
                 </div>
               </div>
@@ -1424,54 +1387,6 @@ export default function QuotePage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">复合工艺（{laminationSteps.length}次复合）</CardTitle>
-                <Button variant="outline" size="sm" onClick={addLaminationStep} className="gap-2" data-testid="add-lamination-step">
-                  <Plus className="w-4 h-4" />
-                  添加复合
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {laminationSteps.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">暂无复合工艺，点击"添加复合"添加</p>
-                ) : (
-                  laminationSteps.map((step, index) => (
-                    <div key={step.id} className="flex items-center gap-4">
-                      <Label className="w-16">第{index + 1}次：</Label>
-                      <Select
-                        value={step.laminationId}
-                        onValueChange={(v) => updateLaminationStep(index, v)}
-                      >
-                        <SelectTrigger className="w-64" data-testid={`select-lamination-${index}`}>
-                          <SelectValue placeholder="选择复合类型" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {config.laminationPriceRules.map((rule) => (
-                            <SelectItem key={rule.id} value={rule.id}>
-                              {rule.name} ({rule.pricePerSqm}¥/㎡)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeLaminationStep(index)}
-                        className="text-destructive"
-                        data-testid={`remove-lamination-step-${index}`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
 
           <Card>
             <CardHeader className="pb-4">
