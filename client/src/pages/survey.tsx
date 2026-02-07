@@ -135,6 +135,19 @@ export default function SurveyPage() {
     updateConfig({ printingPriceRules: updated });
   };
 
+  const addPrintingRule = () => {
+    const maxCoverage = config.printingPriceRules.length > 0
+      ? Math.max(...config.printingPriceRules.map(r => r.coverage)) + 20
+      : 100;
+    const newRule: PrintingPriceRule = { coverage: maxCoverage, label: `覆盖${maxCoverage}%`, pricePerSqm: 0 };
+    updateConfig({ printingPriceRules: [...config.printingPriceRules, newRule] });
+  };
+
+  const removePrintingRule = (index: number) => {
+    const updated = config.printingPriceRules.filter((_, i) => i !== index);
+    updateConfig({ printingPriceRules: updated });
+  };
+
   const addLamination = () => {
     if (!newLamination.name) return;
     const rule: LaminationPriceRule = {
@@ -2047,6 +2060,7 @@ export default function SurveyPage() {
                           <TableHead className="w-[120px]">覆盖率 (%)</TableHead>
                           <TableHead>标签</TableHead>
                           <TableHead className="w-[140px]">单价 (元/㎡)</TableHead>
+                          <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -2058,6 +2072,7 @@ export default function SurveyPage() {
                                 value={rule.coverage}
                                 onChange={(e) => updatePrintingPrice(index, "coverage", Number(e.target.value))}
                                 className="h-8"
+                                data-testid={`input-printing-coverage-${index}`}
                               />
                             </TableCell>
                             <TableCell>
@@ -2065,6 +2080,7 @@ export default function SurveyPage() {
                                 value={rule.label}
                                 onChange={(e) => updatePrintingPrice(index, "label", e.target.value)}
                                 className="h-8"
+                                data-testid={`input-printing-label-${index}`}
                               />
                             </TableCell>
                             <TableCell>
@@ -2074,13 +2090,29 @@ export default function SurveyPage() {
                                 value={rule.pricePerSqm}
                                 onChange={(e) => updatePrintingPrice(index, "pricePerSqm", Number(e.target.value))}
                                 className="h-8"
+                                data-testid={`input-printing-price-${index}`}
                               />
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removePrintingRule(index)}
+                                className="text-destructive"
+                                data-testid={`button-remove-printing-${index}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </div>
+                  <Button variant="outline" onClick={addPrintingRule} className="gap-2" data-testid="button-add-printing-rule">
+                    <Plus className="w-4 h-4" />
+                    添加印刷规则
+                  </Button>
                 </div>
               </AccordionContent>
             </AccordionItem>
