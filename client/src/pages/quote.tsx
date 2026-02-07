@@ -731,6 +731,7 @@ export default function QuotePage() {
       materialLayers.map((layer, i) =>
         i === index
           ? {
+              ...layer,
               materialId,
               thickness: material.thickness,
               density: material.density,
@@ -1505,7 +1506,7 @@ export default function QuotePage() {
                           </Button>
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             onClick={() => removeMaterialLayer(index)}
                             className="text-destructive"
                             disabled={materialLayers.length <= 1}
@@ -1995,11 +1996,11 @@ export default function QuotePage() {
                           return a * thick * dens * prc / 1000;
                         };
 
-                        const formatFormula = (label: string, a: number, thick: number, dens: number, prc: number, cost: number) => {
+                        const formatFormula = (a: number, thick: number, dens: number, prc: number, cost: number) => {
                           if (dens === 0 || dens === undefined) {
-                            return <>{label}：面积 {f4(a)}㎡ × (克重 {thick} ÷ 1000) × 单价 {prc} 元/kg = <b>{f4(cost)} 元</b></>;
+                            return <>面积 {f4(a)}㎡ × (克重 {thick} ÷ 1000) × 单价 {prc} 元/kg = <b>{f4(cost)} 元</b></>;
                           }
-                          return <>{label}：面积 {f4(a)}㎡ × 厚度 {thick}μm × 密度 {dens} × 单价 {prc} ÷ 1000 = <b>{f4(cost)} 元</b></>;
+                          return <>面积 {f4(a)}㎡ × 厚度 {thick}μm × 密度 {dens} × 单价 {prc} ÷ 1000 = <b>{f4(cost)} 元</b></>;
                         };
 
                         if (layer.splice?.enabled && gc.unfoldedWidthMm > 0) {
@@ -2016,8 +2017,8 @@ export default function QuotePage() {
                           return (
                             <li key={i}>
                               第{i + 1}层 {materialName}（开窗拼接）：<br />
-                              <span className="ml-4">主材（{Math.round(mainMm)}mm / {Math.round(gc.unfoldedWidthMm)}mm）{formatFormula("", mainArea, layer.thickness, layer.density, layer.price, mainCost)}</span><br />
-                              <span className="ml-4">窗口膜 {winName}（{Math.round(wMm)}mm / {Math.round(gc.unfoldedWidthMm)}mm）{formatFormula("", winArea, layer.splice.windowThicknessUm, layer.splice.windowDensity, layer.splice.windowPrice, winCost)}</span><br />
+                              <span className="ml-4">主材 {materialName}（{Math.round(mainMm)}mm / {Math.round(gc.unfoldedWidthMm)}mm）：{formatFormula(mainArea, layer.thickness, layer.density, layer.price, mainCost)}</span><br />
+                              <span className="ml-4">窗口膜 {winName}（{Math.round(wMm)}mm / {Math.round(gc.unfoldedWidthMm)}mm）：{formatFormula(winArea, layer.splice.windowThicknessUm, layer.splice.windowDensity, layer.splice.windowPrice, winCost)}</span><br />
                               <span className="ml-4">合计 = <b>{f4(mainCost + winCost)} 元/个</b></span>
                             </li>
                           );
@@ -2027,7 +2028,7 @@ export default function QuotePage() {
                         const method = (layer.density === 0 || layer.density === undefined) ? "纸类gsm法" : "薄膜法";
                         return (
                           <li key={i}>
-                            第{i + 1}层 {materialName}（{method}）{formatFormula("", gc.area, layer.thickness, layer.density, layer.price, cost)}
+                            第{i + 1}层 {materialName}（{method}）：{formatFormula(gc.area, layer.thickness, layer.density, layer.price, cost)}
                           </li>
                         );
                       })}
