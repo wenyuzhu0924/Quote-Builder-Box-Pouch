@@ -1702,10 +1702,10 @@ export default function SurveyPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-[50px]">选用</TableHead>
-                          <TableHead className="w-[120px]">袋型名称</TableHead>
-                          <TableHead>展开面积公式</TableHead>
+                          <TableHead className="w-[130px]">袋型名称</TableHead>
+                          <TableHead className="min-w-[280px]">展开面积公式</TableHead>
                           <TableHead className="w-[180px]">尺寸字段</TableHead>
-                          <TableHead className="w-[80px]">损耗率</TableHead>
+                          <TableHead className="w-[100px]">损耗率</TableHead>
                           <TableHead className="w-[60px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1764,7 +1764,7 @@ export default function SurveyPage() {
                                     ),
                                   });
                                 }}
-                                className="h-8 w-20"
+                                className="h-8"
                               />
                             </TableCell>
                             <TableCell>
@@ -1815,7 +1815,7 @@ export default function SurveyPage() {
                               step="0.01"
                               value={newBagType.wasteCoefficient}
                               onChange={(e) => setNewBagType({ ...newBagType, wasteCoefficient: Number(e.target.value) })}
-                              className="h-8 w-20"
+                              className="h-8"
                             />
                           </TableCell>
                           <TableCell>
@@ -1862,11 +1862,11 @@ export default function SurveyPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[140px]">材料名</TableHead>
-                          <TableHead className="w-[80px]">厚度(μm)</TableHead>
-                          <TableHead className="w-[80px]">密度(g/cm³)</TableHead>
-                          <TableHead className="w-[80px]">克重(g/㎡)</TableHead>
-                          <TableHead className="w-[80px]">价格(元/kg)</TableHead>
+                          <TableHead className="w-[130px]">材料名</TableHead>
+                          <TableHead className="w-[100px]">厚度(μm)</TableHead>
+                          <TableHead className="w-[110px]">密度(g/cm³)</TableHead>
+                          <TableHead className="w-[100px]">克重(g/㎡)</TableHead>
+                          <TableHead className="w-[110px]">价格(元/kg)</TableHead>
                           <TableHead>备注</TableHead>
                           <TableHead className="w-[60px]"></TableHead>
                         </TableRow>
@@ -2040,9 +2040,9 @@ export default function SurveyPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[100px]">覆盖率 (%)</TableHead>
+                          <TableHead className="w-[120px]">覆盖率 (%)</TableHead>
                           <TableHead>标签</TableHead>
-                          <TableHead className="w-[120px]">单价 (元/㎡)</TableHead>
+                          <TableHead className="w-[140px]">单价 (元/㎡)</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -2103,7 +2103,7 @@ export default function SurveyPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>复合类型</TableHead>
-                          <TableHead className="w-[120px]">单价 (元/㎡)</TableHead>
+                          <TableHead className="w-[140px]">单价 (元/㎡)</TableHead>
                           <TableHead className="w-[60px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -2200,8 +2200,8 @@ export default function SurveyPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-[50px]">启用</TableHead>
-                          <TableHead className="w-[140px]">选项名称</TableHead>
-                          <TableHead>价格公式/说明</TableHead>
+                          <TableHead className="w-[150px]">选项名称</TableHead>
+                          <TableHead className="min-w-[250px]">价格公式/说明</TableHead>
                           <TableHead className="w-[60px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -2357,8 +2357,8 @@ export default function SurveyPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[120px]">最低数量</TableHead>
-                          <TableHead className="w-[100px]">系数</TableHead>
+                          <TableHead className="w-[140px]">最低数量</TableHead>
+                          <TableHead className="w-[120px]">系数</TableHead>
                           <TableHead>标签</TableHead>
                           <TableHead className="w-[60px]"></TableHead>
                         </TableRow>
