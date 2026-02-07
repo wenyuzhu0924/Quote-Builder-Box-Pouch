@@ -571,9 +571,18 @@ export default function QuotePage() {
     const costWithWaste = baseCostPerUnit * wasteCoefficient;
     const costWithQuantity = costWithWaste * quantityCoefficient;
     const profitMultiplier = 1 + profitRate / 100;
-    const finalCostPerUnit = costWithQuantity * profitMultiplier;
-    const totalCost = finalCostPerUnit * quantity + plateCost + setupFee;
-    const totalCostUSD = totalCost / exchangeRate;
+
+    const exFactoryUnit = costWithQuantity * profitMultiplier;
+    const exFactoryTotal = exFactoryUnit * quantity;
+
+    const withFreightUnit = exFactoryUnit * 1.03;
+    const withFreightTotal = withFreightUnit * quantity;
+
+    const withFreightTaxUnit = withFreightUnit * 1.09;
+    const withFreightTaxTotal = withFreightTaxUnit * quantity;
+
+    const withPlateFreightTaxUnit = withFreightTaxUnit + (plateCost + setupFee) / (quantity || 1);
+    const withPlateFreightTaxTotal = withFreightTaxTotal + plateCost + setupFee;
 
     return {
       area,
@@ -587,11 +596,17 @@ export default function QuotePage() {
       baseCostPerUnit,
       costWithWaste,
       costWithQuantity,
-      finalCostPerUnit,
-      totalCost,
-      totalCostUSD,
+      profitMultiplier,
       quantityCoefficient,
       wasteCoefficient,
+      exFactoryUnit,
+      exFactoryTotal,
+      withFreightUnit,
+      withFreightTotal,
+      withFreightTaxUnit,
+      withFreightTaxTotal,
+      withPlateFreightTaxUnit,
+      withPlateFreightTaxTotal,
     };
   }, [
     dimensions,
@@ -1691,88 +1706,270 @@ export default function QuotePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-primary bg-primary/5">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg">报价结果</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="p-4 bg-background rounded-lg">
-                  <div className="text-sm text-muted-foreground">展开面积</div>
-                  <div className="text-xl font-semibold">{(gravureCosts.area * 10000).toFixed(2)} cm²</div>
-                </div>
-                <div className="p-4 bg-background rounded-lg">
-                  <div className="text-sm text-muted-foreground">材料成本/个</div>
-                  <div className="text-xl font-semibold">{gravureCosts.materialCostPerUnit.toFixed(4)} 元</div>
-                </div>
-                <div className="p-4 bg-background rounded-lg">
-                  <div className="text-sm text-muted-foreground">印刷成本/个</div>
-                  <div className="text-xl font-semibold">{gravureCosts.printCostPerUnit.toFixed(4)} 元</div>
-                </div>
-                <div className="p-4 bg-background rounded-lg">
-                  <div className="text-sm text-muted-foreground">复合成本/个</div>
-                  <div className="text-xl font-semibold">{gravureCosts.laminationCostPerUnit.toFixed(4)} 元</div>
-                </div>
-              </div>
+          {(() => {
+            const f4 = (n: number) => n.toFixed(4);
+            const f2 = (n: number) => n.toFixed(2);
+            const usd = (cny: number) => cny / exchangeRate;
+            const gc = gravureCosts;
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="p-4 bg-background rounded-lg">
-                  <div className="text-sm text-muted-foreground">制袋费/个</div>
-                  <div className="text-xl font-semibold">{gravureCosts.makingCostPerUnit.toFixed(4)} 元</div>
-                </div>
-                <div className="p-4 bg-background rounded-lg">
-                  <div className="text-sm text-muted-foreground">后处理成本/个</div>
-                  <div className="text-xl font-semibold">{gravureCosts.postProcessingCostPerUnit.toFixed(4)} 元</div>
-                </div>
-                <div className="p-4 bg-background rounded-lg">
-                  <div className="text-sm text-muted-foreground">损耗系数</div>
-                  <div className="text-xl font-semibold">×{gravureCosts.wasteCoefficient.toFixed(2)}</div>
-                </div>
-                <div className="p-4 bg-background rounded-lg">
-                  <div className="text-sm text-muted-foreground">数量系数</div>
-                  <div className="text-xl font-semibold">×{gravureCosts.quantityCoefficient.toFixed(2)}</div>
-                </div>
-              </div>
+            return (
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg" data-testid="text-quote-result-title">报价结果</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
+                    <div className="p-3 rounded-md border" data-testid="card-exfactory">
+                      <div className="text-xs font-semibold text-muted-foreground">
+                        出厂价（不含版费，含损耗，含利润）
+                      </div>
+                      <div className="mt-1 text-sm">
+                        单价：
+                        <span className="font-bold">{f4(gc.exFactoryUnit)} 元/个</span>
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          ≈ {f4(usd(gc.exFactoryUnit))} USD/pc
+                        </span>
+                      </div>
+                      <div className="text-sm">
+                        总价：
+                        <span className="font-bold">{f2(gc.exFactoryTotal)} 元</span>
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          ≈ {f2(usd(gc.exFactoryTotal))} USD
+                        </span>
+                      </div>
+                    </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                <div className="p-4 bg-background rounded-lg">
-                  <div className="text-sm text-muted-foreground">利润系数</div>
-                  <div className="text-xl font-semibold">×{(1 + profitRate / 100).toFixed(2)}</div>
-                </div>
-                <div className="p-4 bg-background rounded-lg">
-                  <div className="text-sm text-muted-foreground">版费</div>
-                  <div className="text-xl font-semibold">{gravureCosts.plateCost.toFixed(2)} 元</div>
-                </div>
-                <div className="p-4 bg-background rounded-lg">
-                  <div className="text-sm text-muted-foreground">上机费{quantity >= 10000 ? '（免）' : ''}</div>
-                  <div className="text-xl font-semibold">{gravureCosts.setupFee.toFixed(2)} 元</div>
-                </div>
-              </div>
+                    <div className="p-3 rounded-md border" data-testid="card-withfreight">
+                      <div className="text-xs font-semibold text-muted-foreground">
+                        含运价（不含版费，含损耗，含利润，含运费 +3%）
+                      </div>
+                      <div className="mt-1 text-sm">
+                        单价：
+                        <span className="font-bold">{f4(gc.withFreightUnit)} 元/个</span>
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          ≈ {f4(usd(gc.withFreightUnit))} USD/pc
+                        </span>
+                      </div>
+                      <div className="text-sm">
+                        总价：
+                        <span className="font-bold">{f2(gc.withFreightTotal)} 元</span>
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          ≈ {f2(usd(gc.withFreightTotal))} USD
+                        </span>
+                      </div>
+                    </div>
 
-              <div className="flex items-center justify-between gap-4 p-6 bg-primary text-primary-foreground rounded-lg">
-                <div>
-                  <div className="text-sm opacity-80">单价（含损耗+利润）</div>
-                  <div className="text-3xl font-bold">¥{gravureCosts.finalCostPerUnit.toFixed(4)}/个</div>
-                  <div className="text-sm opacity-80 mt-1">
-                    ${(gravureCosts.finalCostPerUnit / exchangeRate).toFixed(4)}/个
+                    <div className="p-3 rounded-md border" data-testid="card-withfreighttax">
+                      <div className="text-xs font-semibold text-muted-foreground">
+                        含运含税价（不含版费，含损耗，含利润，含运费 +3%，含税 +9%）
+                      </div>
+                      <div className="mt-1 text-sm">
+                        单价：
+                        <span className="font-bold">{f4(gc.withFreightTaxUnit)} 元/个</span>
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          ≈ {f4(usd(gc.withFreightTaxUnit))} USD/pc
+                        </span>
+                      </div>
+                      <div className="text-sm">
+                        总价：
+                        <span className="font-bold">{f2(gc.withFreightTaxTotal)} 元</span>
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          ≈ {f2(usd(gc.withFreightTaxTotal))} USD
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-md border border-destructive bg-destructive/5" data-testid="card-final-price">
+                      <div className="text-xs font-semibold text-destructive">
+                        含版费含运含税价（含版费，含损耗，含利润，含运费 +3%，含税 +9%）
+                      </div>
+                      <div className="mt-1 text-sm text-destructive">
+                        单价：
+                        <span className="font-bold">{f4(gc.withPlateFreightTaxUnit)} 元/个</span>
+                        <span className="ml-1 text-xs opacity-80">
+                          ≈ {f4(usd(gc.withPlateFreightTaxUnit))} USD/pc
+                        </span>
+                      </div>
+                      <div className="text-sm text-destructive">
+                        总价：
+                        <span className="font-bold">{f2(gc.withPlateFreightTaxTotal)} 元</span>
+                        <span className="ml-1 text-xs opacity-80">
+                          ≈ {f2(usd(gc.withPlateFreightTaxTotal))} USD
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm opacity-80">总价（{quantity.toLocaleString()} 个 + 版费 + 上机费）</div>
-                  <div className="text-3xl font-bold">¥{gravureCosts.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                  <div className="text-sm opacity-80 mt-1">
-                    ${gravureCosts.totalCostUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                </div>
-              </div>
 
-              <div className="mt-6 text-center">
-                <Button size="lg" className="gap-2 px-8" data-testid="button-generate">
-                  生成报价
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                  <div className="grid grid-cols-5 gap-3 text-sm" data-testid="cost-breakdown-grid">
+                    <div className="p-3 rounded-md border" data-testid="cost-material">
+                      <div className="text-muted-foreground">材料</div>
+                      <div className="font-semibold" data-testid="text-cost-material">{f4(gc.materialCostPerUnit)} 元</div>
+                    </div>
+                    <div className="p-3 rounded-md border" data-testid="cost-print">
+                      <div className="text-muted-foreground">印刷</div>
+                      <div className="font-semibold" data-testid="text-cost-print">{f4(gc.printCostPerUnit)} 元</div>
+                    </div>
+                    <div className="p-3 rounded-md border" data-testid="cost-lamination">
+                      <div className="text-muted-foreground">复合</div>
+                      <div className="font-semibold" data-testid="text-cost-lamination">{f4(gc.laminationCostPerUnit)} 元</div>
+                    </div>
+                    <div className="p-3 rounded-md border" data-testid="cost-making">
+                      <div className="text-muted-foreground">制袋</div>
+                      <div className="font-semibold" data-testid="text-cost-making">{f4(gc.makingCostPerUnit)} 元</div>
+                    </div>
+                    <div className="p-3 rounded-md border" data-testid="cost-postprocess">
+                      <div className="text-muted-foreground">后加工</div>
+                      <div className="font-semibold" data-testid="text-cost-postprocess">{f4(gc.postProcessingCostPerUnit)} 元</div>
+                    </div>
+                  </div>
+
+                  <div className="text-xs md:text-sm space-y-2 p-4 bg-muted/30 rounded-lg" data-testid="calculation-detail">
+                    <div className="font-medium text-base mb-3">计算明细</div>
+
+                    <div className="font-medium">一、材料成本（合计 {f4(gc.materialCostPerUnit)} 元/个）</div>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {materialLayers.map((layer, i) => {
+                        const material = config.materialLibrary.find(m => m.id === layer.materialId);
+                        const materialName = material?.name || "未知材料";
+                        if (layer.density === 0 || layer.density === undefined) {
+                          const kgPerBag = gc.area * (layer.thickness / 1000);
+                          const cost = kgPerBag * layer.price;
+                          return (
+                            <li key={i}>
+                              第{i + 1}层 {materialName}（纸类gsm法）：面积 {f4(gc.area)}㎡ × (克重 {layer.thickness} ÷ 1000) × 单价 {layer.price} 元/kg = <b>{f4(cost)} 元/个</b>
+                            </li>
+                          );
+                        } else {
+                          const thicknessM = layer.thickness / 1000000;
+                          const materialWeight = gc.area * thicknessM * layer.density * 1000;
+                          const cost = materialWeight * layer.price / 1000;
+                          return (
+                            <li key={i}>
+                              第{i + 1}层 {materialName}（薄膜法）：面积 {f4(gc.area)}㎡ × 厚度 {layer.thickness}μm × 密度 {layer.density} × 单价 {layer.price} ÷ 1000 = <b>{f4(cost)} 元/个</b>
+                            </li>
+                          );
+                        }
+                      })}
+                    </ul>
+
+                    <div className="font-medium mt-3">二、印刷成本</div>
+                    <div className="pl-5">
+                      {(() => {
+                        const printRule = config.printingPriceRules.find(r => r.coverage === selectedPrintCoverage);
+                        const pricePerSqm = printRule?.pricePerSqm || 0;
+                        return (
+                          <>
+                            公式：印刷 = 展开面积 × 覆盖单价<br />
+                            代入：{f4(gc.area)} ㎡/个 × {pricePerSqm} 元/㎡ = <b>{f4(gc.printCostPerUnit)} 元/个</b>
+                          </>
+                        );
+                      })()}
+                    </div>
+
+                    <div className="font-medium mt-3">三、复合成本</div>
+                    <div className="pl-5">
+                      {(() => {
+                        const stepDetails = laminationSteps.map((step, i) => {
+                          const rule = config.laminationPriceRules.find(r => r.id === step.laminationId);
+                          return { label: rule?.name || `第${i + 1}步`, price: rule?.pricePerSqm || 0 };
+                        });
+                        const laminationSum = stepDetails.reduce((s, d) => s + d.price, 0);
+                        return (
+                          <>
+                            公式：复合 = 展开面积 × (各步单价之和)<br />
+                            {stepDetails.map((d, i) => (
+                              <span key={i}>{i > 0 ? " + " : ""}{d.label} {d.price}元/㎡</span>
+                            ))}
+                            {" = "}{laminationSum} 元/㎡<br />
+                            代入：{f4(gc.area)} ㎡/个 × {laminationSum} = <b>{f4(gc.laminationCostPerUnit)} 元/个</b>
+                          </>
+                        );
+                      })()}
+                    </div>
+
+                    <div className="font-medium mt-3">四、制袋成本</div>
+                    <div className="pl-5">
+                      {selectedBagType?.makingCostFormula ? (
+                        <>
+                          公式：{selectedBagType.makingCostFormula}<br />
+                          代入尺寸：袋宽={dimensions.width / 1000}m 袋高={dimensions.height / 1000}m
+                          {requiredDimensions.includes("bottomInsert") && <> 底插入={dimensions.bottomInsert / 1000}m</>}
+                          {requiredDimensions.includes("sideExpansion") && <> 侧展开={dimensions.sideExpansion / 1000}m</>}
+                          {requiredDimensions.includes("backSeal") && <> 背封边={dimensions.backSeal / 1000}m</>}
+                          <br />
+                          结果 = <b>{f4(gc.makingCostPerUnit)} 元/个</b>
+                        </>
+                      ) : (
+                        <>未配置制袋公式，制袋费 = <b>0 元/个</b></>
+                      )}
+                    </div>
+
+                    <div className="font-medium mt-3">五、后加工成本</div>
+                    <div className="pl-5">
+                      {Object.entries(selectedPostProcessing).filter(([, v]) => v).length === 0 && !spoutSpec ? (
+                        <>未选择后加工，后加工费 = <b>0 元/个</b></>
+                      ) : (
+                        <ul className="list-disc pl-5 space-y-1">
+                          {Object.entries(selectedPostProcessing).filter(([, v]) => v).map(([id]) => {
+                            const opt = config.postProcessingOptions.find(o => o.id === id);
+                            return (
+                              <li key={id}>
+                                {opt?.name || id}
+                                {opt?.priceFormula && <span className="text-muted-foreground">（{opt.priceFormula}）</span>}
+                              </li>
+                            );
+                          })}
+                          {spoutSpec && selectedPostProcessing["spout"] && (
+                            <li>吸嘴 {spoutSpec}：{SPOUT_PRICES[spoutSpec] || 0} 元/个</li>
+                          )}
+                        </ul>
+                      )}
+                      合计后加工 = <b>{f4(gc.postProcessingCostPerUnit)} 元/个</b>
+                    </div>
+
+                    <div className="font-medium mt-3 pt-3 border-t">六、单价合计与系数</div>
+                    <div className="pl-5 space-y-1">
+                      <div data-testid="text-base-cost">
+                        基础单价 = 材料 + 印刷 + 复合 + 制袋 + 后加工<br />
+                        = {f4(gc.materialCostPerUnit)} + {f4(gc.printCostPerUnit)} + {f4(gc.laminationCostPerUnit)} + {f4(gc.makingCostPerUnit)} + {f4(gc.postProcessingCostPerUnit)} = <b>{f4(gc.baseCostPerUnit)} 元/个</b>
+                      </div>
+                      <div data-testid="text-waste-coeff">
+                        × 损耗系数 {gc.wasteCoefficient.toFixed(2)} = {f4(gc.costWithWaste)} 元/个
+                      </div>
+                      <div data-testid="text-qty-coeff">
+                        × 数量系数 {gc.quantityCoefficient.toFixed(2)} = {f4(gc.costWithQuantity)} 元/个
+                      </div>
+                      <div data-testid="text-profit-coeff">
+                        × 利润系数 {gc.profitMultiplier.toFixed(2)} = <b>{f4(gc.exFactoryUnit)} 元/个</b>（出厂价）
+                      </div>
+                    </div>
+
+                    <div className="font-medium mt-3 pt-3 border-t">七、版费与上机费</div>
+                    <div className="pl-5 space-y-1">
+                      <div data-testid="text-plate-cost">
+                        版费 = 版长 {plateConfig.plateLength}cm × 版周 {plateConfig.plateCircumference}cm × {plateConfig.colorCount}色 × {plateConfig.pricePerSqcm} 元/cm² = <b>{f2(gc.plateCost)} 元</b>
+                      </div>
+                      <div data-testid="text-setup-fee">
+                        上机费 = {quantity >= 10000
+                          ? <>数量 ≥ 10,000，免上机费 = <b>0 元</b></>
+                          : <>min(200 × {plateConfig.colorCount}色, 1800) = <b>{f2(gc.setupFee)} 元</b></>
+                        }
+                      </div>
+                    </div>
+
+                    <div className="font-medium mt-3 pt-3 border-t">八、最终价格推导</div>
+                    <div className="pl-5 space-y-1">
+                      <div data-testid="text-exfactory-derivation">出厂单价 = <b>{f4(gc.exFactoryUnit)}</b> 元/个 → 总 {f2(gc.exFactoryTotal)} 元</div>
+                      <div data-testid="text-freight-derivation">+ 运费 3% → 含运单价 = {f4(gc.exFactoryUnit)} × 1.03 = <b>{f4(gc.withFreightUnit)}</b> 元/个 → 总 {f2(gc.withFreightTotal)} 元</div>
+                      <div data-testid="text-tax-derivation">+ 税 9% → 含运含税单价 = {f4(gc.withFreightUnit)} × 1.09 = <b>{f4(gc.withFreightTaxUnit)}</b> 元/个 → 总 {f2(gc.withFreightTaxTotal)} 元</div>
+                      <div data-testid="text-plate-derivation">+ 版费分摊 → 含版费单价 = {f4(gc.withFreightTaxUnit)} + ({f2(gc.plateCost)} + {f2(gc.setupFee)}) / {quantity} = <b>{f4(gc.withPlateFreightTaxUnit)}</b> 元/个</div>
+                      <div data-testid="text-final-total">含版费含运含税总价 = <b>{f2(gc.withPlateFreightTaxTotal)} 元</b> ≈ <b>{f2(usd(gc.withPlateFreightTaxTotal))} USD</b></div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
         </div>
       </main>
     </div>
