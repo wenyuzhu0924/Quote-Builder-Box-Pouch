@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft, Edit, RefreshCw, Plus, Trash2, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -103,14 +103,23 @@ export default function QuotePage() {
     return layers;
   });
 
-  const laminationSteps: LaminationStep[] = useMemo(() => {
-    const stepCount = Math.max(0, materialLayers.length - 1);
-    const firstRule = config.laminationPriceRules[0];
-    if (!firstRule) return [];
-    return Array.from({ length: stepCount }, (_, i) => ({
-      id: `step_${i + 1}`,
-      laminationId: firstRule.id,
-    }));
+  const [laminationSteps, setLaminationSteps] = useState<LaminationStep[]>([]);
+
+  useEffect(() => {
+    const targetCount = Math.max(0, materialLayers.length - 1);
+    setLaminationSteps(prev => {
+      if (prev.length === targetCount) return prev;
+      const firstRule = config.laminationPriceRules[0];
+      if (!firstRule) return [];
+      if (prev.length < targetCount) {
+        const extra = Array.from({ length: targetCount - prev.length }, (_, i) => ({
+          id: `step_${Date.now()}_${prev.length + i}`,
+          laminationId: firstRule.id,
+        }));
+        return [...prev, ...extra];
+      }
+      return prev.slice(0, targetCount);
+    });
   }, [materialLayers.length, config.laminationPriceRules]);
 
   const [selectedPrintCoverage, setSelectedPrintCoverage] = useState(
@@ -673,6 +682,13 @@ export default function QuotePage() {
     );
   };
 
+  const updateLaminationStep = (index: number, laminationId: string) => {
+    setLaminationSteps(
+      laminationSteps.map((step, i) =>
+        i === index ? { ...step, laminationId } : step
+      )
+    );
+  };
 
   if (isDigital) {
     return (
@@ -1387,6 +1403,37 @@ export default function QuotePage() {
             </CardContent>
           </Card>
 
+          {laminationSteps.length > 0 && (
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">复合工艺（自动{laminationSteps.length}次复合）</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {laminationSteps.map((step, index) => (
+                    <div key={step.id} className="flex items-center gap-4">
+                      <Label className="w-20 shrink-0">第{index + 1}次：</Label>
+                      <Select
+                        value={step.laminationId}
+                        onValueChange={(v) => updateLaminationStep(index, v)}
+                      >
+                        <SelectTrigger className="w-64" data-testid={`select-lamination-${index}`}>
+                          <SelectValue placeholder="选择复合类型" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {config.laminationPriceRules.map((rule) => (
+                            <SelectItem key={rule.id} value={rule.id}>
+                              {rule.name} ({rule.pricePerSqm}¥/㎡)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader className="pb-4">
