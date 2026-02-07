@@ -16,11 +16,21 @@ const SPOUT_PRICES: Record<string, number> = {
   "20mm": 0.24, "22mm": 0.24, "26mm": 0.29, "33mm": 0.34, "40mm": 0.80,
 };
 
+interface SpliceConfig {
+  enabled: boolean;
+  windowWidthMm: number;
+  windowThicknessUm: number;
+  windowDensity: number;
+  windowPrice: number;
+  windowMaterialId: string;
+}
+
 interface MaterialLayer {
   materialId: string;
   thickness: number;
   density: number;
   price: number;
+  splice?: SpliceConfig;
 }
 
 interface LaminationStep {
@@ -458,6 +468,39 @@ export default function QuotePage() {
     }
   };
 
+  const getUnfoldedDimensions = (dims: typeof dimensions, bagType: typeof selectedBagType) => {
+    const w = dims.width;
+    const h = dims.height;
+    const bi = dims.bottomInsert;
+    const se = dims.sideExpansion;
+    const bs = dims.backSeal;
+    let unfoldedWidthMm = w * 2;
+    let unfoldedHeightMm = h;
+    if (bagType) {
+      switch (bagType.id) {
+        case "standup":
+          unfoldedWidthMm = w; unfoldedHeightMm = (h + bi) * 2; break;
+        case "threeSide":
+          unfoldedWidthMm = w; unfoldedHeightMm = h * 2; break;
+        case "centerSeal":
+          unfoldedWidthMm = (w + bs) * 2; unfoldedHeightMm = h; break;
+        case "gusset":
+          unfoldedWidthMm = (w + se + bs) * 2; unfoldedHeightMm = h; break;
+        case "eightSide":
+          unfoldedWidthMm = w + 6; unfoldedHeightMm = h + h + se + 30; break;
+        case "taperBottom":
+          unfoldedWidthMm = (w + se) * 2 + 20; unfoldedHeightMm = h + 10; break;
+        case "flatBottom":
+          unfoldedWidthMm = (w + se) * 2 + 30; unfoldedHeightMm = h + se / 2 + 15; break;
+        case "threeSideShape":
+          unfoldedWidthMm = w * 2 + 10; unfoldedHeightMm = h + 5; break;
+        case "taperShape":
+          unfoldedWidthMm = (h + bi) * 2 + 30; unfoldedHeightMm = w + 5; break;
+      }
+    }
+    return { unfoldedWidthMm, unfoldedHeightMm };
+  };
+
   const gravureCosts = useMemo(() => {
     const w = dimensions.width / 1000;
     const h = dimensions.height / 1000;
@@ -501,13 +544,28 @@ export default function QuotePage() {
       }
     }
 
+    const { unfoldedWidthMm } = getUnfoldedDimensions(dimensions, selectedBagType);
+
     let materialCostPerUnit = 0;
     materialLayers.forEach((layer) => {
-      if (layer.density === 0 || layer.density === undefined) {
-        const kgPerBag = area * (layer.thickness / 1000);
-        materialCostPerUnit += kgPerBag * layer.price;
+      const calcLayerCost = (a: number, thick: number, dens: number, prc: number) => {
+        if (dens === 0 || dens === undefined) {
+          return a * (thick / 1000) * prc;
+        }
+        return a * thick * dens * prc / 1000;
+      };
+
+      if (layer.splice?.enabled && unfoldedWidthMm > 0) {
+        const windowMm = Math.max(0, Math.min(layer.splice.windowWidthMm, unfoldedWidthMm));
+        const mainMm = unfoldedWidthMm - windowMm;
+        const mainRatio = mainMm / unfoldedWidthMm;
+        const windowRatio = windowMm / unfoldedWidthMm;
+        const mainArea = area * mainRatio;
+        const windowArea = area * windowRatio;
+        materialCostPerUnit += calcLayerCost(mainArea, layer.thickness, layer.density, layer.price);
+        materialCostPerUnit += calcLayerCost(windowArea, layer.splice.windowThicknessUm, layer.splice.windowDensity, layer.splice.windowPrice);
       } else {
-        materialCostPerUnit += area * layer.thickness * layer.density * layer.price / 1000;
+        materialCostPerUnit += calcLayerCost(area, layer.thickness, layer.density, layer.price);
       }
     });
 
@@ -598,6 +656,7 @@ export default function QuotePage() {
 
     return {
       area,
+      unfoldedWidthMm,
       materialCostPerUnit,
       printCostPerUnit,
       laminationCostPerUnit,
@@ -1320,82 +1379,221 @@ export default function QuotePage() {
             <CardContent>
               <div className="space-y-4">
                 {materialLayers.map((layer, index) => {
-                  const layerCost = (layer.density === 0 || layer.density === undefined)
-                    ? gravureCosts.area * (layer.thickness / 1000) * layer.price
-                    : gravureCosts.area * layer.thickness * layer.density * layer.price / 1000;
+                  const calcCost = (a: number, thick: number, dens: number, prc: number) => {
+                    if (dens === 0 || dens === undefined) return a * (thick / 1000) * prc;
+                    return a * thick * dens * prc / 1000;
+                  };
+                  let layerCost: number;
+                  if (layer.splice?.enabled && gravureCosts.unfoldedWidthMm > 0) {
+                    const wMm = Math.max(0, Math.min(layer.splice.windowWidthMm, gravureCosts.unfoldedWidthMm));
+                    const mainR = (gravureCosts.unfoldedWidthMm - wMm) / gravureCosts.unfoldedWidthMm;
+                    const winR = wMm / gravureCosts.unfoldedWidthMm;
+                    layerCost = calcCost(gravureCosts.area * mainR, layer.thickness, layer.density, layer.price)
+                      + calcCost(gravureCosts.area * winR, layer.splice.windowThicknessUm, layer.splice.windowDensity, layer.splice.windowPrice);
+                  } else {
+                    layerCost = calcCost(gravureCosts.area, layer.thickness, layer.density, layer.price);
+                  }
+
+                  const toggleSplice = () => {
+                    const updated = [...materialLayers];
+                    if (layer.splice?.enabled) {
+                      updated[index] = { ...layer, splice: undefined };
+                    } else {
+                      updated[index] = {
+                        ...layer,
+                        splice: {
+                          enabled: true,
+                          windowWidthMm: 0,
+                          windowThicknessUm: 12,
+                          windowDensity: 1.4,
+                          windowPrice: 8,
+                          windowMaterialId: config.materialLibrary[0]?.id || "",
+                        },
+                      };
+                    }
+                    setMaterialLayers(updated);
+                  };
+
+                  const updateSplice = (patch: Partial<SpliceConfig>) => {
+                    const updated = [...materialLayers];
+                    updated[index] = { ...layer, splice: { ...layer.splice!, ...patch } };
+                    setMaterialLayers(updated);
+                  };
+
+                  const updateSpliceMaterial = (materialId: string) => {
+                    const material = getMaterialById(materialId);
+                    if (!material) return;
+                    updateSplice({
+                      windowMaterialId: materialId,
+                      windowThicknessUm: material.thickness,
+                      windowDensity: material.density,
+                      windowPrice: material.price,
+                    });
+                  };
 
                   return (
-                    <div key={index} className="flex items-end gap-4 p-4 border rounded-lg">
-                      <div className="flex-1">
-                        <Label className="text-sm text-muted-foreground mb-2 block">第{index + 1}层材料</Label>
-                        <Select
-                          value={layer.materialId}
-                          onValueChange={(v) => updateMaterialLayer(index, v)}
-                        >
-                          <SelectTrigger data-testid={`select-material-${index}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {config.materialLibrary.map((m) => (
-                              <SelectItem key={m.id} value={m.id}>
-                                {m.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                    <div key={index} className="p-4 border rounded-lg space-y-3" data-testid={`material-layer-${index}`}>
+                      <div className="flex items-end gap-4">
+                        <div className="flex-1">
+                          <Label className="text-sm text-muted-foreground mb-2 block">第{index + 1}层材料</Label>
+                          <Select
+                            value={layer.materialId}
+                            onValueChange={(v) => updateMaterialLayer(index, v)}
+                          >
+                            <SelectTrigger data-testid={`select-material-${index}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {config.materialLibrary.map((m) => (
+                                <SelectItem key={m.id} value={m.id}>
+                                  {m.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="w-24">
+                          <Label className="text-sm text-muted-foreground mb-2 block">厚度(μm)</Label>
+                          <Input
+                            type="number"
+                            value={layer.thickness}
+                            onChange={(e) => {
+                              const updated = [...materialLayers];
+                              updated[index].thickness = Number(e.target.value);
+                              setMaterialLayers(updated);
+                            }}
+                          />
+                        </div>
+                        <div className="w-24">
+                          <Label className="text-sm text-muted-foreground mb-2 block">密度 g/cm³</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={layer.density}
+                            onChange={(e) => {
+                              const updated = [...materialLayers];
+                              updated[index].density = Number(e.target.value);
+                              setMaterialLayers(updated);
+                            }}
+                          />
+                        </div>
+                        <div className="w-24">
+                          <Label className="text-sm text-muted-foreground mb-2 block">单价 元/kg</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={layer.price}
+                            onChange={(e) => {
+                              const updated = [...materialLayers];
+                              updated[index].price = Number(e.target.value);
+                              setMaterialLayers(updated);
+                            }}
+                          />
+                        </div>
+                        <div className="w-32 text-right">
+                          <Label className="text-sm text-muted-foreground mb-2 block">材料成本/个</Label>
+                          <div className="font-semibold text-primary">{layerCost.toFixed(4)} 元</div>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <Button
+                            variant={layer.splice?.enabled ? "default" : "outline"}
+                            size="sm"
+                            onClick={toggleSplice}
+                            data-testid={`toggle-splice-${index}`}
+                          >
+                            {layer.splice?.enabled ? "取消拼接" : "开窗拼接"}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeMaterialLayer(index)}
+                            className="text-destructive"
+                            disabled={materialLayers.length <= 1}
+                            data-testid={`remove-layer-${index}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="w-24">
-                        <Label className="text-sm text-muted-foreground mb-2 block">厚度(μm)</Label>
-                        <Input
-                          type="number"
-                          value={layer.thickness}
-                          onChange={(e) => {
-                            const updated = [...materialLayers];
-                            updated[index].thickness = Number(e.target.value);
-                            setMaterialLayers(updated);
-                          }}
-                        />
-                      </div>
-                      <div className="w-24">
-                        <Label className="text-sm text-muted-foreground mb-2 block">密度 g/cm³</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={layer.density}
-                          onChange={(e) => {
-                            const updated = [...materialLayers];
-                            updated[index].density = Number(e.target.value);
-                            setMaterialLayers(updated);
-                          }}
-                        />
-                      </div>
-                      <div className="w-24">
-                        <Label className="text-sm text-muted-foreground mb-2 block">单价 元/kg</Label>
-                        <Input
-                          type="number"
-                          step="0.1"
-                          value={layer.price}
-                          onChange={(e) => {
-                            const updated = [...materialLayers];
-                            updated[index].price = Number(e.target.value);
-                            setMaterialLayers(updated);
-                          }}
-                        />
-                      </div>
-                      <div className="w-32 text-right">
-                        <Label className="text-sm text-muted-foreground mb-2 block">材料成本/个</Label>
-                        <div className="font-semibold text-primary">{layerCost.toFixed(4)} 元</div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeMaterialLayer(index)}
-                        className="text-destructive"
-                        disabled={materialLayers.length <= 1}
-                        data-testid={`remove-layer-${index}`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+
+                      {layer.splice?.enabled && (
+                        <>
+                          <div className="flex items-end gap-4 bg-muted/40 p-3 rounded-md">
+                            <div className="flex-1">
+                              <Label className="text-sm text-muted-foreground mb-2 block">窗口膜材料</Label>
+                              <Select
+                                value={layer.splice.windowMaterialId}
+                                onValueChange={updateSpliceMaterial}
+                              >
+                                <SelectTrigger data-testid={`select-splice-material-${index}`}>
+                                  <SelectValue placeholder="选择窗口膜材料" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {config.materialLibrary.map((m) => (
+                                    <SelectItem key={m.id} value={m.id}>
+                                      {m.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="w-28">
+                              <Label className="text-sm text-muted-foreground mb-2 block">窗口膜宽度(mm)</Label>
+                              <Input
+                                type="number"
+                                value={layer.splice.windowWidthMm || ""}
+                                onChange={(e) => updateSplice({ windowWidthMm: Number(e.target.value) || 0 })}
+                                data-testid={`input-splice-width-${index}`}
+                              />
+                            </div>
+                            <div className="w-28">
+                              <Label className="text-sm text-muted-foreground mb-2 block">窗口膜厚度(μm)</Label>
+                              <Input
+                                type="number"
+                                value={layer.splice.windowThicknessUm}
+                                onChange={(e) => updateSplice({ windowThicknessUm: Number(e.target.value) || 0 })}
+                                data-testid={`input-splice-thickness-${index}`}
+                              />
+                            </div>
+                            <div className="w-24">
+                              <Label className="text-sm text-muted-foreground mb-2 block">密度 g/cm³</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={layer.splice.windowDensity}
+                                onChange={(e) => updateSplice({ windowDensity: Number(e.target.value) || 0 })}
+                              />
+                            </div>
+                            <div className="w-24">
+                              <Label className="text-sm text-muted-foreground mb-2 block">单价 元/kg</Label>
+                              <Input
+                                type="number"
+                                step="0.1"
+                                value={layer.splice.windowPrice}
+                                onChange={(e) => updateSplice({ windowPrice: Number(e.target.value) || 0 })}
+                              />
+                            </div>
+                          </div>
+                          <div className="text-xs text-muted-foreground px-3">
+                            {(() => {
+                              const totalW = gravureCosts.unfoldedWidthMm;
+                              const rawWin = layer.splice.windowWidthMm;
+                              const windowW = Math.max(0, Math.min(rawWin, totalW));
+                              const mainW = Math.max(0, totalW - windowW);
+                              return (
+                                <span data-testid={`splice-info-${index}`}>
+                                  当前层拼接：展开宽度 <b>{Math.round(totalW)}</b> mm，
+                                  窗口膜宽度 <b>{Math.round(windowW)}</b> mm，
+                                  主材宽度 = <b>{Math.round(mainW)}</b> mm
+                                  {rawWin > totalW && (
+                                    <span className="text-destructive ml-2">（已按最大展开宽度截断）</span>
+                                  )}
+                                </span>
+                              );
+                            })()}
+                          </div>
+                        </>
+                      )}
                     </div>
                   );
                 })}
@@ -1791,22 +1989,47 @@ export default function QuotePage() {
                       {materialLayers.map((layer, i) => {
                         const material = config.materialLibrary.find(m => m.id === layer.materialId);
                         const materialName = material?.name || "未知材料";
-                        if (layer.density === 0 || layer.density === undefined) {
-                          const kgPerBag = gc.area * (layer.thickness / 1000);
-                          const cost = kgPerBag * layer.price;
+
+                        const calcDetailCost = (a: number, thick: number, dens: number, prc: number) => {
+                          if (dens === 0 || dens === undefined) return a * (thick / 1000) * prc;
+                          return a * thick * dens * prc / 1000;
+                        };
+
+                        const formatFormula = (label: string, a: number, thick: number, dens: number, prc: number, cost: number) => {
+                          if (dens === 0 || dens === undefined) {
+                            return <>{label}：面积 {f4(a)}㎡ × (克重 {thick} ÷ 1000) × 单价 {prc} 元/kg = <b>{f4(cost)} 元</b></>;
+                          }
+                          return <>{label}：面积 {f4(a)}㎡ × 厚度 {thick}μm × 密度 {dens} × 单价 {prc} ÷ 1000 = <b>{f4(cost)} 元</b></>;
+                        };
+
+                        if (layer.splice?.enabled && gc.unfoldedWidthMm > 0) {
+                          const wMm = Math.max(0, Math.min(layer.splice.windowWidthMm, gc.unfoldedWidthMm));
+                          const mainMm = gc.unfoldedWidthMm - wMm;
+                          const mainR = mainMm / gc.unfoldedWidthMm;
+                          const winR = wMm / gc.unfoldedWidthMm;
+                          const mainArea = gc.area * mainR;
+                          const winArea = gc.area * winR;
+                          const mainCost = calcDetailCost(mainArea, layer.thickness, layer.density, layer.price);
+                          const winMat = config.materialLibrary.find(m => m.id === layer.splice!.windowMaterialId);
+                          const winName = winMat?.name || "窗口膜";
+                          const winCost = calcDetailCost(winArea, layer.splice.windowThicknessUm, layer.splice.windowDensity, layer.splice.windowPrice);
                           return (
                             <li key={i}>
-                              第{i + 1}层 {materialName}（纸类gsm法）：面积 {f4(gc.area)}㎡ × (克重 {layer.thickness} ÷ 1000) × 单价 {layer.price} 元/kg = <b>{f4(cost)} 元/个</b>
-                            </li>
-                          );
-                        } else {
-                          const cost = gc.area * layer.thickness * layer.density * layer.price / 1000;
-                          return (
-                            <li key={i}>
-                              第{i + 1}层 {materialName}（薄膜法）：面积 {f4(gc.area)}㎡ × 厚度 {layer.thickness}μm × 密度 {layer.density} × 单价 {layer.price} ÷ 1000 = <b>{f4(cost)} 元/个</b>
+                              第{i + 1}层 {materialName}（开窗拼接）：<br />
+                              <span className="ml-4">主材（{Math.round(mainMm)}mm / {Math.round(gc.unfoldedWidthMm)}mm）{formatFormula("", mainArea, layer.thickness, layer.density, layer.price, mainCost)}</span><br />
+                              <span className="ml-4">窗口膜 {winName}（{Math.round(wMm)}mm / {Math.round(gc.unfoldedWidthMm)}mm）{formatFormula("", winArea, layer.splice.windowThicknessUm, layer.splice.windowDensity, layer.splice.windowPrice, winCost)}</span><br />
+                              <span className="ml-4">合计 = <b>{f4(mainCost + winCost)} 元/个</b></span>
                             </li>
                           );
                         }
+
+                        const cost = calcDetailCost(gc.area, layer.thickness, layer.density, layer.price);
+                        const method = (layer.density === 0 || layer.density === undefined) ? "纸类gsm法" : "薄膜法";
+                        return (
+                          <li key={i}>
+                            第{i + 1}层 {materialName}（{method}）{formatFormula("", gc.area, layer.thickness, layer.density, layer.price, cost)}
+                          </li>
+                        );
                       })}
                     </ul>
 
