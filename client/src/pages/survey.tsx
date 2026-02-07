@@ -87,6 +87,14 @@ export default function SurveyPage() {
     updateConfig({ customBagTypes: config.customBagTypes.filter((b) => b.id !== id) });
   };
 
+  const toggleBagType = (id: string) => {
+    updateConfig({
+      customBagTypes: config.customBagTypes.map((b) =>
+        b.id === id ? { ...b, enabled: !b.enabled } : b
+      ),
+    });
+  };
+
   const addMaterial = () => {
     if (!newMaterial.name) return;
     const material: CustomMaterial = {
@@ -1678,7 +1686,7 @@ export default function SurveyPage() {
                   <div className="text-left">
                     <div className="font-semibold">袋型</div>
                     <div className="text-sm text-muted-foreground">
-                      选择或添加袋型（共 {config.customBagTypes.length} 种）
+                      选择或添加袋型（已选 {config.customBagTypes.filter(b => b.enabled).length}/{config.customBagTypes.length} 种）
                     </div>
                   </div>
                 </div>
@@ -1706,35 +1714,29 @@ export default function SurveyPage() {
                           <TableRow key={bagType.id}>
                             <TableCell>
                               <Checkbox
-                                checked={true}
+                                checked={bagType.enabled}
+                                onCheckedChange={() => toggleBagType(bagType.id)}
                                 data-testid={`bagtype-check-${bagType.id}`}
                               />
                             </TableCell>
                             <TableCell>
                               <span className="font-medium">{bagType.name}</span>
-                              {bagType.isBuiltIn && (
-                                <span className="ml-2 text-xs text-muted-foreground">(内置)</span>
-                              )}
                             </TableCell>
                             <TableCell>
-                              {bagType.isBuiltIn ? (
-                                <span className="text-sm text-muted-foreground">{bagType.formula}</span>
-                              ) : (
-                                <Input
-                                  value={bagType.formula}
-                                  onChange={(e) => {
-                                    const dims = parseDimensionsFromFormula(e.target.value);
-                                    updateConfig({
-                                      customBagTypes: config.customBagTypes.map((b) =>
-                                        b.id === bagType.id
-                                          ? { ...b, formula: e.target.value, requiredDimensions: dims }
-                                          : b
-                                      ),
-                                    });
-                                  }}
-                                  className="h-8"
-                                />
-                              )}
+                              <Input
+                                value={bagType.formula}
+                                onChange={(e) => {
+                                  const dims = parseDimensionsFromFormula(e.target.value);
+                                  updateConfig({
+                                    customBagTypes: config.customBagTypes.map((b) =>
+                                      b.id === bagType.id
+                                        ? { ...b, formula: e.target.value, requiredDimensions: dims }
+                                        : b
+                                    ),
+                                  });
+                                }}
+                                className="h-8"
+                              />
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-wrap gap-1">

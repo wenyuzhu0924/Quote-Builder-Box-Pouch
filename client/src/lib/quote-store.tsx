@@ -202,11 +202,14 @@ export interface QuoteState {
 }
 
 const defaultCustomBagTypes: CustomBagType[] = [
-  { id: "standup", name: "自立袋", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.1, isBuiltIn: true, enabled: true },
-  { id: "threeSide", name: "三边封", formula: "袋宽 × 袋高 × 2", requiredDimensions: ["width", "height"], wasteCoefficient: 1.1, isBuiltIn: true, enabled: true },
-  { id: "centerSeal", name: "中封袋", formula: "(袋宽 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "backSeal"], wasteCoefficient: 1.1, isBuiltIn: true, enabled: true },
-  { id: "gusset", name: "风琴袋", formula: "(袋宽 + 侧面展开 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "sideExpansion", "backSeal"], wasteCoefficient: 1.1, isBuiltIn: true, enabled: true },
-  { id: "eightSide", name: "八边封袋", formula: "袋宽 × 袋高 × 2 + 侧面展开 × 袋高 × 2", requiredDimensions: ["width", "height", "sideExpansion"], wasteCoefficient: 1.1, isBuiltIn: true, enabled: true },
+  { id: "standup", name: "自立袋", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.1, isBuiltIn: false, enabled: true },
+  { id: "threeSide", name: "三边封", formula: "袋宽 × 袋高 × 2", requiredDimensions: ["width", "height"], wasteCoefficient: 1.1, isBuiltIn: false, enabled: true },
+  { id: "centerSeal", name: "中封袋", formula: "(袋宽 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "backSeal"], wasteCoefficient: 1.1, isBuiltIn: false, enabled: true },
+  { id: "gusset", name: "风琴袋", formula: "(袋宽 + 侧面展开 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "sideExpansion", "backSeal"], wasteCoefficient: 1.1, isBuiltIn: false, enabled: true },
+  { id: "taperBottom", name: "锥底袋", formula: "{(袋宽 + 侧面展开) × 2 + 0.02} × (袋高 + 0.01)", requiredDimensions: ["width", "height", "sideExpansion"], wasteCoefficient: 1.1, isBuiltIn: false, enabled: true },
+  { id: "flatBottom", name: "平底袋", formula: "{(袋宽 + 侧面展开) × 2 + 0.03} × (袋高 + 侧面展开/2 + 0.015)", requiredDimensions: ["width", "height", "sideExpansion"], wasteCoefficient: 1.1, isBuiltIn: false, enabled: true },
+  { id: "threeSideShape", name: "三边封异形袋", formula: "{袋宽 × 2 + 0.01} × (袋高 + 0.005)", requiredDimensions: ["width", "height"], wasteCoefficient: 1.1, isBuiltIn: false, enabled: true },
+  { id: "taperShape", name: "自立异形袋", formula: "{(袋高 + 底插入) × 2 + 0.03} × (袋宽 + 0.005)", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.1, isBuiltIn: false, enabled: true },
 ];
 
 const defaultDigitalBagTypes: CustomBagType[] = [
