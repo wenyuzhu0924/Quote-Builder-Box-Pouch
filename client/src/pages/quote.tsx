@@ -493,9 +493,7 @@ export default function QuotePage() {
         const kgPerBag = area * (layer.thickness / 1000);
         materialCostPerUnit += kgPerBag * layer.price;
       } else {
-        const thicknessM = layer.thickness / 1000000;
-        const materialWeight = area * thicknessM * layer.density * 1000;
-        materialCostPerUnit += materialWeight * layer.price / 1000;
+        materialCostPerUnit += area * layer.thickness * layer.density * layer.price / 1000;
       }
     });
 
@@ -1343,9 +1341,9 @@ export default function QuotePage() {
             <CardContent>
               <div className="space-y-4">
                 {materialLayers.map((layer, index) => {
-                  const thicknessM = layer.thickness / 1000000;
-                  const materialWeight = gravureCosts.area * thicknessM * layer.density * 1000;
-                  const layerCost = materialWeight * layer.price / 1000;
+                  const layerCost = (layer.density === 0 || layer.density === undefined)
+                    ? gravureCosts.area * (layer.thickness / 1000) * layer.price
+                    : gravureCosts.area * layer.thickness * layer.density * layer.price / 1000;
 
                   return (
                     <div key={index} className="flex items-end gap-4 p-4 border rounded-lg">
@@ -1840,9 +1838,7 @@ export default function QuotePage() {
                             </li>
                           );
                         } else {
-                          const thicknessM = layer.thickness / 1000000;
-                          const materialWeight = gc.area * thicknessM * layer.density * 1000;
-                          const cost = materialWeight * layer.price / 1000;
+                          const cost = gc.area * layer.thickness * layer.density * layer.price / 1000;
                           return (
                             <li key={i}>
                               第{i + 1}层 {materialName}（薄膜法）：面积 {f4(gc.area)}㎡ × 厚度 {layer.thickness}μm × 密度 {layer.density} × 单价 {layer.price} ÷ 1000 = <b>{f4(cost)} 元/个</b>
