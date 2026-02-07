@@ -50,6 +50,7 @@ export interface CustomBagType {
   formula: string;
   requiredDimensions: string[];
   wasteCoefficient: number;
+  makingCostFormula: string;
   isBuiltIn: boolean;
   enabled: boolean;
 }
@@ -202,32 +203,32 @@ export interface QuoteState {
 }
 
 const defaultCustomBagTypes: CustomBagType[] = [
-  { id: "standup", name: "自立袋", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.1, isBuiltIn: false, enabled: true },
-  { id: "threeSide", name: "三边封", formula: "袋宽 × 袋高 × 2", requiredDimensions: ["width", "height"], wasteCoefficient: 1.1, isBuiltIn: false, enabled: true },
-  { id: "centerSeal", name: "中封袋", formula: "(袋宽 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "backSeal"], wasteCoefficient: 1.1, isBuiltIn: false, enabled: true },
-  { id: "gusset", name: "风琴袋", formula: "(袋宽 + 侧面展开 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "sideExpansion", "backSeal"], wasteCoefficient: 1.1, isBuiltIn: false, enabled: true },
-  { id: "taperBottom", name: "锥底袋", formula: "{(袋宽 + 侧面展开) × 2 + 0.02} × (袋高 + 0.01)", requiredDimensions: ["width", "height", "sideExpansion"], wasteCoefficient: 1.1, isBuiltIn: false, enabled: true },
-  { id: "flatBottom", name: "平底袋", formula: "{(袋宽 + 侧面展开) × 2 + 0.03} × (袋高 + 侧面展开/2 + 0.015)", requiredDimensions: ["width", "height", "sideExpansion"], wasteCoefficient: 1.1, isBuiltIn: false, enabled: true },
-  { id: "threeSideShape", name: "三边封异形袋", formula: "{袋宽 × 2 + 0.01} × (袋高 + 0.005)", requiredDimensions: ["width", "height"], wasteCoefficient: 1.1, isBuiltIn: false, enabled: true },
-  { id: "taperShape", name: "自立异形袋", formula: "{(袋高 + 底插入) × 2 + 0.03} × (袋宽 + 0.005)", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.1, isBuiltIn: false, enabled: true },
+  { id: "standup", name: "自立袋", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.12, makingCostFormula: "0.09 × 袋宽", isBuiltIn: false, enabled: true },
+  { id: "threeSide", name: "三边封", formula: "袋宽 × 袋高 × 2", requiredDimensions: ["width", "height"], wasteCoefficient: 1.10, makingCostFormula: "0.03 × min(袋宽,袋高)", isBuiltIn: false, enabled: true },
+  { id: "centerSeal", name: "中封袋", formula: "(袋宽 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "backSeal"], wasteCoefficient: 1.10, makingCostFormula: "0.04 × 袋高", isBuiltIn: false, enabled: true },
+  { id: "gusset", name: "风琴袋", formula: "(袋宽 + 侧面展开 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "sideExpansion", "backSeal"], wasteCoefficient: 1.10, makingCostFormula: "0.04 × 袋高", isBuiltIn: false, enabled: true },
+  { id: "taperBottom", name: "锥底袋", formula: "{(袋宽 + 侧面展开) × 2 + 0.02} × (袋高 + 0.01)", requiredDimensions: ["width", "height", "sideExpansion"], wasteCoefficient: 1.12, makingCostFormula: "0.22 × 袋高", isBuiltIn: false, enabled: true },
+  { id: "flatBottom", name: "平底袋", formula: "{(袋宽 + 侧面展开) × 2 + 0.03} × (袋高 + 侧面展开/2 + 0.015)", requiredDimensions: ["width", "height", "sideExpansion"], wasteCoefficient: 1.12, makingCostFormula: "0.25 × 袋高", isBuiltIn: false, enabled: true },
+  { id: "threeSideShape", name: "三边封异形袋", formula: "{袋宽 × 2 + 0.01} × (袋高 + 0.005)", requiredDimensions: ["width", "height"], wasteCoefficient: 1.15, makingCostFormula: "0.03 × min(袋宽,袋高) + 0.009", isBuiltIn: false, enabled: true },
+  { id: "taperShape", name: "自立异形袋", formula: "{(袋高 + 底插入) × 2 + 0.03} × (袋宽 + 0.005)", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.15, makingCostFormula: "0.09 × 袋宽 + 0.018", isBuiltIn: false, enabled: true },
 ];
 
 const defaultDigitalBagTypes: CustomBagType[] = [
-  { id: "threeSide", name: "三边封", formula: "袋宽 × 袋高 × 2", requiredDimensions: ["width", "height"], wasteCoefficient: 1.0, isBuiltIn: false, enabled: true },
-  { id: "threeSideDouble", name: "三边封双放", formula: "袋宽 × 袋高 × 2", requiredDimensions: ["width", "height"], wasteCoefficient: 1.0, isBuiltIn: false, enabled: true },
-  { id: "standupNoZip", name: "自立袋（无拉链）", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.0, isBuiltIn: false, enabled: true },
-  { id: "standupWithZip", name: "自立袋（有拉链）", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.0, isBuiltIn: false, enabled: true },
-  { id: "standupDouble", name: "自立袋双放", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.0, isBuiltIn: false, enabled: true },
-  { id: "standupSplitBottom", name: "自立袋分底", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.0, isBuiltIn: false, enabled: true },
-  { id: "centerSeal", name: "中封袋", formula: "(袋宽 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "backSeal", "sideGusset"], wasteCoefficient: 1.0, isBuiltIn: false, enabled: true },
-  { id: "sideSeal", name: "侧封袋", formula: "(袋宽 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "backSeal", "sideGusset"], wasteCoefficient: 1.0, isBuiltIn: false, enabled: true },
-  { id: "gusset", name: "风琴袋", formula: "(袋宽 + 侧面展开 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "backSeal", "sideExpansion"], wasteCoefficient: 1.0, isBuiltIn: false, enabled: true },
-  { id: "eightSideNoZip", name: "八边封（无拉链）", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset"], wasteCoefficient: 1.0, isBuiltIn: false, enabled: true },
-  { id: "eightSideWithZip", name: "八边封（有拉链）", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset", "sealEdge"], wasteCoefficient: 1.0, isBuiltIn: false, enabled: true },
-  { id: "eightSideDouble", name: "八边封双放", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset"], wasteCoefficient: 1.0, isBuiltIn: false, enabled: true },
-  { id: "eightSideSplitBottom", name: "八边封分底", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset"], wasteCoefficient: 1.0, isBuiltIn: false, enabled: true },
-  { id: "rollFilm", name: "卷膜", formula: "袋宽 × 袋高", requiredDimensions: ["width", "height", "quantityUnit"], wasteCoefficient: 1.0, isBuiltIn: false, enabled: true },
-  { id: "shapedBag", name: "异形袋", formula: "袋宽 × 袋高 × 面积系数", requiredDimensions: ["width", "height", "areaCoefficient"], wasteCoefficient: 1.0, isBuiltIn: false, enabled: true },
+  { id: "threeSide", name: "三边封", formula: "袋宽 × 袋高 × 2", requiredDimensions: ["width", "height"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
+  { id: "threeSideDouble", name: "三边封双放", formula: "袋宽 × 袋高 × 2", requiredDimensions: ["width", "height"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
+  { id: "standupNoZip", name: "自立袋（无拉链）", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
+  { id: "standupWithZip", name: "自立袋（有拉链）", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
+  { id: "standupDouble", name: "自立袋双放", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
+  { id: "standupSplitBottom", name: "自立袋分底", formula: "袋宽 × (袋高 + 底插入) × 2", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
+  { id: "centerSeal", name: "中封袋", formula: "(袋宽 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "backSeal", "sideGusset"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
+  { id: "sideSeal", name: "侧封袋", formula: "(袋宽 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "backSeal", "sideGusset"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
+  { id: "gusset", name: "风琴袋", formula: "(袋宽 + 侧面展开 + 背封边) × 2 × 袋高", requiredDimensions: ["width", "height", "backSeal", "sideExpansion"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
+  { id: "eightSideNoZip", name: "八边封（无拉链）", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
+  { id: "eightSideWithZip", name: "八边封（有拉链）", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset", "sealEdge"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
+  { id: "eightSideDouble", name: "八边封双放", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
+  { id: "eightSideSplitBottom", name: "八边封分底", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
+  { id: "rollFilm", name: "卷膜", formula: "袋宽 × 袋高", requiredDimensions: ["width", "height", "quantityUnit"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
+  { id: "shapedBag", name: "异形袋", formula: "袋宽 × 袋高 × 面积系数", requiredDimensions: ["width", "height", "areaCoefficient"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
 ];
 
 const defaultDigitalPrintLayerMaterials: DigitalMaterial[] = [

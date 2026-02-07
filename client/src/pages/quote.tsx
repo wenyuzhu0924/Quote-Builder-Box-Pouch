@@ -10,6 +10,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuote, type CustomMaterial, type CustomBagType, type DigitalMaterial } from "@/lib/quote-store";
 
+const SPOUT_PRICES: Record<string, number> = {
+  "8.2mm": 0.04, "8.6mm": 0.056, "9.6mm": 0.10, "10mm": 0.08,
+  "13mm": 0.12, "15mm": 0.125, "16mm_单卡": 0.145, "16mm_双卡": 0.16,
+  "20mm": 0.24, "22mm": 0.24, "26mm": 0.29, "33mm": 0.34, "40mm": 0.80,
+};
+
 interface MaterialLayer {
   materialId: string;
   thickness: number;
@@ -116,6 +122,7 @@ export default function QuotePage() {
   });
 
   const [profitRate, setProfitRate] = useState(10);
+  const [spoutSpec, setSpoutSpec] = useState<string>("");
 
   if (!state.productType) {
     navigate("/");
@@ -418,6 +425,25 @@ export default function QuotePage() {
     return config.materialLibrary.find((m) => m.id === id);
   };
 
+  const parseMakingCostFormula = (formula: string, dims: { width: number; height: number; bottomInsert: number; sideExpansion: number; backSeal: number }): number => {
+    try {
+      let expr = formula
+        .replace(/min\(袋宽[,，]袋高\)/gi, String(Math.min(dims.width, dims.height)))
+        .replace(/min\(袋高[,，]袋宽\)/gi, String(Math.min(dims.width, dims.height)))
+        .replace(/袋宽/g, String(dims.width))
+        .replace(/袋高/g, String(dims.height))
+        .replace(/底插入|底琴/g, String(dims.bottomInsert))
+        .replace(/侧面展开|侧琴/g, String(dims.sideExpansion))
+        .replace(/背封边/g, String(dims.backSeal))
+        .replace(/×/g, '*')
+        .replace(/÷/g, '/');
+      const result = new Function('return ' + expr)();
+      return typeof result === 'number' && !isNaN(result) ? result : 0;
+    } catch {
+      return 0;
+    }
+  };
+
   const gravureCosts = useMemo(() => {
     const w = dimensions.width / 1000;
     const h = dimensions.height / 1000;
@@ -440,17 +466,37 @@ export default function QuotePage() {
         case "gusset":
           area = (w + se + bs) * 2 * h;
           break;
-        case "eightSide":
-          area = w * h * 2 + se * h * 2;
+        case "eightSide": {
+          const frontBackBottom = (h + h + se + 0.03) * (w + 0.006);
+          const twoSide = (se + 0.006) * 2 * (h + 0.01);
+          area = frontBackBottom + twoSide;
+          break;
+        }
+        case "taperBottom":
+          area = ((w + se) * 2 + 0.02) * (h + 0.01);
+          break;
+        case "flatBottom":
+          area = ((w + se) * 2 + 0.03) * (h + se / 2 + 0.015);
+          break;
+        case "threeSideShape":
+          area = (w * 2 + 0.01) * (h + 0.005);
+          break;
+        case "taperShape":
+          area = ((h + bi) * 2 + 0.03) * (w + 0.005);
           break;
       }
     }
 
     let materialCostPerUnit = 0;
     materialLayers.forEach((layer) => {
-      const thicknessM = layer.thickness / 1000000;
-      const materialWeight = area * thicknessM * layer.density * 1000;
-      materialCostPerUnit += materialWeight * layer.price / 1000;
+      if (layer.density === 0 || layer.density === undefined) {
+        const kgPerBag = area * (layer.thickness / 1000);
+        materialCostPerUnit += kgPerBag * layer.price;
+      } else {
+        const thicknessM = layer.thickness / 1000000;
+        const materialWeight = area * thicknessM * layer.density * 1000;
+        materialCostPerUnit += materialWeight * layer.price / 1000;
+      }
     });
 
     const printRule = config.printingPriceRules.find((r) => r.coverage === selectedPrintCoverage);
@@ -463,6 +509,13 @@ export default function QuotePage() {
         laminationCostPerUnit += area * rule.pricePerSqm;
       }
     });
+
+    let makingCostPerUnit = 0;
+    if (selectedBagType?.makingCostFormula) {
+      makingCostPerUnit = parseMakingCostFormula(selectedBagType.makingCostFormula, {
+        width: w, height: h, bottomInsert: bi, sideExpansion: se, backSeal: bs
+      });
+    }
 
     let postProcessingCostPerUnit = 0;
     Object.entries(selectedPostProcessing).forEach(([id, isSelected]) => {
@@ -496,7 +549,12 @@ export default function QuotePage() {
       }
     });
 
+    if (selectedPostProcessing["spout"] && spoutSpec) {
+      postProcessingCostPerUnit += SPOUT_PRICES[spoutSpec] || 0;
+    }
+
     const plateCost = plateConfig.plateLength * plateConfig.plateCircumference * plateConfig.colorCount * plateConfig.pricePerSqcm;
+    const setupFee = quantity < 10000 ? Math.min(200 * plateConfig.colorCount, 1800) : 0;
 
     let quantityCoefficient = 1.0;
     const sortedDiscounts = [...config.quantityDiscounts].sort((a, b) => b.minQuantity - a.minQuantity);
@@ -509,25 +567,29 @@ export default function QuotePage() {
 
     const wasteCoefficient = selectedBagType?.wasteCoefficient || 1.1;
 
-    const baseCostPerUnit = materialCostPerUnit + printCostPerUnit + laminationCostPerUnit + postProcessingCostPerUnit;
+    const baseCostPerUnit = materialCostPerUnit + printCostPerUnit + laminationCostPerUnit + makingCostPerUnit + postProcessingCostPerUnit;
     const costWithWaste = baseCostPerUnit * wasteCoefficient;
     const costWithQuantity = costWithWaste * quantityCoefficient;
     const profitMultiplier = 1 + profitRate / 100;
     const finalCostPerUnit = costWithQuantity * profitMultiplier;
-    const totalCost = finalCostPerUnit * quantity;
+    const totalCost = finalCostPerUnit * quantity + plateCost + setupFee;
+    const totalCostUSD = totalCost / exchangeRate;
 
     return {
       area,
       materialCostPerUnit,
       printCostPerUnit,
       laminationCostPerUnit,
+      makingCostPerUnit,
       postProcessingCostPerUnit,
       plateCost,
+      setupFee,
       baseCostPerUnit,
       costWithWaste,
       costWithQuantity,
       finalCostPerUnit,
       totalCost,
+      totalCostUSD,
       quantityCoefficient,
       wasteCoefficient,
     };
@@ -542,6 +604,8 @@ export default function QuotePage() {
     profitRate,
     config,
     selectedBagType,
+    spoutSpec,
+    exchangeRate,
   ]);
 
   const handleEditParams = () => {
@@ -1476,6 +1540,23 @@ export default function QuotePage() {
                     );
                   })}
               </div>
+              {selectedPostProcessing["spout"] && (
+                <div className="mt-4">
+                  <Label className="text-sm mb-2 block">吸嘴规格选择</Label>
+                  <Select value={spoutSpec} onValueChange={setSpoutSpec}>
+                    <SelectTrigger data-testid="select-spout">
+                      <SelectValue placeholder="选择吸嘴规格" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(SPOUT_PRICES).map(([key, price]) => (
+                        <SelectItem key={key} value={key}>
+                          {key.includes('_') ? key.replace('_', '（') + '）' : key} — {price} 元/个
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               {Object.entries(selectedPostProcessing).filter(([, v]) => v).length > 0 && (
                 <div className="mt-4 p-3 bg-muted/50 rounded-lg">
                   <p className="text-sm text-muted-foreground">
@@ -1636,6 +1717,10 @@ export default function QuotePage() {
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="p-4 bg-background rounded-lg">
+                  <div className="text-sm text-muted-foreground">制袋费/个</div>
+                  <div className="text-xl font-semibold">{gravureCosts.makingCostPerUnit.toFixed(4)} 元</div>
+                </div>
+                <div className="p-4 bg-background rounded-lg">
                   <div className="text-sm text-muted-foreground">后处理成本/个</div>
                   <div className="text-xl font-semibold">{gravureCosts.postProcessingCostPerUnit.toFixed(4)} 元</div>
                 </div>
@@ -1647,25 +1732,36 @@ export default function QuotePage() {
                   <div className="text-sm text-muted-foreground">数量系数</div>
                   <div className="text-xl font-semibold">×{gravureCosts.quantityCoefficient.toFixed(2)}</div>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                 <div className="p-4 bg-background rounded-lg">
                   <div className="text-sm text-muted-foreground">利润系数</div>
                   <div className="text-xl font-semibold">×{(1 + profitRate / 100).toFixed(2)}</div>
                 </div>
+                <div className="p-4 bg-background rounded-lg">
+                  <div className="text-sm text-muted-foreground">版费</div>
+                  <div className="text-xl font-semibold">{gravureCosts.plateCost.toFixed(2)} 元</div>
+                </div>
+                <div className="p-4 bg-background rounded-lg">
+                  <div className="text-sm text-muted-foreground">上机费{quantity >= 10000 ? '（免）' : ''}</div>
+                  <div className="text-xl font-semibold">{gravureCosts.setupFee.toFixed(2)} 元</div>
+                </div>
               </div>
 
-              <div className="flex items-center justify-between p-6 bg-primary text-primary-foreground rounded-lg">
+              <div className="flex items-center justify-between gap-4 p-6 bg-primary text-primary-foreground rounded-lg">
                 <div>
-                  <div className="text-sm opacity-80">单价</div>
+                  <div className="text-sm opacity-80">单价（含损耗+利润）</div>
                   <div className="text-3xl font-bold">¥{gravureCosts.finalCostPerUnit.toFixed(4)}/个</div>
                   <div className="text-sm opacity-80 mt-1">
                     ${(gravureCosts.finalCostPerUnit / exchangeRate).toFixed(4)}/个
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm opacity-80">总价（{quantity.toLocaleString()} 个）</div>
+                  <div className="text-sm opacity-80">总价（{quantity.toLocaleString()} 个 + 版费 + 上机费）</div>
                   <div className="text-3xl font-bold">¥{gravureCosts.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                   <div className="text-sm opacity-80 mt-1">
-                    ${(gravureCosts.totalCost / exchangeRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ${gravureCosts.totalCostUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
               </div>

@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { ArrowLeft, ArrowRight, Plus, Trash2, Save, Package, Layers, Printer, Combine, Scissors, Grid3X3, Calculator, Settings, Zap, Archive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ export default function SurveyPage() {
     name: "",
     formula: "",
     wasteCoefficient: 1.1,
+    makingCostFormula: "",
   });
 
   const [newLamination, setNewLamination] = useState({ name: "", pricePerSqm: 0 });
@@ -75,11 +77,12 @@ export default function SurveyPage() {
       formula: newBagType.formula || "",
       requiredDimensions: dimensions,
       wasteCoefficient: newBagType.wasteCoefficient || 1.1,
+      makingCostFormula: newBagType.makingCostFormula || "",
       isBuiltIn: false,
       enabled: true,
     };
     updateConfig({ customBagTypes: [...config.customBagTypes, bagType] });
-    setNewBagType({ name: "", formula: "", wasteCoefficient: 1.1 });
+    setNewBagType({ name: "", formula: "", wasteCoefficient: 1.1, makingCostFormula: "" });
     toast({ title: "袋型已添加", description: `已自动匹配尺寸字段：${dimensions.length > 0 ? dimensions.join("、") : "无"}` });
   };
 
@@ -239,11 +242,12 @@ export default function SurveyPage() {
       formula: newBagType.formula || "",
       requiredDimensions: dimensions,
       wasteCoefficient: newBagType.wasteCoefficient || 1.0,
+      makingCostFormula: newBagType.makingCostFormula || "",
       isBuiltIn: false,
       enabled: true,
     };
     updateDigitalConfig({ customBagTypes: [...digitalConfig.customBagTypes, bagType] });
-    setNewBagType({ name: "", formula: "", wasteCoefficient: 1.0 });
+    setNewBagType({ name: "", formula: "", wasteCoefficient: 1.0, makingCostFormula: "" });
     toast({ title: "袋型已添加" });
   };
 
@@ -2178,6 +2182,68 @@ export default function SurveyPage() {
               </AccordionContent>
             </AccordionItem>
 
+            <AccordionItem value="makingCost" className="border rounded-lg px-4">
+              <AccordionTrigger className="hover:no-underline py-4">
+                <div className="flex items-center gap-3">
+                  <Zap className="w-5 h-5 text-primary" />
+                  <div className="text-left">
+                    <div className="font-semibold">制袋费</div>
+                    <div className="text-sm text-muted-foreground">
+                      已自动匹配 {config.customBagTypes.filter(b => b.enabled).length} 种已启用袋型的制袋费公式
+                    </div>
+                  </div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pb-4">
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    系统已自动匹配袋型模块中启用的袋型。请为每种袋型确认或编辑制袋费计算公式。
+                    公式格式示例："0.09 × 袋宽"、"0.04 × 袋高"、"0.03 × min(袋宽,袋高) + 0.009"
+                  </p>
+                  <div className="space-y-3">
+                    {config.customBagTypes.filter(b => b.enabled).map((bagType) => (
+                      <div key={bagType.id} className="border rounded-lg p-4 space-y-3" data-testid={`making-cost-${bagType.id}`}>
+                        <div className="flex items-center gap-3">
+                          <Badge variant="secondary" className="shrink-0">{bagType.name}</Badge>
+                          <span className="text-xs text-muted-foreground truncate">展开面积: {bagType.formula}</span>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm">制袋费公式</Label>
+                          <Input
+                            value={bagType.makingCostFormula}
+                            onChange={(e) => {
+                              updateConfig({
+                                customBagTypes: config.customBagTypes.map((b) =>
+                                  b.id === bagType.id
+                                    ? { ...b, makingCostFormula: e.target.value }
+                                    : b
+                                ),
+                              });
+                            }}
+                            placeholder="例如：0.09 × 袋宽"
+                            className="text-base"
+                            data-testid={`making-formula-${bagType.id}`}
+                          />
+                        </div>
+                        {bagType.makingCostFormula && (
+                          <div className="bg-muted/50 rounded-md px-3 py-2">
+                            <span className="text-xs text-muted-foreground">公式预览：</span>
+                            <span className="text-sm font-mono ml-2">{bagType.makingCostFormula}</span>
+                            <span className="text-xs text-muted-foreground ml-2">（尺寸单位：米）</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {config.customBagTypes.filter(b => b.enabled).length === 0 && (
+                      <div className="text-center py-6 text-muted-foreground">
+                        暂无已启用的袋型，请先在袋型模块中启用至少一种袋型
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
             <AccordionItem value="postProcessing" className="border rounded-lg px-4">
               <AccordionTrigger className="hover:no-underline py-4">
                 <div className="flex items-center gap-3">
@@ -2193,89 +2259,74 @@ export default function SurveyPage() {
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    勾选需要包含在报价器中的后处理选项，并配置价格公式。
+                    勾选需要包含在报价器中的后处理选项，并配置价格公式。公式预览显示在每行下方。
                   </p>
-                  <div className="border rounded-lg overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[50px]">启用</TableHead>
-                          <TableHead className="w-[150px]">选项名称</TableHead>
-                          <TableHead className="min-w-[250px]">价格公式/说明</TableHead>
-                          <TableHead className="w-[60px]"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {config.postProcessingOptions.map((option) => (
-                          <TableRow key={option.id}>
-                            <TableCell>
-                              <Checkbox
-                                checked={option.enabled}
-                                onCheckedChange={() => togglePostProcessing(option.id)}
-                                data-testid={`postprocess-${option.id}`}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                value={option.name}
-                                onChange={(e) => updatePostProcessingName(option.id, e.target.value)}
-                                className="h-8"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                value={option.priceFormula}
-                                onChange={(e) => updatePostProcessingFormula(option.id, e.target.value)}
-                                placeholder="价格公式说明"
-                                className="h-8"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removePostProcessing(option.id)}
-                                className="h-8 w-8 text-destructive"
-                                data-testid={`remove-postprocess-${option.id}`}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        <TableRow>
-                          <TableCell></TableCell>
-                          <TableCell>
+                  <div className="space-y-3">
+                    {config.postProcessingOptions.map((option) => (
+                      <div key={option.id} className="border rounded-lg p-4 space-y-2" data-testid={`postprocess-item-${option.id}`}>
+                        <div className="flex items-center gap-3">
+                          <Checkbox
+                            checked={option.enabled}
+                            onCheckedChange={() => togglePostProcessing(option.id)}
+                            data-testid={`postprocess-${option.id}`}
+                          />
+                          <div className="flex-1 flex items-center gap-3 flex-wrap">
                             <Input
-                              value={newPostProcessing.name}
-                              onChange={(e) => setNewPostProcessing({ ...newPostProcessing, name: e.target.value })}
-                              placeholder="新选项名称"
-                              className="h-8"
-                              data-testid="new-postprocess-name"
+                              value={option.name}
+                              onChange={(e) => updatePostProcessingName(option.id, e.target.value)}
+                              className="w-[180px]"
                             />
-                          </TableCell>
-                          <TableCell>
                             <Input
-                              value={newPostProcessing.priceFormula}
-                              onChange={(e) => setNewPostProcessing({ ...newPostProcessing, priceFormula: e.target.value })}
+                              value={option.priceFormula}
+                              onChange={(e) => updatePostProcessingFormula(option.id, e.target.value)}
                               placeholder="价格公式说明"
-                              className="h-8"
+                              className="flex-1 min-w-[300px]"
                             />
-                          </TableCell>
-                          <TableCell>
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={addPostProcessing}
-                              className="h-8 w-8"
-                              data-testid="add-postprocess"
+                              onClick={() => removePostProcessing(option.id)}
+                              className="text-destructive shrink-0"
+                              data-testid={`remove-postprocess-${option.id}`}
                             >
-                              <Plus className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4" />
                             </Button>
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
+                          </div>
+                        </div>
+                        {option.priceFormula && (
+                          <div className="ml-8 bg-muted/50 rounded-md px-3 py-2">
+                            <span className="text-xs text-muted-foreground">计算公式：</span>
+                            <span className="text-sm font-mono ml-2">{option.priceFormula}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    <div className="border rounded-lg p-4 border-dashed">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <div className="w-5" />
+                        <Input
+                          value={newPostProcessing.name}
+                          onChange={(e) => setNewPostProcessing({ ...newPostProcessing, name: e.target.value })}
+                          placeholder="新选项名称"
+                          className="w-[180px]"
+                          data-testid="new-postprocess-name"
+                        />
+                        <Input
+                          value={newPostProcessing.priceFormula}
+                          onChange={(e) => setNewPostProcessing({ ...newPostProcessing, priceFormula: e.target.value })}
+                          placeholder="价格公式说明"
+                          className="flex-1 min-w-[300px]"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={addPostProcessing}
+                          data-testid="add-postprocess"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                   <div className="flex justify-end">
                     <Button variant="outline" onClick={savePostProcessingLibrary} className="gap-2" data-testid="save-postprocess">
