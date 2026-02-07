@@ -22,7 +22,7 @@
 
   --card: 0deg 0% 100%;
 
-  --card-foreground: 210 25% 7.8431%;
+  --card-foreground: 210deg 25% 7.84%;
 
   --card-border: 214 32% 91%;
 
@@ -42,9 +42,9 @@
 
   --sidebar-ring: 202.8169 89.1213% 53.1373%;
 
-  --popover: 0deg 0% 100%;
+  --popover: 44.44deg 77.14% 86.27%;
 
-  --popover-foreground: 210 25% 7.8431%;
+  --popover-foreground: 210deg 25% 7.84%;
 
   --popover-border: 214 32% 91%;
 
@@ -77,8 +77,8 @@
   --chart-5: 341.4894 75.2000% 50.9804%;
 
   --font-sans: 'Inter', sans-serif;
-  --font-serif: 'Georgia', serif;
-  --font-mono: 'Space Grotesk', sans-serif;
+  --font-serif: 'Inter', sans-serif;
+  --font-mono: 'Inter', sans-serif;
   --radius: 0.875rem; /* 8px */
   --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);
   --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);
