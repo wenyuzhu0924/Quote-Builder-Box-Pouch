@@ -10,6 +10,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuote, type CustomMaterial, type CustomBagType, type DigitalMaterial } from "@/lib/quote-store";
 
+function numStr(v: number | string): string {
+  if (v === "" || v === undefined || v === null) return "";
+  return String(v);
+}
+function toNum(v: string): number {
+  if (v === "" || v === undefined || v === null) return 0;
+  const n = Number(v);
+  return isNaN(n) ? 0 : n;
+}
+
 const SPOUT_PRICES: Record<string, number> = {
   "8.2mm": 0.04, "8.6mm": 0.056, "9.6mm": 0.10, "10mm": 0.08,
   "13mm": 0.12, "15mm": 0.125, "16mm_单卡": 0.145, "16mm_双卡": 0.16,
@@ -78,10 +88,10 @@ export default function QuotePage() {
     areaCoefficient: 1.0,
     quantityUnit: 1,
   });
-  const [quantity, setQuantity] = useState(30000);
-  const [skuCount, setSkuCount] = useState(1);
-  const [taxRate, setTaxRate] = useState(13);
-  const [exchangeRate, setExchangeRate] = useState(7.2);
+  const [quantity, setQuantity] = useState<number | string>(30000);
+  const [skuCount, setSkuCount] = useState<number | string>(1);
+  const [taxRate, setTaxRate] = useState<number | string>(13);
+  const [exchangeRate, setExchangeRate] = useState<number | string>(7.2);
 
   const [digitalLayers, setDigitalLayers] = useState<DigitalMaterialLayer[]>([]);
 
@@ -96,8 +106,8 @@ export default function QuotePage() {
   const [selectedSpoutId, setSelectedSpoutId] = useState<string | null>(null);
   const [selectedAccessories, setSelectedAccessories] = useState<Record<string, boolean>>({});
 
-  const [moldCost, setMoldCost] = useState(0);
-  const [specialProcessPlateCost, setSpecialProcessPlateCost] = useState(0);
+  const [moldCost, setMoldCost] = useState<number | string>(0);
+  const [specialProcessPlateCost, setSpecialProcessPlateCost] = useState<number | string>(0);
 
   const [materialLayers, setMaterialLayers] = useState<MaterialLayer[]>(() => {
     const layers: MaterialLayer[] = [];
@@ -145,7 +155,7 @@ export default function QuotePage() {
     pricePerSqcm: config.platePriceConfig.pricePerSqcm,
   });
 
-  const [profitRate, setProfitRate] = useState(10);
+  const [profitRate, setProfitRate] = useState<number | string>(10);
   const [spoutSpec, setSpoutSpec] = useState<string>("");
 
   if (!state.productType) {
@@ -239,14 +249,20 @@ export default function QuotePage() {
   );
 
   const calculateDigitalCosts = useMemo(() => {
-    const w = dimensions.width;
-    const h = dimensions.height;
-    const bi = dimensions.bottomInsert;
-    const se = dimensions.sideExpansion;
-    const bs = dimensions.backSeal;
-    const sg = dimensions.sideGusset;
-    const sealE = dimensions.sealEdge;
-    const areaCoef = dimensions.areaCoefficient;
+    const _qty = toNum(String(quantity));
+    const _sku = toNum(String(skuCount));
+    const _tax = toNum(String(taxRate));
+    const _exr = toNum(String(exchangeRate));
+    const _mold = toNum(String(moldCost));
+    const _spp = toNum(String(specialProcessPlateCost));
+    const w = toNum(String(dimensions.width));
+    const h = toNum(String(dimensions.height));
+    const bi = toNum(String(dimensions.bottomInsert));
+    const se = toNum(String(dimensions.sideExpansion));
+    const bs = toNum(String(dimensions.backSeal));
+    const sg = toNum(String(dimensions.sideGusset));
+    const sealE = toNum(String(dimensions.sealEdge));
+    const areaCoef = toNum(String(dimensions.areaCoefficient));
 
     let unfoldedLengthMM = 0;
     let unfoldedWidthMM = 0;
@@ -299,8 +315,8 @@ export default function QuotePage() {
     const aroundCount = Math.floor(maxPrintCircumference / unfoldedLengthMM);
     const bagsPerRevolution = acrossCount * aroundCount;
 
-    const orderRevolutions = Math.ceil((quantity * skuCount) / bagsPerRevolution);
-    const wasteRevolutions = skuCount * digitalConfig.systemConstants.skuWaste;
+    const orderRevolutions = Math.ceil((_qty * _sku) / bagsPerRevolution);
+    const wasteRevolutions = _sku * digitalConfig.systemConstants.skuWaste;
     const totalRevolutions = orderRevolutions + wasteRevolutions;
 
     const orderMeters = (orderRevolutions * maxPrintCircumference) / 1000;
@@ -313,7 +329,7 @@ export default function QuotePage() {
     const bagAreaSqm = (unfoldedLengthMM * unfoldedWidthMM) / 1000000;
 
     const materialCostTotal = feedAreaSqm * totalSquarePrice;
-    const materialCostPerUnit = materialCostTotal / (quantity * skuCount);
+    const materialCostPerUnit = materialCostTotal / (_qty * _sku || 1);
 
     let printCostPerMeter = 0;
     const selectedMode = digitalConfig.printModes.find(m => m.id === selectedPrintModeId);
@@ -332,7 +348,7 @@ export default function QuotePage() {
       }
     }
     const printCostTotal = totalMeters * printCostPerMeter;
-    const printCostPerUnit = printCostTotal / (quantity * skuCount);
+    const printCostPerUnit = printCostTotal / (_qty * _sku || 1);
 
     let specialProcessCostTotal = 0;
     Object.entries(selectedSpecialProcesses).forEach(([id, isSelected]) => {
@@ -344,7 +360,7 @@ export default function QuotePage() {
       if (process.priceFormula.includes("×总数量")) {
         const match = process.priceFormula.match(/(\d+\.?\d*)/);
         const rate = match ? parseFloat(match[1]) : 0.05;
-        cost = rate * quantity * skuCount;
+        cost = rate * _qty * _sku;
       } else if (process.priceFormula.includes("×印刷米数") || process.priceFormula.includes("×投料米数")) {
         const match = process.priceFormula.match(/(\d+\.?\d*)/);
         const rate = match ? parseFloat(match[1]) : 1;
@@ -358,14 +374,14 @@ export default function QuotePage() {
       }
       specialProcessCostTotal += cost;
     });
-    const specialProcessCostPerUnit = specialProcessCostTotal / (quantity * skuCount);
+    const specialProcessCostPerUnit = specialProcessCostTotal / (_qty * _sku || 1);
 
     let accessoryCostPerUnit = 0;
     
     if (selectedZipperId !== "none") {
       const zipper = digitalConfig.zipperTypes.find(z => z.id === selectedZipperId);
       if (zipper) {
-        accessoryCostPerUnit += (dimensions.width / 1000) * zipper.pricePerMeter;
+        accessoryCostPerUnit += (w / 1000) * zipper.pricePerMeter;
       }
     }
     
@@ -390,27 +406,27 @@ export default function QuotePage() {
         if (acc.price > 0) {
           accessoryCostPerUnit += acc.price;
         } else if (acc.name.includes("束口条")) {
-          if (dimensions.width <= 140) accessoryCostPerUnit += 0.5;
-          else if (dimensions.width <= 200) accessoryCostPerUnit += 0.6;
-          else if (dimensions.width <= 250) accessoryCostPerUnit += 0.7;
+          if (w <= 140) accessoryCostPerUnit += 0.5;
+          else if (w <= 200) accessoryCostPerUnit += 0.6;
+          else if (w <= 250) accessoryCostPerUnit += 0.7;
           else accessoryCostPerUnit += 0.8;
         } else if (acc.name.includes("激光易撕线")) {
-          accessoryCostPerUnit += 0.35 * totalMeters / (quantity * skuCount);
+          accessoryCostPerUnit += 0.35 * totalMeters / (_qty * _sku || 1);
         }
       }
     });
 
     const baseCostPerUnit = materialCostPerUnit + printCostPerUnit + specialProcessCostPerUnit + accessoryCostPerUnit;
     
-    const fixedCosts = moldCost + specialProcessPlateCost;
-    const fixedCostPerUnit = fixedCosts / (quantity * skuCount);
+    const fixedCosts = _mold + _spp;
+    const fixedCostPerUnit = fixedCosts / (_qty * _sku || 1);
     
     const subtotalPerUnit = baseCostPerUnit + fixedCostPerUnit;
-    const taxMultiplier = 1 + taxRate / 100;
+    const taxMultiplier = 1 + _tax / 100;
     const finalCostPerUnit = subtotalPerUnit * taxMultiplier;
     
-    const totalCostCNY = finalCostPerUnit * quantity * skuCount + fixedCosts;
-    const totalCostUSD = totalCostCNY / exchangeRate;
+    const totalCostCNY = finalCostPerUnit * _qty * _sku + fixedCosts;
+    const totalCostUSD = totalCostCNY / (_exr || 1);
 
     return {
       unfoldedLength: unfoldedLengthMM,
@@ -469,11 +485,11 @@ export default function QuotePage() {
   };
 
   const getUnfoldedDimensions = (dims: typeof dimensions, bagType: typeof selectedBagType) => {
-    const w = dims.width;
-    const h = dims.height;
-    const bi = dims.bottomInsert;
-    const se = dims.sideExpansion;
-    const bs = dims.backSeal;
+    const w = toNum(String(dims.width));
+    const h = toNum(String(dims.height));
+    const bi = toNum(String(dims.bottomInsert));
+    const se = toNum(String(dims.sideExpansion));
+    const bs = toNum(String(dims.backSeal));
     let unfoldedWidthMm = w * 2;
     let unfoldedHeightMm = h;
     if (bagType) {
@@ -502,11 +518,13 @@ export default function QuotePage() {
   };
 
   const gravureCosts = useMemo(() => {
-    const w = dimensions.width / 1000;
-    const h = dimensions.height / 1000;
-    const bi = dimensions.bottomInsert / 1000;
-    const se = dimensions.sideExpansion / 1000;
-    const bs = dimensions.backSeal / 1000;
+    const _qty = toNum(String(quantity));
+    const _profit = toNum(String(profitRate));
+    const w = toNum(String(dimensions.width)) / 1000;
+    const h = toNum(String(dimensions.height)) / 1000;
+    const bi = toNum(String(dimensions.bottomInsert)) / 1000;
+    const se = toNum(String(dimensions.sideExpansion)) / 1000;
+    const bs = toNum(String(dimensions.backSeal)) / 1000;
 
     let area = w * h * 2;
     if (selectedBagType) {
@@ -590,7 +608,7 @@ export default function QuotePage() {
     let postProcessingCostPerUnit = 0;
     Object.entries(selectedPostProcessing).forEach(([id, isSelected]) => {
       if (!isSelected) return;
-      const widthM = dimensions.width / 1000;
+      const widthM = toNum(String(dimensions.width)) / 1000;
       
       if (id === "zipper_normal") {
         postProcessingCostPerUnit += selectedBagType?.id === "eightSide" ? 0.22 * widthM : 0.10 * widthM;
@@ -603,8 +621,8 @@ export default function QuotePage() {
       } else if (id === "hotStamp") {
         postProcessingCostPerUnit += area * 1.2 + 0.02;
       } else if (id === "wire") {
-        const wireCost = (dimensions.width + 40) * 0.00013;
-        const laborCost = dimensions.width <= 140 ? 0.024 : 0.026;
+        const wireCost = (toNum(String(dimensions.width)) + 40) * 0.00013;
+        const laborCost = toNum(String(dimensions.width)) <= 140 ? 0.024 : 0.026;
         postProcessingCostPerUnit += wireCost + laborCost;
       } else if (id === "handle") {
         postProcessingCostPerUnit += 0.15;
@@ -624,12 +642,12 @@ export default function QuotePage() {
     }
 
     const plateCost = plateConfig.plateLength * plateConfig.plateCircumference * plateConfig.colorCount * plateConfig.pricePerSqcm;
-    const setupFee = quantity < 10000 ? Math.min(200 * plateConfig.colorCount, 1800) : 0;
+    const setupFee = _qty < 10000 ? Math.min(200 * plateConfig.colorCount, 1800) : 0;
 
     let quantityCoefficient = 1.0;
     const sortedDiscounts = [...config.quantityDiscounts].sort((a, b) => b.minQuantity - a.minQuantity);
     for (const discount of sortedDiscounts) {
-      if (quantity >= discount.minQuantity) {
+      if (_qty >= discount.minQuantity) {
         quantityCoefficient = discount.coefficient;
         break;
       }
@@ -640,18 +658,18 @@ export default function QuotePage() {
     const baseCostPerUnit = materialCostPerUnit + printCostPerUnit + laminationCostPerUnit + makingCostPerUnit + postProcessingCostPerUnit;
     const costWithWaste = baseCostPerUnit * wasteCoefficient;
     const costWithQuantity = costWithWaste * quantityCoefficient;
-    const profitMultiplier = 1 + profitRate / 100;
+    const profitMultiplier = 1 + _profit / 100;
 
     const exFactoryUnit = costWithQuantity * profitMultiplier;
-    const exFactoryTotal = exFactoryUnit * quantity;
+    const exFactoryTotal = exFactoryUnit * _qty;
 
     const withFreightUnit = exFactoryUnit * 1.03;
-    const withFreightTotal = withFreightUnit * quantity;
+    const withFreightTotal = withFreightUnit * _qty;
 
     const withFreightTaxUnit = withFreightUnit * 1.09;
-    const withFreightTaxTotal = withFreightTaxUnit * quantity;
+    const withFreightTaxTotal = withFreightTaxUnit * _qty;
 
-    const withPlateFreightTaxUnit = withFreightTaxUnit + (plateCost + setupFee) / (quantity || 1);
+    const withPlateFreightTaxUnit = withFreightTaxUnit + (plateCost + setupFee) / (_qty || 1);
     const withPlateFreightTaxTotal = withFreightTaxTotal + plateCost + setupFee;
 
     return {
@@ -804,9 +822,9 @@ export default function QuotePage() {
                       </Label>
                       <Input
                         type="number"
-                        value={dimensions[dim as keyof typeof dimensions]}
+                        value={numStr(dimensions[dim as keyof typeof dimensions])}
                         onChange={(e) =>
-                          setDimensions({ ...dimensions, [dim]: Number(e.target.value) })
+                          setDimensions({ ...dimensions, [dim]: e.target.value === "" ? "" : Number(e.target.value) })
                         }
                         data-testid={`input-${dim}`}
                       />
@@ -816,8 +834,8 @@ export default function QuotePage() {
                     <Label className="text-sm text-muted-foreground mb-2 block">数量（个）</Label>
                     <Input
                       type="number"
-                      value={quantity}
-                      onChange={(e) => setQuantity(Number(e.target.value))}
+                      value={numStr(quantity)}
+                      onChange={(e) => setQuantity(e.target.value === "" ? "" : Number(e.target.value))}
                       data-testid="input-quantity"
                     />
                   </div>
@@ -835,8 +853,8 @@ export default function QuotePage() {
                     <Label className="text-sm text-muted-foreground mb-2 block">款数 (SKU)</Label>
                     <Input
                       type="number"
-                      value={skuCount}
-                      onChange={(e) => setSkuCount(Number(e.target.value))}
+                      value={numStr(skuCount)}
+                      onChange={(e) => setSkuCount(e.target.value === "" ? "" : Number(e.target.value))}
                       data-testid="input-skuCount"
                     />
                   </div>
@@ -844,8 +862,8 @@ export default function QuotePage() {
                     <Label className="text-sm text-muted-foreground mb-2 block">税率 (%)</Label>
                     <Input
                       type="number"
-                      value={taxRate}
-                      onChange={(e) => setTaxRate(Number(e.target.value))}
+                      value={numStr(taxRate)}
+                      onChange={(e) => setTaxRate(e.target.value === "" ? "" : Number(e.target.value))}
                       data-testid="input-taxRate"
                     />
                   </div>
@@ -854,8 +872,8 @@ export default function QuotePage() {
                     <Input
                       type="number"
                       step="0.1"
-                      value={exchangeRate}
-                      onChange={(e) => setExchangeRate(Number(e.target.value))}
+                      value={numStr(exchangeRate)}
+                      onChange={(e) => setExchangeRate(e.target.value === "" ? "" : Number(e.target.value))}
                       data-testid="input-exchangeRate"
                     />
                   </div>
@@ -1163,8 +1181,8 @@ export default function QuotePage() {
                     <Label className="text-sm text-muted-foreground mb-2 block">模具费</Label>
                     <Input
                       type="number"
-                      value={moldCost}
-                      onChange={(e) => setMoldCost(Number(e.target.value))}
+                      value={numStr(moldCost)}
+                      onChange={(e) => setMoldCost(e.target.value === "" ? "" : Number(e.target.value))}
                       data-testid="input-moldCost"
                     />
                   </div>
@@ -1172,8 +1190,8 @@ export default function QuotePage() {
                     <Label className="text-sm text-muted-foreground mb-2 block">特殊工艺版费</Label>
                     <Input
                       type="number"
-                      value={specialProcessPlateCost}
-                      onChange={(e) => setSpecialProcessPlateCost(Number(e.target.value))}
+                      value={numStr(specialProcessPlateCost)}
+                      onChange={(e) => setSpecialProcessPlateCost(e.target.value === "" ? "" : Number(e.target.value))}
                       data-testid="input-specialProcessPlateCost"
                     />
                   </div>
@@ -1235,7 +1253,7 @@ export default function QuotePage() {
                   </div>
                   <div className="p-4 bg-background rounded-lg">
                     <div className="text-sm text-muted-foreground">汇率</div>
-                    <div className="text-xl font-semibold">{exchangeRate.toFixed(2)}</div>
+                    <div className="text-xl font-semibold">{toNum(String(exchangeRate)).toFixed(2)}</div>
                   </div>
                 </div>
 
@@ -1244,11 +1262,11 @@ export default function QuotePage() {
                     <div className="text-sm opacity-80">单价（含税）</div>
                     <div className="text-3xl font-bold">¥{calculateDigitalCosts.finalCostPerUnit.toFixed(4)}/个</div>
                     <div className="text-sm opacity-80 mt-1">
-                      ${(calculateDigitalCosts.finalCostPerUnit / exchangeRate).toFixed(4)}/个
+                      ${(calculateDigitalCosts.finalCostPerUnit / (toNum(String(exchangeRate)) || 1)).toFixed(4)}/个
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm opacity-80">总价（{(quantity * skuCount).toLocaleString()} 个 + 固定费用）</div>
+                    <div className="text-sm opacity-80">总价（{(toNum(String(quantity)) * toNum(String(skuCount))).toLocaleString()} 个 + 固定费用）</div>
                     <div className="text-3xl font-bold">¥{calculateDigitalCosts.totalCostCNY.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                     <div className="text-sm opacity-80 mt-1">
                       ${calculateDigitalCosts.totalCostUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1258,7 +1276,7 @@ export default function QuotePage() {
 
                 {calculateDigitalCosts.fixedCosts > 0 && (
                   <div className="mt-4 p-3 bg-muted/50 rounded-lg text-sm">
-                    <strong>固定费用明细：</strong>模具费 {moldCost.toFixed(2)} 元 + 特殊工艺版费 {specialProcessPlateCost.toFixed(2)} 元 = {calculateDigitalCosts.fixedCosts.toFixed(2)} 元
+                    <strong>固定费用明细：</strong>模具费 {toNum(String(moldCost)).toFixed(2)} 元 + 特殊工艺版费 {toNum(String(specialProcessPlateCost)).toFixed(2)} 元 = {calculateDigitalCosts.fixedCosts.toFixed(2)} 元
                   </div>
                 )}
               </CardContent>
@@ -1344,9 +1362,9 @@ export default function QuotePage() {
                     </Label>
                     <Input
                       type="number"
-                      value={dimensions[dim as keyof typeof dimensions]}
+                      value={numStr(dimensions[dim as keyof typeof dimensions])}
                       onChange={(e) =>
-                        setDimensions({ ...dimensions, [dim]: Number(e.target.value) })
+                        setDimensions({ ...dimensions, [dim]: e.target.value === "" ? "" : Number(e.target.value) })
                       }
                       data-testid={`input-${dim}`}
                     />
@@ -1356,8 +1374,8 @@ export default function QuotePage() {
                   <Label className="text-sm text-muted-foreground mb-2 block">数量 (个)</Label>
                   <Input
                     type="number"
-                    value={quantity}
-                    onChange={(e) => setQuantity(Number(e.target.value))}
+                    value={numStr(quantity)}
+                    onChange={(e) => setQuantity(e.target.value === "" ? "" : Number(e.target.value))}
                     data-testid="input-quantity"
                   />
                 </div>
@@ -1542,8 +1560,8 @@ export default function QuotePage() {
                               <Label className="text-sm text-muted-foreground mb-2 block">窗口膜宽度(mm)</Label>
                               <Input
                                 type="number"
-                                value={layer.splice.windowWidthMm || ""}
-                                onChange={(e) => updateSplice({ windowWidthMm: Number(e.target.value) || 0 })}
+                                value={numStr(layer.splice.windowWidthMm)}
+                                onChange={(e) => updateSplice({ windowWidthMm: e.target.value === "" ? 0 : Number(e.target.value) })}
                                 data-testid={`input-splice-width-${index}`}
                               />
                             </div>
@@ -1551,8 +1569,8 @@ export default function QuotePage() {
                               <Label className="text-sm text-muted-foreground mb-2 block">窗口膜厚度(μm)</Label>
                               <Input
                                 type="number"
-                                value={layer.splice.windowThicknessUm}
-                                onChange={(e) => updateSplice({ windowThicknessUm: Number(e.target.value) || 0 })}
+                                value={numStr(layer.splice.windowThicknessUm)}
+                                onChange={(e) => updateSplice({ windowThicknessUm: e.target.value === "" ? 0 : Number(e.target.value) })}
                                 data-testid={`input-splice-thickness-${index}`}
                               />
                             </div>
@@ -1561,8 +1579,8 @@ export default function QuotePage() {
                               <Input
                                 type="number"
                                 step="0.01"
-                                value={layer.splice.windowDensity}
-                                onChange={(e) => updateSplice({ windowDensity: Number(e.target.value) || 0 })}
+                                value={numStr(layer.splice.windowDensity)}
+                                onChange={(e) => updateSplice({ windowDensity: e.target.value === "" ? 0 : Number(e.target.value) })}
                               />
                             </div>
                             <div className="w-24">
@@ -1570,8 +1588,8 @@ export default function QuotePage() {
                               <Input
                                 type="number"
                                 step="0.1"
-                                value={layer.splice.windowPrice}
-                                onChange={(e) => updateSplice({ windowPrice: Number(e.target.value) || 0 })}
+                                value={numStr(layer.splice.windowPrice)}
+                                onChange={(e) => updateSplice({ windowPrice: e.target.value === "" ? 0 : Number(e.target.value) })}
                               />
                             </div>
                           </div>
@@ -1643,7 +1661,7 @@ export default function QuotePage() {
                 {config.postProcessingOptions
                   .filter((opt) => opt.enabled)
                   .map((option) => {
-                    const widthM = dimensions.width / 1000;
+                    const widthM = toNum(String(dimensions.width)) / 1000;
                     let currentCost = 0;
                     
                     if (option.id === "zipper_normal") {
@@ -1657,8 +1675,8 @@ export default function QuotePage() {
                     } else if (option.id === "hotStamp") {
                       currentCost = gravureCosts.area * 1.2 + 0.02;
                     } else if (option.id === "wire") {
-                      const wireCost = (dimensions.width + 40) * 0.00013;
-                      const laborCost = dimensions.width <= 140 ? 0.024 : 0.026;
+                      const wireCost = (toNum(String(dimensions.width)) + 40) * 0.00013;
+                      const laborCost = toNum(String(dimensions.width)) <= 140 ? 0.024 : 0.026;
                       currentCost = wireCost + laborCost;
                     } else if (option.id === "handle") {
                       currentCost = 0.15;
@@ -1839,8 +1857,8 @@ export default function QuotePage() {
                   <Label className="text-sm text-muted-foreground mb-2 block">利润率 (%)</Label>
                   <Input
                     type="number"
-                    value={profitRate}
-                    onChange={(e) => setProfitRate(Number(e.target.value))}
+                    value={numStr(profitRate)}
+                    onChange={(e) => setProfitRate(e.target.value === "" ? "" : Number(e.target.value))}
                     data-testid="input-profitRate"
                   />
                 </div>
@@ -1849,14 +1867,14 @@ export default function QuotePage() {
                   <Input
                     type="number"
                     step="0.01"
-                    value={exchangeRate}
-                    onChange={(e) => setExchangeRate(Number(e.target.value))}
+                    value={numStr(exchangeRate)}
+                    onChange={(e) => setExchangeRate(e.target.value === "" ? "" : Number(e.target.value))}
                     data-testid="input-exchangeRate"
                   />
                 </div>
                 <div className="flex-1 text-right text-sm text-muted-foreground">
-                  <div>当前利润系数：{(1 + profitRate / 100).toFixed(2)}</div>
-                  <div>当前汇率：{exchangeRate.toFixed(2)} 元 / 美元</div>
+                  <div>当前利润系数：{(1 + toNum(String(profitRate)) / 100).toFixed(2)}</div>
+                  <div>当前汇率：{toNum(String(exchangeRate)).toFixed(2)} 元 / 美元</div>
                 </div>
               </div>
               <div className="mt-4 p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
@@ -1868,7 +1886,7 @@ export default function QuotePage() {
           {(() => {
             const f4 = (n: number) => n.toFixed(4);
             const f2 = (n: number) => n.toFixed(2);
-            const usd = (cny: number) => cny / exchangeRate;
+            const usd = (cny: number) => cny / (toNum(String(exchangeRate)) || 1);
             const gc = gravureCosts;
 
             return (
@@ -2074,10 +2092,10 @@ export default function QuotePage() {
                       {selectedBagType?.makingCostFormula ? (
                         <>
                           公式：{selectedBagType.makingCostFormula}<br />
-                          代入尺寸：袋宽={dimensions.width / 1000}m 袋高={dimensions.height / 1000}m
-                          {requiredDimensions.includes("bottomInsert") && <> 底插入={dimensions.bottomInsert / 1000}m</>}
-                          {requiredDimensions.includes("sideExpansion") && <> 侧展开={dimensions.sideExpansion / 1000}m</>}
-                          {requiredDimensions.includes("backSeal") && <> 背封边={dimensions.backSeal / 1000}m</>}
+                          代入尺寸：袋宽={toNum(String(dimensions.width)) / 1000}m 袋高={toNum(String(dimensions.height)) / 1000}m
+                          {requiredDimensions.includes("bottomInsert") && <> 底插入={toNum(String(dimensions.bottomInsert)) / 1000}m</>}
+                          {requiredDimensions.includes("sideExpansion") && <> 侧展开={toNum(String(dimensions.sideExpansion)) / 1000}m</>}
+                          {requiredDimensions.includes("backSeal") && <> 背封边={toNum(String(dimensions.backSeal)) / 1000}m</>}
                           <br />
                           结果 = <b>{f4(gc.makingCostPerUnit)} 元/个</b>
                         </>
@@ -2132,7 +2150,7 @@ export default function QuotePage() {
                         版费 = 版长 {plateConfig.plateLength}cm × 版周 {plateConfig.plateCircumference}cm × {plateConfig.colorCount}色 × {plateConfig.pricePerSqcm} 元/cm² = <b>{f2(gc.plateCost)} 元</b>
                       </div>
                       <div data-testid="text-setup-fee">
-                        上机费 = {quantity >= 10000
+                        上机费 = {toNum(String(quantity)) >= 10000
                           ? <>数量 ≥ 10,000，免上机费 = <b>0 元</b></>
                           : <>min(200 × {plateConfig.colorCount}色, 1800) = <b>{f2(gc.setupFee)} 元</b></>
                         }

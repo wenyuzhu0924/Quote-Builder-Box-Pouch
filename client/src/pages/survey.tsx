@@ -747,8 +747,8 @@ export default function SurveyPage() {
                               <TableCell>
                                 <Input
                                   type="number"
-                                  value={material.thickness}
-                                  onChange={(e) => updateDigitalMaterial("print", material.id, "thickness", Number(e.target.value))}
+                                  value={material.thickness || ""}
+                                  onChange={(e) => updateDigitalMaterial("print", material.id, "thickness", Number(e.target.value) || 0)}
                                   className="h-8"
                                 />
                               </TableCell>
@@ -756,8 +756,8 @@ export default function SurveyPage() {
                                 <Input
                                   type="number"
                                   step="0.01"
-                                  value={material.density}
-                                  onChange={(e) => updateDigitalMaterial("print", material.id, "density", Number(e.target.value))}
+                                  value={material.density || ""}
+                                  onChange={(e) => updateDigitalMaterial("print", material.id, "density", Number(e.target.value) || 0)}
                                   className="h-8"
                                 />
                               </TableCell>
@@ -765,8 +765,8 @@ export default function SurveyPage() {
                                 <Input
                                   type="number"
                                   step="0.1"
-                                  value={material.price}
-                                  onChange={(e) => updateDigitalMaterial("print", material.id, "price", Number(e.target.value))}
+                                  value={material.price || ""}
+                                  onChange={(e) => updateDigitalMaterial("print", material.id, "price", Number(e.target.value) || 0)}
                                   className="h-8"
                                 />
                               </TableCell>
@@ -774,8 +774,8 @@ export default function SurveyPage() {
                                 <Input
                                   type="number"
                                   step="0.01"
-                                  value={material.squarePrice}
-                                  onChange={(e) => updateDigitalMaterial("print", material.id, "squarePrice", Number(e.target.value))}
+                                  value={material.squarePrice || ""}
+                                  onChange={(e) => updateDigitalMaterial("print", material.id, "squarePrice", Number(e.target.value) || 0)}
                                   className="h-8"
                                 />
                               </TableCell>
@@ -865,8 +865,8 @@ export default function SurveyPage() {
                               <TableCell>
                                 <Input
                                   type="number"
-                                  value={material.thickness}
-                                  onChange={(e) => updateDigitalMaterial("composite", material.id, "thickness", Number(e.target.value))}
+                                  value={material.thickness || ""}
+                                  onChange={(e) => updateDigitalMaterial("composite", material.id, "thickness", Number(e.target.value) || 0)}
                                   className="h-8"
                                 />
                               </TableCell>
@@ -874,8 +874,8 @@ export default function SurveyPage() {
                                 <Input
                                   type="number"
                                   step="0.01"
-                                  value={material.density}
-                                  onChange={(e) => updateDigitalMaterial("composite", material.id, "density", Number(e.target.value))}
+                                  value={material.density || ""}
+                                  onChange={(e) => updateDigitalMaterial("composite", material.id, "density", Number(e.target.value) || 0)}
                                   className="h-8"
                                 />
                               </TableCell>
@@ -883,8 +883,8 @@ export default function SurveyPage() {
                                 <Input
                                   type="number"
                                   step="0.1"
-                                  value={material.price}
-                                  onChange={(e) => updateDigitalMaterial("composite", material.id, "price", Number(e.target.value))}
+                                  value={material.price || ""}
+                                  onChange={(e) => updateDigitalMaterial("composite", material.id, "price", Number(e.target.value) || 0)}
                                   className="h-8"
                                 />
                               </TableCell>
@@ -892,8 +892,8 @@ export default function SurveyPage() {
                                 <Input
                                   type="number"
                                   step="0.01"
-                                  value={material.squarePrice}
-                                  onChange={(e) => updateDigitalMaterial("composite", material.id, "squarePrice", Number(e.target.value))}
+                                  value={material.squarePrice || ""}
+                                  onChange={(e) => updateDigitalMaterial("composite", material.id, "squarePrice", Number(e.target.value) || 0)}
                                   className="h-8"
                                 />
                               </TableCell>
@@ -983,8 +983,8 @@ export default function SurveyPage() {
                               <TableCell>
                                 <Input
                                   type="number"
-                                  value={material.thickness}
-                                  onChange={(e) => updateDigitalMaterial("seal", material.id, "thickness", Number(e.target.value))}
+                                  value={material.thickness || ""}
+                                  onChange={(e) => updateDigitalMaterial("seal", material.id, "thickness", Number(e.target.value) || 0)}
                                   className="h-8"
                                 />
                               </TableCell>
@@ -992,8 +992,8 @@ export default function SurveyPage() {
                                 <Input
                                   type="number"
                                   step="0.01"
-                                  value={material.density}
-                                  onChange={(e) => updateDigitalMaterial("seal", material.id, "density", Number(e.target.value))}
+                                  value={material.density || ""}
+                                  onChange={(e) => updateDigitalMaterial("seal", material.id, "density", Number(e.target.value) || 0)}
                                   className="h-8"
                                 />
                               </TableCell>
@@ -1001,8 +1001,8 @@ export default function SurveyPage() {
                                 <Input
                                   type="number"
                                   step="0.1"
-                                  value={material.price}
-                                  onChange={(e) => updateDigitalMaterial("seal", material.id, "price", Number(e.target.value))}
+                                  value={material.price || ""}
+                                  onChange={(e) => updateDigitalMaterial("seal", material.id, "price", Number(e.target.value) || 0)}
                                   className="h-8"
                                 />
                               </TableCell>
@@ -1010,8 +1010,8 @@ export default function SurveyPage() {
                                 <Input
                                   type="number"
                                   step="0.01"
-                                  value={material.squarePrice}
-                                  onChange={(e) => updateDigitalMaterial("seal", material.id, "squarePrice", Number(e.target.value))}
+                                  value={material.squarePrice || ""}
+                                  onChange={(e) => updateDigitalMaterial("seal", material.id, "squarePrice", Number(e.target.value) || 0)}
                                   className="h-8"
                                 />
                               </TableCell>
@@ -1118,8 +1118,8 @@ export default function SurveyPage() {
                                   <Input
                                     type="number"
                                     step="0.01"
-                                    value={tier.pricePerMeter}
-                                    onChange={(e) => updateDigitalPrintingTier(index, "pricePerMeter", Number(e.target.value))}
+                                    value={tier.pricePerMeter || ""}
+                                    onChange={(e) => updateDigitalPrintingTier(index, "pricePerMeter", Number(e.target.value) || 0)}
                                     className="h-8"
                                   />
                                 </TableCell>
@@ -1190,8 +1190,8 @@ export default function SurveyPage() {
                               <TableCell>
                                 <Input
                                   type="number"
-                                  value={process.minPrice}
-                                  onChange={(e) => updateDigitalSpecialProcess(process.id, "minPrice", Number(e.target.value))}
+                                  value={process.minPrice || ""}
+                                  onChange={(e) => updateDigitalSpecialProcess(process.id, "minPrice", Number(e.target.value) || 0)}
                                   className="h-8"
                                 />
                               </TableCell>
@@ -1237,7 +1237,7 @@ export default function SurveyPage() {
                               <Input
                                 type="number"
                                 value={newSpecialProcess.minPrice || ""}
-                                onChange={(e) => setNewSpecialProcess({ ...newSpecialProcess, minPrice: Number(e.target.value) })}
+                                onChange={(e) => setNewSpecialProcess({ ...newSpecialProcess, minPrice: Number(e.target.value) || 0 })}
                                 placeholder="起步价"
                                 className="h-8"
                               />
@@ -1314,8 +1314,8 @@ export default function SurveyPage() {
                                   <Input
                                     type="number"
                                     step="0.01"
-                                    value={zipper.pricePerMeter}
-                                    onChange={(e) => updateDigitalZipper(zipper.id, "pricePerMeter", Number(e.target.value))}
+                                    value={zipper.pricePerMeter || ""}
+                                    onChange={(e) => updateDigitalZipper(zipper.id, "pricePerMeter", Number(e.target.value) || 0)}
                                     className="h-8"
                                   />
                                 </TableCell>
@@ -1346,7 +1346,7 @@ export default function SurveyPage() {
                                   type="number"
                                   step="0.01"
                                   value={newZipper.pricePerMeter || ""}
-                                  onChange={(e) => setNewZipper({ ...newZipper, pricePerMeter: Number(e.target.value) })}
+                                  onChange={(e) => setNewZipper({ ...newZipper, pricePerMeter: Number(e.target.value) || 0 })}
                                   placeholder="单价"
                                   className="h-8"
                                 />
@@ -1399,8 +1399,8 @@ export default function SurveyPage() {
                                   <Input
                                     type="number"
                                     step="0.01"
-                                    value={valve.pricePerUnit}
-                                    onChange={(e) => updateDigitalValve(valve.id, "pricePerUnit", Number(e.target.value))}
+                                    value={valve.pricePerUnit || ""}
+                                    onChange={(e) => updateDigitalValve(valve.id, "pricePerUnit", Number(e.target.value) || 0)}
                                     className="h-8"
                                   />
                                 </TableCell>
@@ -1431,7 +1431,7 @@ export default function SurveyPage() {
                                   type="number"
                                   step="0.01"
                                   value={newValve.pricePerUnit || ""}
-                                  onChange={(e) => setNewValve({ ...newValve, pricePerUnit: Number(e.target.value) })}
+                                  onChange={(e) => setNewValve({ ...newValve, pricePerUnit: Number(e.target.value) || 0 })}
                                   placeholder="单价"
                                   className="h-8"
                                 />
@@ -1485,8 +1485,8 @@ export default function SurveyPage() {
                                   <Input
                                     type="number"
                                     step="0.01"
-                                    value={accessory.price}
-                                    onChange={(e) => updateDigitalAccessory(accessory.id, "price", Number(e.target.value))}
+                                    value={accessory.price || ""}
+                                    onChange={(e) => updateDigitalAccessory(accessory.id, "price", Number(e.target.value) || 0)}
                                     className="h-8"
                                   />
                                 </TableCell>
@@ -1523,7 +1523,7 @@ export default function SurveyPage() {
                                   type="number"
                                   step="0.01"
                                   value={newAccessory.price || ""}
-                                  onChange={(e) => setNewAccessory({ ...newAccessory, price: Number(e.target.value) })}
+                                  onChange={(e) => setNewAccessory({ ...newAccessory, price: Number(e.target.value) || 0 })}
                                   placeholder="单价"
                                   className="h-8"
                                 />
@@ -1578,8 +1578,8 @@ export default function SurveyPage() {
                         <Label className="text-xs text-muted-foreground">最大印刷宽度 (mm)</Label>
                         <Input
                           type="number"
-                          value={digitalConfig.systemConstants.maxPrintWidth}
-                          onChange={(e) => updateSystemConstant("maxPrintWidth", Number(e.target.value))}
+                          value={digitalConfig.systemConstants.maxPrintWidth || ""}
+                          onChange={(e) => updateSystemConstant("maxPrintWidth", Number(e.target.value) || 0)}
                           className="h-8"
                         />
                       </div>
@@ -1587,8 +1587,8 @@ export default function SurveyPage() {
                         <Label className="text-xs text-muted-foreground">最大印刷周长 (mm)</Label>
                         <Input
                           type="number"
-                          value={digitalConfig.systemConstants.maxPrintCircumference}
-                          onChange={(e) => updateSystemConstant("maxPrintCircumference", Number(e.target.value))}
+                          value={digitalConfig.systemConstants.maxPrintCircumference || ""}
+                          onChange={(e) => updateSystemConstant("maxPrintCircumference", Number(e.target.value) || 0)}
                           className="h-8"
                         />
                       </div>
@@ -1596,8 +1596,8 @@ export default function SurveyPage() {
                         <Label className="text-xs text-muted-foreground">材料幅宽 (mm)</Label>
                         <Input
                           type="number"
-                          value={digitalConfig.systemConstants.materialWidth}
-                          onChange={(e) => updateSystemConstant("materialWidth", Number(e.target.value))}
+                          value={digitalConfig.systemConstants.materialWidth || ""}
+                          onChange={(e) => updateSystemConstant("materialWidth", Number(e.target.value) || 0)}
                           className="h-8"
                         />
                       </div>
@@ -1605,8 +1605,8 @@ export default function SurveyPage() {
                         <Label className="text-xs text-muted-foreground">每款SKU损耗 (个)</Label>
                         <Input
                           type="number"
-                          value={digitalConfig.systemConstants.skuWaste}
-                          onChange={(e) => updateSystemConstant("skuWaste", Number(e.target.value))}
+                          value={digitalConfig.systemConstants.skuWaste || ""}
+                          onChange={(e) => updateSystemConstant("skuWaste", Number(e.target.value) || 0)}
                           className="h-8"
                         />
                       </div>
@@ -1614,8 +1614,8 @@ export default function SurveyPage() {
                         <Label className="text-xs text-muted-foreground">调试损耗 (转)</Label>
                         <Input
                           type="number"
-                          value={digitalConfig.systemConstants.adjustmentWaste}
-                          onChange={(e) => updateSystemConstant("adjustmentWaste", Number(e.target.value))}
+                          value={digitalConfig.systemConstants.adjustmentWaste || ""}
+                          onChange={(e) => updateSystemConstant("adjustmentWaste", Number(e.target.value) || 0)}
                           className="h-8"
                         />
                       </div>
@@ -1623,8 +1623,8 @@ export default function SurveyPage() {
                         <Label className="text-xs text-muted-foreground">闲置材料最小量 (m)</Label>
                         <Input
                           type="number"
-                          value={digitalConfig.systemConstants.idleMaterialMin}
-                          onChange={(e) => updateSystemConstant("idleMaterialMin", Number(e.target.value))}
+                          value={digitalConfig.systemConstants.idleMaterialMin || ""}
+                          onChange={(e) => updateSystemConstant("idleMaterialMin", Number(e.target.value) || 0)}
                           className="h-8"
                         />
                       </div>
@@ -1634,8 +1634,8 @@ export default function SurveyPage() {
                       <Label>默认税率 (%)</Label>
                       <Input
                         type="number"
-                        value={digitalConfig.vatRate}
-                        onChange={(e) => updateDigitalConfig({ vatRate: Number(e.target.value) })}
+                        value={digitalConfig.vatRate || ""}
+                        onChange={(e) => updateDigitalConfig({ vatRate: Number(e.target.value) || 0 })}
                         className="w-24 h-8"
                       />
                     </div>
@@ -1771,12 +1771,12 @@ export default function SurveyPage() {
                               <Input
                                 type="number"
                                 step="0.01"
-                                value={bagType.wasteCoefficient}
+                                value={bagType.wasteCoefficient || ""}
                                 onChange={(e) => {
                                   updateConfig({
                                     customBagTypes: config.customBagTypes.map((b) =>
                                       b.id === bagType.id
-                                        ? { ...b, wasteCoefficient: Number(e.target.value) }
+                                        ? { ...b, wasteCoefficient: Number(e.target.value) || 0 }
                                         : b
                                     ),
                                   });
@@ -1830,8 +1830,8 @@ export default function SurveyPage() {
                             <Input
                               type="number"
                               step="0.01"
-                              value={newBagType.wasteCoefficient}
-                              onChange={(e) => setNewBagType({ ...newBagType, wasteCoefficient: Number(e.target.value) })}
+                              value={newBagType.wasteCoefficient || ""}
+                              onChange={(e) => setNewBagType({ ...newBagType, wasteCoefficient: Number(e.target.value) || 0 })}
                               className="h-8"
                             />
                           </TableCell>
@@ -1908,8 +1908,8 @@ export default function SurveyPage() {
                             <TableCell>
                               <Input
                                 type="number"
-                                value={material.thickness}
-                                onChange={(e) => updateMaterialField(material.id, "thickness", Number(e.target.value))}
+                                value={material.thickness || ""}
+                                onChange={(e) => updateMaterialField(material.id, "thickness", Number(e.target.value) || 0)}
                                 className="h-8"
                               />
                             </TableCell>
@@ -1917,8 +1917,8 @@ export default function SurveyPage() {
                               <Input
                                 type="number"
                                 step="0.01"
-                                value={material.density}
-                                onChange={(e) => updateMaterialField(material.id, "density", Number(e.target.value))}
+                                value={material.density || ""}
+                                onChange={(e) => updateMaterialField(material.id, "density", Number(e.target.value) || 0)}
                                 className="h-8"
                               />
                             </TableCell>
@@ -1926,8 +1926,8 @@ export default function SurveyPage() {
                               <Input
                                 type="number"
                                 step="0.1"
-                                value={material.grammage}
-                                onChange={(e) => updateMaterialField(material.id, "grammage", Number(e.target.value))}
+                                value={material.grammage || ""}
+                                onChange={(e) => updateMaterialField(material.id, "grammage", Number(e.target.value) || 0)}
                                 className="h-8"
                               />
                             </TableCell>
@@ -1935,8 +1935,8 @@ export default function SurveyPage() {
                               <Input
                                 type="number"
                                 step="0.1"
-                                value={material.price}
-                                onChange={(e) => updateMaterialField(material.id, "price", Number(e.target.value))}
+                                value={material.price || ""}
+                                onChange={(e) => updateMaterialField(material.id, "price", Number(e.target.value) || 0)}
                                 className="h-8"
                               />
                             </TableCell>
@@ -1974,7 +1974,7 @@ export default function SurveyPage() {
                             <Input
                               type="number"
                               value={newMaterial.thickness || ""}
-                              onChange={(e) => setNewMaterial({ ...newMaterial, thickness: Number(e.target.value) })}
+                              onChange={(e) => setNewMaterial({ ...newMaterial, thickness: Number(e.target.value) || 0 })}
                               placeholder="厚度"
                               className="h-8"
                             />
@@ -1984,7 +1984,7 @@ export default function SurveyPage() {
                               type="number"
                               step="0.01"
                               value={newMaterial.density || ""}
-                              onChange={(e) => setNewMaterial({ ...newMaterial, density: Number(e.target.value) })}
+                              onChange={(e) => setNewMaterial({ ...newMaterial, density: Number(e.target.value) || 0 })}
                               placeholder="密度"
                               className="h-8"
                             />
@@ -1994,7 +1994,7 @@ export default function SurveyPage() {
                               type="number"
                               step="0.1"
                               value={newMaterial.grammage || ""}
-                              onChange={(e) => setNewMaterial({ ...newMaterial, grammage: Number(e.target.value) })}
+                              onChange={(e) => setNewMaterial({ ...newMaterial, grammage: Number(e.target.value) || 0 })}
                               placeholder="克重"
                               className="h-8"
                             />
@@ -2004,7 +2004,7 @@ export default function SurveyPage() {
                               type="number"
                               step="0.1"
                               value={newMaterial.price || ""}
-                              onChange={(e) => setNewMaterial({ ...newMaterial, price: Number(e.target.value) })}
+                              onChange={(e) => setNewMaterial({ ...newMaterial, price: Number(e.target.value) || 0 })}
                               placeholder="价格"
                               className="h-8"
                             />
@@ -2075,8 +2075,8 @@ export default function SurveyPage() {
                             <TableCell>
                               <Input
                                 type="number"
-                                value={rule.coverage}
-                                onChange={(e) => updatePrintingPrice(index, "coverage", Number(e.target.value))}
+                                value={rule.coverage || ""}
+                                onChange={(e) => updatePrintingPrice(index, "coverage", Number(e.target.value) || 0)}
                                 className="h-8"
                                 data-testid={`input-printing-coverage-${index}`}
                               />
@@ -2093,8 +2093,8 @@ export default function SurveyPage() {
                               <Input
                                 type="number"
                                 step="0.01"
-                                value={rule.pricePerSqm}
-                                onChange={(e) => updatePrintingPrice(index, "pricePerSqm", Number(e.target.value))}
+                                value={rule.pricePerSqm || ""}
+                                onChange={(e) => updatePrintingPrice(index, "pricePerSqm", Number(e.target.value) || 0)}
                                 className="h-8"
                                 data-testid={`input-printing-price-${index}`}
                               />
@@ -2169,8 +2169,8 @@ export default function SurveyPage() {
                               <Input
                                 type="number"
                                 step="0.001"
-                                value={rule.pricePerSqm}
-                                onChange={(e) => updateLaminationPrice(index, "pricePerSqm", Number(e.target.value))}
+                                value={rule.pricePerSqm || ""}
+                                onChange={(e) => updateLaminationPrice(index, "pricePerSqm", Number(e.target.value) || 0)}
                                 className="h-8"
                               />
                             </TableCell>
@@ -2202,7 +2202,7 @@ export default function SurveyPage() {
                               type="number"
                               step="0.001"
                               value={newLamination.pricePerSqm || ""}
-                              onChange={(e) => setNewLamination({ ...newLamination, pricePerSqm: Number(e.target.value) })}
+                              onChange={(e) => setNewLamination({ ...newLamination, pricePerSqm: Number(e.target.value) || 0 })}
                               placeholder="单价"
                               className="h-8"
                             />
@@ -2477,7 +2477,7 @@ export default function SurveyPage() {
                               <Input
                                 type="number"
                                 value={discount.minQuantity}
-                                onChange={(e) => updateQuantityDiscount(index, "minQuantity", Number(e.target.value))}
+                                onChange={(e) => updateQuantityDiscount(index, "minQuantity", Number(e.target.value) || 0)}
                                 className="h-8"
                               />
                             </TableCell>
@@ -2486,7 +2486,7 @@ export default function SurveyPage() {
                                 type="number"
                                 step="0.01"
                                 value={discount.coefficient}
-                                onChange={(e) => updateQuantityDiscount(index, "coefficient", Number(e.target.value))}
+                                onChange={(e) => updateQuantityDiscount(index, "coefficient", Number(e.target.value) || 0)}
                                 className="h-8"
                               />
                             </TableCell>
