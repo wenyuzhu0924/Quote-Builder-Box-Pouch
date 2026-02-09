@@ -360,12 +360,13 @@ const defaultMaterialLibrary: CustomMaterial[] = [
 ];
 
 const defaultPrintingPriceRules: PrintingPriceRule[] = [
-  { coverage: 25, label: "25% 覆盖率", pricePerSqm: 0.11 },
-  { coverage: 50, label: "50% 覆盖率", pricePerSqm: 0.13 },
-  { coverage: 100, label: "100% 覆盖率", pricePerSqm: 0.16 },
-  { coverage: 150, label: "150% 覆盖率", pricePerSqm: 0.21 },
-  { coverage: 200, label: "200% 覆盖率", pricePerSqm: 0.26 },
-  { coverage: 300, label: "300% 覆盖率", pricePerSqm: 0.36 },
+  { coverage: 0, label: "0% 覆盖率", pricePerSqm: 0 },
+  { coverage: 25, label: "25% 覆盖率", pricePerSqm: 0 },
+  { coverage: 50, label: "50% 覆盖率", pricePerSqm: 0 },
+  { coverage: 100, label: "100% 覆盖率", pricePerSqm: 0 },
+  { coverage: 150, label: "150% 覆盖率", pricePerSqm: 0 },
+  { coverage: 200, label: "200% 覆盖率", pricePerSqm: 0 },
+  { coverage: 300, label: "300% 覆盖率", pricePerSqm: 0 },
 ];
 
 const defaultLaminationPriceRules: LaminationPriceRule[] = [
