@@ -335,9 +335,28 @@ const defaultDigitalConfig: DigitalGeneratorConfig = {
 };
 
 const defaultMaterialLibrary: CustomMaterial[] = [
-  { id: "1", name: "PET", thickness: 12, density: 1.4, grammage: 16.8, price: 8, notes: "" },
-  { id: "2", name: "VMPET", thickness: 12, density: 1.4, grammage: 16.8, price: 9, notes: "" },
-  { id: "3", name: "PE (LDPE)", thickness: 90, density: 0.92, grammage: 82.8, price: 9.5, notes: "" },
+  { id: "1", name: "PET", thickness: 12, density: 1.4, grammage: 16.8, price: 0, notes: "" },
+  { id: "2", name: "VMPET", thickness: 12, density: 1.4, grammage: 16.8, price: 0, notes: "" },
+  { id: "3", name: "BOPP", thickness: 23, density: 0.91, grammage: 20.93, price: 0, notes: "" },
+  { id: "4", name: "哑光OPP", thickness: 19, density: 0.86, grammage: 16.34, price: 0, notes: "" },
+  { id: "5", name: "哑光PET", thickness: 15, density: 1.4, grammage: 21, price: 0, notes: "" },
+  { id: "6", name: "CPP", thickness: 40, density: 0.91, grammage: 36.4, price: 0, notes: "" },
+  { id: "7", name: "VMCPP", thickness: 25, density: 0.91, grammage: 22.75, price: 0, notes: "" },
+  { id: "8", name: "PE (LDPE)", thickness: 70, density: 0.92, grammage: 64.4, price: 0, notes: "" },
+  { id: "9", name: "BOPA", thickness: 15, density: 1.16, grammage: 17.4, price: 0, notes: "" },
+  { id: "10", name: "牛皮纸 (gsm)", thickness: 70, density: 0, grammage: 70, price: 0, notes: "纸类，厚度即克重" },
+  { id: "11", name: "白牛皮纸 (gsm)", thickness: 70, density: 0, grammage: 70, price: 0, notes: "纸类，厚度即克重" },
+  { id: "12", name: "棉纸 (gsm)", thickness: 19, density: 0, grammage: 19, price: 0, notes: "纸类，厚度即克重" },
+  { id: "13", name: "AL (纯铝箔)", thickness: 7, density: 2.7, grammage: 18.9, price: 0, notes: "" },
+  { id: "14", name: "金砂膜/拉丝膜", thickness: 55, density: 0.56, grammage: 30.8, price: 0, notes: "" },
+  { id: "15", name: "触感膜OPP", thickness: 18, density: 0.81, grammage: 14.58, price: 0, notes: "" },
+  { id: "16", name: "PLA可降解材料", thickness: 25, density: 1.26, grammage: 31.5, price: 0, notes: "默认25μm，可改为15μm" },
+  { id: "17", name: "KPA", thickness: 17, density: 1.2, grammage: 20.4, price: 0, notes: "" },
+  { id: "18", name: "氧化铝PET(复合级)", thickness: 12, density: 1.4, grammage: 16.8, price: 0, notes: "" },
+  { id: "19", name: "氧化铝PET(印刷级)", thickness: 12, density: 1.4, grammage: 16.8, price: 0, notes: "" },
+  { id: "20", name: "KPET", thickness: 14, density: 1.4, grammage: 19.6, price: 0, notes: "" },
+  { id: "21", name: "KOP", thickness: 21, density: 0.99, grammage: 20.79, price: 0, notes: "" },
+  { id: "22", name: "镭射PET铝", thickness: 12, density: 1.4, grammage: 16.8, price: 0, notes: "" },
 ];
 
 const defaultPrintingPriceRules: PrintingPriceRule[] = [
