@@ -79,6 +79,13 @@ Preferred communication style: Simple, everyday language.
 - All roll film specific calculation logic, UI adaptations, and breakdown sections removed
 - Roll film config removed from gravure-config.ts
 
+### February 10, 2026 - Demo Gravure Link
+- **Demo Route**: `/demo/gravure` provides a standalone gravure printing experience (survey + quote)
+- **Independent State**: Demo uses its own `QuoteProvider`, completely separate from the main app
+- **Auto-init**: Automatically sets `productType=pouch`, `printingMethod=gravure` on load
+- **Navigation**: No back button on survey, no restart button on quote; edit params returns to demo survey
+- **Main App Unaffected**: Routes `/`, `/survey`, `/quote` remain independent
+
 ### February 10, 2026 - Survey Page Label Changes & Post-Processing Split
 - **Section Renames**: 印刷→印刷费用, 复合→复合费用, 制袋→制袋费用
 - **Post-Processing Split**: Single "后处理" section split into two: "附加工艺" (拉链, 冲孔, 加铁丝, 手提, 透气阀, 定点开窗, 吸嘴, 激光易撕线) and "表面处理" (烫金, 激凸, 哑油工艺)
