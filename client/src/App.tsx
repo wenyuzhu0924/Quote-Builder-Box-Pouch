@@ -4,10 +4,14 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QuoteProvider } from "@/lib/quote-store";
+import { GiftBoxProvider } from "@/lib/giftbox-store";
 import ProductSelectPage from "@/pages/product-select";
 import SurveyPage from "@/pages/survey";
 import QuotePage from "@/pages/quote";
+import GiftBoxSurveyPage from "@/pages/giftbox-survey";
+import GiftBoxQuotePage from "@/pages/giftbox-quote";
 import DemoGravurePage from "@/pages/demo-gravure";
+import DemoGiftBoxPage from "@/pages/demo-giftbox";
 import NotFound from "@/pages/not-found";
 
 function AppRouter() {
@@ -15,6 +19,22 @@ function AppRouter() {
 
   if (location.startsWith("/demo/gravure")) {
     return <DemoGravurePage />;
+  }
+
+  if (location.startsWith("/demo/giftbox")) {
+    return <DemoGiftBoxPage />;
+  }
+
+  if (location.startsWith("/giftbox")) {
+    return (
+      <GiftBoxProvider>
+        <Switch>
+          <Route path="/giftbox/survey">{() => <GiftBoxSurveyPage />}</Route>
+          <Route path="/giftbox/quote">{() => <GiftBoxQuotePage />}</Route>
+          <Route component={NotFound} />
+        </Switch>
+      </GiftBoxProvider>
+    );
   }
 
   return (

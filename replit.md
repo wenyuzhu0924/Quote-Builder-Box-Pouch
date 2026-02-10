@@ -99,3 +99,13 @@ Preferred communication style: Simple, everyday language.
   - When `eightSideMode="diff"`, system maintains separate material stacks, separate print coverage, and separate lamination steps
   - Area split: frontBackBottomArea and twoSideArea calculated separately
 - **Calculation**: gravureCosts splits material/print/lamination costs by area zone; breakdown shows split details
+
+### February 10, 2026 - Gift Box (礼盒) Quote Generator
+- **New Product Type**: Gift box quote generator with embedded calculation logic
+- **Config**: `client/src/lib/giftbox-config.ts` - box types, paper/liner types, craft definitions, ladder pricing, mold fee rules
+- **State**: `client/src/lib/giftbox-store.tsx` - GiftBoxProvider context for sharing config between survey and quote pages
+- **Survey Page**: `client/src/pages/giftbox-survey.tsx` - configure box type (天地盖/天地盖带内插/书型盒/抽屉盒), paper type, liner type, height ratio, hole count, special crafts (烫金/UV/激凸/铜板+激光雕刻)
+- **Quote Page**: `client/src/pages/giftbox-quote.tsx` - real-time calculator with dimension/order inputs, 8-section cost breakdown (area/board/paper/liner/box/craft/carton/mold), tax & USD conversion
+- **Main App Integration**: Product select → /giftbox/survey → /giftbox/quote
+- **Demo Route**: `/demo/giftbox` - standalone access with no back/restart buttons
+- **Routing**: App.tsx uses location-based routing to separate giftbox, demo, and pouch flows with independent providers

@@ -52,10 +52,13 @@ export default function ProductSelectPage() {
   const handleNext = () => {
     if (canProceed) {
       setProductType(selectedProduct);
-      if (selectedProduct === "pouch") {
+      if (selectedProduct === "box") {
+        setPrintingMethod(null);
+        navigate("/giftbox/survey");
+      } else {
         setPrintingMethod(selectedPrinting);
+        navigate("/survey");
       }
-      navigate("/survey");
     }
   };
 
