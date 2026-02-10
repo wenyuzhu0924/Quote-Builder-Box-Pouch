@@ -2439,16 +2439,6 @@ export default function SurveyPage() {
                                     placeholder="袋型名"
                                   />
                                   <Input
-                                    value={btp.bagTypeId}
-                                    onChange={(e) => {
-                                      const updated = [...(option.bagTypePrices || [])];
-                                      updated[idx] = { ...updated[idx], bagTypeId: e.target.value };
-                                      updatePostProcessingField(option.id, "bagTypePrices", updated);
-                                    }}
-                                    className="w-[120px]"
-                                    placeholder="袋型ID"
-                                  />
-                                  <Input
                                     type="number"
                                     value={btp.pricePerMeter ?? ""}
                                     onChange={(e) => {
