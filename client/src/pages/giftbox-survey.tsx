@@ -1,14 +1,17 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, ArrowRight, Package, Layers, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Trash2, Package, Layers, Sparkles, Settings, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 import {
-  BOX_TYPES, PAPER_TYPES, LINER_TYPES, CRAFT_TYPES,
-  type BoxType, type PaperType, type LinerType, type CraftId,
+  type BoxTypeConfig, type PaperTypeConfig, type LinerTypeConfig, type CraftConfig, type MoldFeeRule,
 } from "@/lib/giftbox-config";
 import { useGiftBox } from "@/lib/giftbox-store";
 
@@ -25,163 +28,756 @@ export default function GiftBoxSurveyPage({
 }: GiftBoxSurveyPageProps) {
   const [, navigate] = useLocation();
   const { config, updateConfig } = useGiftBox();
+  const { toast } = useToast();
+
+  const [newPaper, setNewPaper] = useState({ name: "", pricePerSqm: 0 });
+  const [newLiner, setNewLiner] = useState({ name: "", calcMethod: "volume" as "volume" | "halfBoard", pricePerCubicM: 0, minCost: 0, baseProcessFee: 0 });
+  const [newCraft, setNewCraft] = useState({ name: "", calcType: "perUnit" as "perUnit" | "perArea", price: 0, startPrice: 400, desc: "" });
 
   const handleBack = () => navigate(backPath);
   const handleNext = () => navigate(nextPath);
 
-  const toggleCraft = (craftId: CraftId) => {
-    const selected = config.selectedCrafts.includes(craftId)
-      ? config.selectedCrafts.filter(c => c !== craftId)
-      : [...config.selectedCrafts, craftId];
-    updateConfig({ selectedCrafts: selected });
+  const toggleBoxType = (id: string) => {
+    updateConfig({
+      boxTypes: config.boxTypes.map(b =>
+        b.id === id ? { ...b, enabled: !b.enabled } : b
+      ),
+    });
   };
 
+  const updateBoxLadder = (boxId: string, ladderIndex: number, field: string, value: number) => {
+    updateConfig({
+      boxTypes: config.boxTypes.map(b =>
+        b.id === boxId
+          ? { ...b, ladder: b.ladder.map((l, i) => i === ladderIndex ? { ...l, [field]: value } : l) }
+          : b
+      ),
+    });
+  };
+
+  const addPaperType = () => {
+    if (!newPaper.name) return;
+    const paper: PaperTypeConfig = {
+      id: `paper_${Date.now()}`,
+      name: newPaper.name,
+      pricePerSqm: newPaper.pricePerSqm,
+    };
+    updateConfig({ paperTypes: [...config.paperTypes, paper] });
+    setNewPaper({ name: "", pricePerSqm: 0 });
+    toast({ title: "面纸类型已添加" });
+  };
+
+  const removePaperType = (id: string) => {
+    updateConfig({ paperTypes: config.paperTypes.filter(p => p.id !== id) });
+  };
+
+  const updatePaperField = (id: string, field: keyof PaperTypeConfig, value: string | number) => {
+    updateConfig({
+      paperTypes: config.paperTypes.map(p =>
+        p.id === id ? { ...p, [field]: value } : p
+      ),
+    });
+  };
+
+  const updateLinerField = (id: string, field: keyof LinerTypeConfig, value: string | number) => {
+    updateConfig({
+      linerTypes: config.linerTypes.map(l =>
+        l.id === id ? { ...l, [field]: value } : l
+      ),
+    });
+  };
+
+  const addLinerType = () => {
+    if (!newLiner.name) return;
+    const liner: LinerTypeConfig = {
+      id: `liner_${Date.now()}`,
+      name: newLiner.name,
+      calcMethod: newLiner.calcMethod,
+      pricePerCubicM: newLiner.pricePerCubicM,
+      minCost: newLiner.minCost,
+      baseProcessFee: newLiner.baseProcessFee,
+    };
+    updateConfig({ linerTypes: [...config.linerTypes, liner] });
+    setNewLiner({ name: "", calcMethod: "volume", pricePerCubicM: 0, minCost: 0, baseProcessFee: 0 });
+    toast({ title: "内衬类型已添加" });
+  };
+
+  const removeLinerType = (id: string) => {
+    updateConfig({ linerTypes: config.linerTypes.filter(l => l.id !== id) });
+  };
+
+  const toggleCraft = (id: string) => {
+    updateConfig({
+      crafts: config.crafts.map(c =>
+        c.id === id ? { ...c, enabled: !c.enabled } : c
+      ),
+    });
+  };
+
+  const updateCraftField = (id: string, field: keyof CraftConfig, value: string | number) => {
+    updateConfig({
+      crafts: config.crafts.map(c =>
+        c.id === id ? { ...c, [field]: value } : c
+      ),
+    });
+  };
+
+  const addCraft = () => {
+    if (!newCraft.name) return;
+    const craft: CraftConfig = {
+      id: `craft_${Date.now()}`,
+      name: newCraft.name,
+      enabled: true,
+      calcType: newCraft.calcType,
+      price: newCraft.price,
+      startPrice: newCraft.startPrice,
+      desc: newCraft.desc,
+    };
+    updateConfig({ crafts: [...config.crafts, craft] });
+    setNewCraft({ name: "", calcType: "perUnit", price: 0, startPrice: 400, desc: "" });
+    toast({ title: "工艺已添加" });
+  };
+
+  const removeCraft = (id: string) => {
+    updateConfig({ crafts: config.crafts.filter(c => c.id !== id) });
+  };
+
+  const updateMoldRule = (index: number, field: keyof MoldFeeRule, value: string | number) => {
+    updateConfig({
+      moldFeeRules: config.moldFeeRules.map((r, i) =>
+        i === index ? { ...r, [field]: value } : r
+      ),
+    });
+  };
+
+  const enabledBoxCount = config.boxTypes.filter(b => b.enabled).length;
+  const enabledCraftCount = config.crafts.filter(c => c.enabled).length;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50/50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 flex flex-col">
-      <header className="border-b border-orange-100 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          {!hideBack && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleBack}
-              data-testid="button-back"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-          )}
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground" data-testid="text-page-title">
-              配置礼盒报价器
-            </h1>
-            <p className="text-sm text-muted-foreground">设置盒型、材料与工艺参数</p>
-          </div>
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="border-b bg-card sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4">
+          <h1 className="text-xl font-semibold text-foreground" data-testid="text-page-title">报价器生成器 - 礼盒</h1>
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-4 py-6 max-w-3xl">
-        <Accordion type="multiple" defaultValue={["boxType", "material", "craft"]} className="space-y-3">
-          <AccordionItem value="boxType" className="border rounded-md bg-white dark:bg-neutral-900 px-4">
-            <AccordionTrigger className="hover:no-underline" data-testid="section-box-type">
-              <div className="flex items-center gap-2">
-                <Package className="w-5 h-5 text-orange-500" />
-                <span className="font-semibold">盒型选择</span>
+      <main className="flex-1 container mx-auto px-4 py-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-medium">
+                2
               </div>
-            </AccordionTrigger>
-            <AccordionContent className="pb-4">
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-sm text-muted-foreground mb-1.5 block">盒型</Label>
-                  <Select
-                    value={config.boxType}
-                    onValueChange={(v) => updateConfig({ boxType: v as BoxType })}
-                  >
-                    <SelectTrigger data-testid="select-box-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {BOX_TYPES.map(t => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+              <span className="text-sm text-muted-foreground">第 2 步，共 3 步</span>
+            </div>
+            <h2 className="text-2xl font-bold text-foreground mb-2">配置报价器</h2>
+            <p className="text-muted-foreground">
+              配置您的礼盒自动报价器参数和价格逻辑。填入的数据将用于生成最终报价器。
+            </p>
+          </div>
 
-          <AccordionItem value="material" className="border rounded-md bg-white dark:bg-neutral-900 px-4">
-            <AccordionTrigger className="hover:no-underline" data-testid="section-material">
-              <div className="flex items-center gap-2">
-                <Layers className="w-5 h-5 text-orange-500" />
-                <span className="font-semibold">材料配置</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="pb-4">
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-sm text-muted-foreground mb-1.5 block">面纸类型</Label>
-                  <Select
-                    value={config.paperType}
-                    onValueChange={(v) => updateConfig({ paperType: v as PaperType })}
-                  >
-                    <SelectTrigger data-testid="select-paper-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PAPER_TYPES.map(t => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+          <Accordion type="multiple" defaultValue={["boxTypes"]} className="space-y-4">
+            <AccordionItem value="boxTypes" className="border rounded-lg px-4">
+              <AccordionTrigger className="hover:no-underline py-4" data-testid="section-box-type">
+                <div className="flex items-center gap-3">
+                  <Package className="w-5 h-5 text-primary" />
+                  <div className="text-left">
+                    <div className="font-semibold">盒型</div>
+                    <div className="text-sm text-muted-foreground">
+                      选择盒型及配置阶梯价格（已选 {enabledBoxCount}/{config.boxTypes.length} 种）
+                    </div>
+                  </div>
                 </div>
+              </AccordionTrigger>
+              <AccordionContent className="pb-4">
+                <div className="space-y-6">
+                  <p className="text-sm text-muted-foreground">
+                    勾选需要包含在报价器中的盒型，并配置各盒型的做工阶梯价格。
+                  </p>
 
-                <div>
-                  <Label className="text-sm text-muted-foreground mb-1.5 block">内衬类型</Label>
-                  <Select
-                    value={config.linerType}
-                    onValueChange={(v) => updateConfig({ linerType: v as LinerType })}
-                  >
-                    <SelectTrigger data-testid="select-liner-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LINER_TYPES.map(t => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+                  {config.boxTypes.map(box => (
+                    <div key={box.id} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          checked={box.enabled}
+                          onCheckedChange={() => toggleBoxType(box.id)}
+                          data-testid={`boxtype-check-${box.id}`}
+                        />
+                        <span className="font-medium">{box.name}</span>
+                        {box.isBuiltIn && <Badge variant="outline" className="text-xs">内置</Badge>}
+                        {!box.enabled && <Badge variant="secondary" className="text-xs">未启用</Badge>}
+                      </div>
+                      <div className="text-xs text-muted-foreground">面积公式：{box.areaFormula}</div>
 
-          <AccordionItem value="craft" className="border rounded-md bg-white dark:bg-neutral-900 px-4">
-            <AccordionTrigger className="hover:no-underline" data-testid="section-craft">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-orange-500" />
-                <span className="font-semibold">特殊工艺</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="pb-4">
-              <div className="space-y-3">
-                {CRAFT_TYPES.map(craft => {
-                  const isSelected = config.selectedCrafts.includes(craft.id);
-                  return (
-                    <Card
-                      key={craft.id}
-                      className={`transition-colors ${isSelected ? "border-orange-300 dark:border-orange-700" : ""}`}
-                    >
-                      <CardContent className="p-3">
-                        <div className="flex items-center gap-3">
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={() => toggleCraft(craft.id)}
-                            data-testid={`checkbox-craft-${craft.id}`}
-                          />
-                          <div className="min-w-0">
-                            <div className="font-medium text-sm">{craft.name}</div>
-                            <div className="text-xs text-muted-foreground">{craft.desc}</div>
-                          </div>
+                      {box.enabled && (
+                        <div className="border rounded-lg overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>数量范围</TableHead>
+                                <TableHead className="w-[100px]">单价(元/个)</TableHead>
+                                <TableHead className="w-[100px]">起步价(元)</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {box.ladder.map((l, i) => (
+                                <TableRow key={i}>
+                                  <TableCell className="text-sm">
+                                    {l.maxQty === Infinity ? `≥${l.minQty}` : `${l.minQty} - ${l.maxQty}`}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      type="number"
+                                      step={0.1}
+                                      value={l.price || ""}
+                                      onChange={(e) => updateBoxLadder(box.id, i, "price", Number(e.target.value) || 0)}
+                                      className="h-8"
+                                      data-testid={`box-ladder-price-${box.id}-${i}`}
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      type="number"
+                                      value={l.minPrice || ""}
+                                      onChange={(e) => updateBoxLadder(box.id, i, "minPrice", Number(e.target.value) || 0)}
+                                      className="h-8"
+                                      placeholder="无"
+                                    />
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
                         </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-        <div className="mt-8 flex justify-end">
-          <Button
-            onClick={handleNext}
-            className="gap-2 px-8 bg-orange-500 hover:bg-orange-600 text-white border-orange-600 dark:bg-orange-500 dark:hover:bg-orange-600 dark:border-orange-600 dark:text-white no-default-hover-elevate no-default-active-elevate"
-            data-testid="button-generate"
-          >
-            生成报价器
-            <ArrowRight className="w-4 h-4" />
-          </Button>
+            <AccordionItem value="materials" className="border rounded-lg px-4">
+              <AccordionTrigger className="hover:no-underline py-4" data-testid="section-material">
+                <div className="flex items-center gap-3">
+                  <Layers className="w-5 h-5 text-primary" />
+                  <div className="text-left">
+                    <div className="font-semibold">材料</div>
+                    <div className="text-sm text-muted-foreground">
+                      配置面纸、内衬材料及价格（面纸 {config.paperTypes.length} 种，内衬 {config.linerTypes.length} 种）
+                    </div>
+                  </div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pb-4">
+                <div className="space-y-6">
+                  <div>
+                    <p className="font-medium mb-2">灰板参数</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">灰板单价（元/m²）</Label>
+                        <Input
+                          type="number"
+                          step={0.1}
+                          value={config.boardPricePerSqm || ""}
+                          onChange={(e) => updateConfig({ boardPricePerSqm: Number(e.target.value) || 0 })}
+                          data-testid="input-board-price"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">面纸面积系数</Label>
+                        <Input
+                          type="number"
+                          step={0.01}
+                          value={config.paperAreaRatio || ""}
+                          onChange={(e) => updateConfig({ paperAreaRatio: Number(e.target.value) || 0 })}
+                          data-testid="input-paper-ratio"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">面纸面积 = 灰板面积 × 此系数</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="font-medium mb-2">面纸类型</p>
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>面纸名称</TableHead>
+                            <TableHead className="w-[120px]">单价（元/m²）</TableHead>
+                            <TableHead className="w-[60px]"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {config.paperTypes.map(paper => (
+                            <TableRow key={paper.id}>
+                              <TableCell>
+                                <Input
+                                  value={paper.name}
+                                  onChange={(e) => updatePaperField(paper.id, "name", e.target.value)}
+                                  className="h-8"
+                                  data-testid={`paper-name-${paper.id}`}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step={0.1}
+                                  value={paper.pricePerSqm || ""}
+                                  onChange={(e) => updatePaperField(paper.id, "pricePerSqm", Number(e.target.value) || 0)}
+                                  className="h-8"
+                                  data-testid={`paper-price-${paper.id}`}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removePaperType(paper.id)}
+                                  className="h-8 w-8 text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          <TableRow>
+                            <TableCell>
+                              <Input
+                                value={newPaper.name}
+                                onChange={(e) => setNewPaper({ ...newPaper, name: e.target.value })}
+                                placeholder="新面纸名称"
+                                className="h-8"
+                                data-testid="new-paper-name"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step={0.1}
+                                value={newPaper.pricePerSqm || ""}
+                                onChange={(e) => setNewPaper({ ...newPaper, pricePerSqm: Number(e.target.value) || 0 })}
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Button variant="ghost" size="icon" onClick={addPaperType} className="h-8 w-8" data-testid="add-paper">
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="font-medium mb-2">内衬类型</p>
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>内衬名称</TableHead>
+                            <TableHead className="w-[100px]">计算方式</TableHead>
+                            <TableHead className="w-[100px]">体积单价(元/m³)</TableHead>
+                            <TableHead className="w-[80px]">起步价(元)</TableHead>
+                            <TableHead className="w-[80px]">加工费(元/个)</TableHead>
+                            <TableHead className="w-[60px]"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {config.linerTypes.map(liner => (
+                            <TableRow key={liner.id}>
+                              <TableCell>
+                                <Input
+                                  value={liner.name}
+                                  onChange={(e) => updateLinerField(liner.id, "name", e.target.value)}
+                                  className="h-8"
+                                  data-testid={`liner-name-${liner.id}`}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Select
+                                  value={liner.calcMethod}
+                                  onValueChange={(v) => updateLinerField(liner.id, "calcMethod", v)}
+                                >
+                                  <SelectTrigger className="h-8">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="volume">按体积</SelectItem>
+                                    <SelectItem value="halfBoard">灰板÷2</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  value={liner.pricePerCubicM || ""}
+                                  onChange={(e) => updateLinerField(liner.id, "pricePerCubicM", Number(e.target.value) || 0)}
+                                  className="h-8"
+                                  disabled={liner.calcMethod === "halfBoard"}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  value={liner.minCost || ""}
+                                  onChange={(e) => updateLinerField(liner.id, "minCost", Number(e.target.value) || 0)}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step={0.1}
+                                  value={liner.baseProcessFee || ""}
+                                  onChange={(e) => updateLinerField(liner.id, "baseProcessFee", Number(e.target.value) || 0)}
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeLinerType(liner.id)}
+                                  className="h-8 w-8 text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          <TableRow>
+                            <TableCell>
+                              <Input
+                                value={newLiner.name}
+                                onChange={(e) => setNewLiner({ ...newLiner, name: e.target.value })}
+                                placeholder="新内衬名称"
+                                className="h-8"
+                                data-testid="new-liner-name"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={newLiner.calcMethod}
+                                onValueChange={(v: "volume" | "halfBoard") => setNewLiner({ ...newLiner, calcMethod: v })}
+                              >
+                                <SelectTrigger className="h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="volume">按体积</SelectItem>
+                                  <SelectItem value="halfBoard">灰板÷2</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={newLiner.pricePerCubicM || ""}
+                                onChange={(e) => setNewLiner({ ...newLiner, pricePerCubicM: Number(e.target.value) || 0 })}
+                                className="h-8"
+                                disabled={newLiner.calcMethod === "halfBoard"}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={newLiner.minCost || ""}
+                                onChange={(e) => setNewLiner({ ...newLiner, minCost: Number(e.target.value) || 0 })}
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step={0.1}
+                                value={newLiner.baseProcessFee || ""}
+                                onChange={(e) => setNewLiner({ ...newLiner, baseProcessFee: Number(e.target.value) || 0 })}
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Button variant="ghost" size="icon" onClick={addLinerType} className="h-8 w-8" data-testid="add-liner">
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">孔位单价（元/个）</Label>
+                        <Input
+                          type="number"
+                          step={0.1}
+                          value={config.holeCostPerUnit || ""}
+                          onChange={(e) => updateConfig({ holeCostPerUnit: Number(e.target.value) || 0 })}
+                          data-testid="input-hole-cost"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">运输纸箱单价（元/个）</Label>
+                        <Input
+                          type="number"
+                          step={0.1}
+                          value={config.cartonPricePerBox || ""}
+                          onChange={(e) => updateConfig({ cartonPricePerBox: Number(e.target.value) || 0 })}
+                          data-testid="input-carton-price"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="crafts" className="border rounded-lg px-4">
+              <AccordionTrigger className="hover:no-underline py-4" data-testid="section-craft">
+                <div className="flex items-center gap-3">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  <div className="text-left">
+                    <div className="font-semibold">特殊工艺</div>
+                    <div className="text-sm text-muted-foreground">
+                      配置工艺选项及定价（已启用 {enabledCraftCount}/{config.crafts.length} 种）
+                    </div>
+                  </div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pb-4">
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    配置可选的特殊工艺及其定价方式。按个计价的工艺有起步价限制，按面积计价的按cm²计算。
+                  </p>
+
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[50px]">启用</TableHead>
+                          <TableHead>工艺名称</TableHead>
+                          <TableHead className="w-[100px]">计价方式</TableHead>
+                          <TableHead className="w-[90px]">单价</TableHead>
+                          <TableHead className="w-[90px]">起步价(元)</TableHead>
+                          <TableHead>说明</TableHead>
+                          <TableHead className="w-[60px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {config.crafts.map(craft => (
+                          <TableRow key={craft.id}>
+                            <TableCell>
+                              <Checkbox
+                                checked={craft.enabled}
+                                onCheckedChange={() => toggleCraft(craft.id)}
+                                data-testid={`craft-check-${craft.id}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={craft.name}
+                                onChange={(e) => updateCraftField(craft.id, "name", e.target.value)}
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={craft.calcType}
+                                onValueChange={(v) => updateCraftField(craft.id, "calcType", v)}
+                              >
+                                <SelectTrigger className="h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="perUnit">按个</SelectItem>
+                                  <SelectItem value="perArea">按面积</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step={0.1}
+                                value={craft.price || ""}
+                                onChange={(e) => updateCraftField(craft.id, "price", Number(e.target.value) || 0)}
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={craft.startPrice || ""}
+                                onChange={(e) => updateCraftField(craft.id, "startPrice", Number(e.target.value) || 0)}
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={craft.desc}
+                                onChange={(e) => updateCraftField(craft.id, "desc", e.target.value)}
+                                className="h-8"
+                                placeholder="说明"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeCraft(craft.id)}
+                                className="h-8 w-8 text-destructive"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow>
+                          <TableCell></TableCell>
+                          <TableCell>
+                            <Input
+                              value={newCraft.name}
+                              onChange={(e) => setNewCraft({ ...newCraft, name: e.target.value })}
+                              placeholder="新工艺名称"
+                              className="h-8"
+                              data-testid="new-craft-name"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={newCraft.calcType}
+                              onValueChange={(v: "perUnit" | "perArea") => setNewCraft({ ...newCraft, calcType: v })}
+                            >
+                              <SelectTrigger className="h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="perUnit">按个</SelectItem>
+                                <SelectItem value="perArea">按面积</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step={0.1}
+                              value={newCraft.price || ""}
+                              onChange={(e) => setNewCraft({ ...newCraft, price: Number(e.target.value) || 0 })}
+                              className="h-8"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              value={newCraft.startPrice || ""}
+                              onChange={(e) => setNewCraft({ ...newCraft, startPrice: Number(e.target.value) || 0 })}
+                              className="h-8"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              value={newCraft.desc}
+                              onChange={(e) => setNewCraft({ ...newCraft, desc: e.target.value })}
+                              placeholder="说明"
+                              className="h-8"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={addCraft} className="h-8 w-8" data-testid="add-craft">
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="moldFee" className="border rounded-lg px-4">
+              <AccordionTrigger className="hover:no-underline py-4" data-testid="section-mold">
+                <div className="flex items-center gap-3">
+                  <Wrench className="w-5 h-5 text-primary" />
+                  <div className="text-left">
+                    <div className="font-semibold">模具费用</div>
+                    <div className="text-sm text-muted-foreground">
+                      配置刀版及模具费用规则（{config.moldFeeRules.length} 档）
+                    </div>
+                  </div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pb-4">
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    根据数量区间设置刀版+模具费用。可在报价器中进一步调整优惠。
+                  </p>
+
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>数量范围</TableHead>
+                          <TableHead className="w-[100px]">单价(元/个)</TableHead>
+                          <TableHead>说明</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {config.moldFeeRules.map((rule, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="text-sm">
+                              {rule.maxQty === Infinity ? `≥${rule.minQty}` : `${rule.minQty} - ${rule.maxQty}`}
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step={0.1}
+                                value={rule.price || ""}
+                                onChange={(e) => updateMoldRule(i, "price", Number(e.target.value) || 0)}
+                                className="h-8"
+                                data-testid={`mold-price-${i}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={rule.desc}
+                                onChange={(e) => updateMoldRule(i, "desc", e.target.value)}
+                                className="h-8"
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+
+          <div className="mt-8 flex justify-between sticky bottom-4 bg-background/95 backdrop-blur py-4 border-t">
+            {!hideBack ? (
+              <Button
+                data-testid="button-back"
+                variant="outline"
+                onClick={handleBack}
+                className="gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                返回
+              </Button>
+            ) : <div />}
+            <Button
+              data-testid="button-generate"
+              onClick={handleNext}
+              className="gap-2"
+              size="lg"
+            >
+              生成报价器
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </main>
     </div>
