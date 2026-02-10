@@ -153,18 +153,12 @@ export interface GiftBoxSurveyConfig {
   boxType: BoxType;
   paperType: PaperType;
   linerType: LinerType;
-  linerHeightRatio: number;
-  holeCount: number;
   selectedCrafts: CraftId[];
-  craftAreas: Record<string, number>;
 }
 
 export const DEFAULT_GIFTBOX_CONFIG: GiftBoxSurveyConfig = {
   boxType: "天地盖",
   paperType: "艺术纸（无覆膜）",
   linerType: "珍珠棉内衬",
-  linerHeightRatio: 0.5,
-  holeCount: 0,
   selectedCrafts: [],
-  craftAreas: { copperLaser: 20 }
 };

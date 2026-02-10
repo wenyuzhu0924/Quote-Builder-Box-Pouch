@@ -3,7 +3,6 @@ import { ArrowLeft, ArrowRight, Package, Layers, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -133,33 +132,6 @@ export default function GiftBoxSurveyPage({
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm text-muted-foreground mb-1.5 block">内衬高度比例</Label>
-                    <Input
-                      type="number"
-                      step={0.1}
-                      min={0}
-                      max={1}
-                      value={config.linerHeightRatio || ""}
-                      onChange={(e) => updateConfig({ linerHeightRatio: e.target.value === "" ? 0 : Number(e.target.value) })}
-                      data-testid="input-liner-height-ratio"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">默认0.5，表示内衬高度为盒高的50%</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-muted-foreground mb-1.5 block">内衬孔位数量</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={config.holeCount || ""}
-                      onChange={(e) => updateConfig({ holeCount: e.target.value === "" ? 0 : Number(e.target.value) })}
-                      data-testid="input-hole-count"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">0.2元/个孔位</p>
-                  </div>
-                </div>
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -181,39 +153,17 @@ export default function GiftBoxSurveyPage({
                       className={`transition-colors ${isSelected ? "border-orange-300 dark:border-orange-700" : ""}`}
                     >
                       <CardContent className="p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={() => toggleCraft(craft.id)}
-                              data-testid={`checkbox-craft-${craft.id}`}
-                            />
-                            <div className="min-w-0">
-                              <div className="font-medium text-sm">{craft.name}</div>
-                              <div className="text-xs text-muted-foreground">{craft.desc}</div>
-                            </div>
+                        <div className="flex items-center gap-3">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => toggleCraft(craft.id)}
+                            data-testid={`checkbox-craft-${craft.id}`}
+                          />
+                          <div className="min-w-0">
+                            <div className="font-medium text-sm">{craft.name}</div>
+                            <div className="text-xs text-muted-foreground">{craft.desc}</div>
                           </div>
                         </div>
-                        {craft.calcType === "perArea" && isSelected && (
-                          <div className="mt-3 pl-9">
-                            <Label className="text-xs text-muted-foreground mb-1 block">
-                              {"areaLabel" in craft ? craft.areaLabel : "面积"}
-                            </Label>
-                            <Input
-                              type="number"
-                              min={1}
-                              value={config.craftAreas[craft.id] || ""}
-                              onChange={(e) => updateConfig({
-                                craftAreas: {
-                                  ...config.craftAreas,
-                                  [craft.id]: e.target.value === "" ? 0 : Number(e.target.value)
-                                }
-                              })}
-                              className="max-w-[200px]"
-                              data-testid={`input-craft-area-${craft.id}`}
-                            />
-                          </div>
-                        )}
                       </CardContent>
                     </Card>
                   );

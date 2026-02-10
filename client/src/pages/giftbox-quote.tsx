@@ -41,6 +41,8 @@ export default function GiftBoxQuotePage({
   const { config: surveyConfig } = useGiftBox();
 
   const [dimensions, setDimensions] = useState({ length: 20, width: 10, height: 5 });
+  const [linerParams, setLinerParams] = useState({ linerHeightRatio: 0.5, holeCount: 0 });
+  const [craftAreas, setCraftAreas] = useState<Record<string, number>>({ copperLaser: 20 });
   const [orderInfo, setOrderInfo] = useState({
     qty: 1000,
     customBoxPrice: 3,
@@ -56,7 +58,8 @@ export default function GiftBoxQuotePage({
   };
 
   const calc = useMemo(() => {
-    const { boxType, paperType, linerType, linerHeightRatio, holeCount, selectedCrafts, craftAreas } = surveyConfig;
+    const { boxType, paperType, linerType, selectedCrafts } = surveyConfig;
+    const { linerHeightRatio, holeCount } = linerParams;
     const L_cm = dimensions.length || 0;
     const W_cm = dimensions.width || 0;
     const H_cm = dimensions.height || 0;
@@ -243,7 +246,7 @@ export default function GiftBoxQuotePage({
       unitCostUsd, totalCostUsd,
       validQty, validExchangeRate, validTaxRate, validCartonCount,
     };
-  }, [surveyConfig, dimensions, orderInfo]);
+  }, [surveyConfig, dimensions, orderInfo, linerParams, craftAreas]);
 
   const handleNumInput = (value: string) => value === "" ? 0 : Number(value);
 
@@ -354,6 +357,75 @@ export default function GiftBoxQuotePage({
             </div>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">内衬参数</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">内衬高度比例</Label>
+                <Input
+                  type="number"
+                  step={0.1}
+                  min={0}
+                  max={1}
+                  value={linerParams.linerHeightRatio || ""}
+                  onChange={(e) => setLinerParams({ ...linerParams, linerHeightRatio: handleNumInput(e.target.value) })}
+                  data-testid="input-liner-height-ratio"
+                />
+                <p className="text-xs text-muted-foreground mt-1">默认0.5，表示内衬高度为盒高的50%</p>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">内衬孔位数量</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={linerParams.holeCount || ""}
+                  onChange={(e) => setLinerParams({ ...linerParams, holeCount: handleNumInput(e.target.value) })}
+                  data-testid="input-hole-count"
+                />
+                <p className="text-xs text-muted-foreground mt-1">0.2元/个孔位</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {surveyConfig.selectedCrafts.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">工艺参数</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {surveyConfig.selectedCrafts.map(craftId => {
+                const craft = CRAFT_TYPES.find(c => c.id === craftId);
+                if (!craft || craft.calcType !== "perArea") return null;
+                return (
+                  <div key={craftId}>
+                    <Label className="text-xs text-muted-foreground mb-1 block">
+                      {craft.name} - {"areaLabel" in craft ? craft.areaLabel : "面积（cm²）"}
+                    </Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={craftAreas[craftId] || ""}
+                      onChange={(e) => setCraftAreas(prev => ({ ...prev, [craftId]: handleNumInput(e.target.value) }))}
+                      className="max-w-[200px]"
+                      data-testid={`input-craft-area-${craftId}`}
+                    />
+                  </div>
+                );
+              })}
+              {surveyConfig.selectedCrafts.every(id => {
+                const c = CRAFT_TYPES.find(ct => ct.id === id);
+                return c?.calcType !== "perArea";
+              }) && (
+                <p className="text-sm text-muted-foreground">已选工艺均为按个计价，无需额外参数</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader className="pb-3">
