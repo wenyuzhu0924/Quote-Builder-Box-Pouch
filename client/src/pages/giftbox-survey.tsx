@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, ArrowRight, Plus, Trash2, Package, Layers, Sparkles, Wrench, DollarSign } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Trash2, Package, Layers, Sparkles, Wrench, DollarSign, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,6 +22,23 @@ interface GiftBoxSurveyPageProps {
   hideBack?: boolean;
 }
 
+function SectionSaveButton({ section, onSave }: { section: string; onSave: () => void }) {
+  return (
+    <div className="flex justify-end pt-3">
+      <Button
+        variant="default"
+        size="sm"
+        onClick={onSave}
+        className="gap-1.5"
+        data-testid={`save-${section}`}
+      >
+        <Save className="w-3.5 h-3.5" />
+        保存
+      </Button>
+    </div>
+  );
+}
+
 export default function GiftBoxSurveyPage({
   backPath = "/",
   nextPath = "/giftbox/quote",
@@ -35,9 +52,14 @@ export default function GiftBoxSurveyPage({
   const [newPaper, setNewPaper] = useState({ name: "", pricePerSqm: 0 });
   const [newLiner, setNewLiner] = useState({ name: "", calcMethod: "volume" as "volume" | "halfBoard", pricePerCubicM: 0, minCost: 0, baseProcessFee: 0 });
   const [newCraft, setNewCraft] = useState({ name: "", calcType: "perUnit" as "perUnit" | "perArea", price: 0, startPrice: 400, desc: "" });
+  const [newMoldRule, setNewMoldRule] = useState({ minQty: 0, maxQty: 0, price: 0, desc: "" });
 
   const handleBack = () => navigate(backPath);
   const handleNext = () => navigate(nextPath);
+
+  const showSaveToast = (section: string) => {
+    toast({ title: `${section}已保存`, description: "配置已更新" });
+  };
 
   const toggleBoxType = (id: string) => {
     updateConfig({
@@ -86,6 +108,26 @@ export default function GiftBoxSurveyPage({
       boxTypes: config.boxTypes.map(b =>
         b.id === boxId
           ? { ...b, ladder: b.ladder.map((l, i) => i === ladderIndex ? { ...l, [field]: value } : l) }
+          : b
+      ),
+    });
+  };
+
+  const addBoxLadderRow = (boxId: string) => {
+    updateConfig({
+      boxTypes: config.boxTypes.map(b =>
+        b.id === boxId
+          ? { ...b, ladder: [...b.ladder, { minQty: 0, maxQty: Infinity, price: 0 }] }
+          : b
+      ),
+    });
+  };
+
+  const removeBoxLadderRow = (boxId: string, ladderIndex: number) => {
+    updateConfig({
+      boxTypes: config.boxTypes.map(b =>
+        b.id === boxId
+          ? { ...b, ladder: b.ladder.filter((_, i) => i !== ladderIndex) }
           : b
       ),
     });
@@ -184,6 +226,22 @@ export default function GiftBoxSurveyPage({
         i === index ? { ...r, [field]: value } : r
       ),
     });
+  };
+
+  const addMoldRule = () => {
+    const rule: MoldFeeRule = {
+      minQty: newMoldRule.minQty,
+      maxQty: newMoldRule.maxQty || Infinity,
+      price: newMoldRule.price,
+      desc: newMoldRule.desc,
+    };
+    updateConfig({ moldFeeRules: [...config.moldFeeRules, rule] });
+    setNewMoldRule({ minQty: 0, maxQty: 0, price: 0, desc: "" });
+    toast({ title: "模具费用档位已添加" });
+  };
+
+  const removeMoldRule = (index: number) => {
+    updateConfig({ moldFeeRules: config.moldFeeRules.filter((_, i) => i !== index) });
   };
 
   const enabledBoxCount = config.boxTypes.filter(b => b.enabled).length;
@@ -329,6 +387,7 @@ export default function GiftBoxSurveyPage({
                   <p className="text-xs text-muted-foreground">
                     提示：在公式中使用"长"、"宽"、"高"关键词，系统会自动识别所需尺寸字段。支持 ×、÷、+、- 运算符和括号。
                   </p>
+                  <SectionSaveButton section="boxTypes" onSave={() => showSaveToast("盒型配置")} />
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -362,16 +421,34 @@ export default function GiftBoxSurveyPage({
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>数量范围</TableHead>
+                              <TableHead className="w-[100px]">最小数量</TableHead>
+                              <TableHead className="w-[100px]">最大数量</TableHead>
                               <TableHead className="w-[100px]">单价(元/个)</TableHead>
                               <TableHead className="w-[100px]">起步价(元)</TableHead>
+                              <TableHead className="w-[60px]"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {box.ladder.map((l, i) => (
                               <TableRow key={i}>
-                                <TableCell className="text-sm">
-                                  {l.maxQty === Infinity ? `≥${l.minQty}` : `${l.minQty} - ${l.maxQty}`}
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    value={l.minQty || ""}
+                                    onChange={(e) => updateBoxLadder(box.id, i, "minQty", Number(e.target.value) || 0)}
+                                    className="h-8"
+                                    data-testid={`box-ladder-min-${box.id}-${i}`}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    value={l.maxQty === Infinity ? "" : (l.maxQty || "")}
+                                    onChange={(e) => updateBoxLadder(box.id, i, "maxQty", e.target.value === "" ? Infinity : (Number(e.target.value) || 0))}
+                                    className="h-8"
+                                    placeholder="不限"
+                                    data-testid={`box-ladder-max-${box.id}-${i}`}
+                                  />
                                 </TableCell>
                                 <TableCell>
                                   <Input
@@ -392,8 +469,33 @@ export default function GiftBoxSurveyPage({
                                     placeholder="无"
                                   />
                                 </TableCell>
+                                <TableCell>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeBoxLadderRow(box.id, i)}
+                                    className="text-destructive"
+                                    data-testid={`remove-ladder-${box.id}-${i}`}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </TableCell>
                               </TableRow>
                             ))}
+                            <TableRow>
+                              <TableCell colSpan={5}>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => addBoxLadderRow(box.id)}
+                                  className="gap-1.5 w-full"
+                                  data-testid={`add-ladder-${box.id}`}
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                  添加档位
+                                </Button>
+                              </TableCell>
+                            </TableRow>
                           </TableBody>
                         </Table>
                       </div>
@@ -405,6 +507,7 @@ export default function GiftBoxSurveyPage({
                       请先在"盒型配置"中启用至少一种盒型
                     </p>
                   )}
+                  <SectionSaveButton section="ladderPricing" onSave={() => showSaveToast("阶梯价格")} />
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -683,6 +786,7 @@ export default function GiftBoxSurveyPage({
                       </div>
                     </div>
                   </div>
+                  <SectionSaveButton section="materials" onSave={() => showSaveToast("材料配置")} />
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -845,6 +949,7 @@ export default function GiftBoxSurveyPage({
                       </TableBody>
                     </Table>
                   </div>
+                  <SectionSaveButton section="crafts" onSave={() => showSaveToast("特殊工艺")} />
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -871,16 +976,34 @@ export default function GiftBoxSurveyPage({
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>数量范围</TableHead>
+                          <TableHead className="w-[100px]">最小数量</TableHead>
+                          <TableHead className="w-[100px]">最大数量</TableHead>
                           <TableHead className="w-[100px]">单价(元/个)</TableHead>
                           <TableHead>说明</TableHead>
+                          <TableHead className="w-[60px]"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {config.moldFeeRules.map((rule, i) => (
                           <TableRow key={i}>
-                            <TableCell className="text-sm">
-                              {rule.maxQty === Infinity ? `≥${rule.minQty}` : `${rule.minQty} - ${rule.maxQty}`}
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={rule.minQty || ""}
+                                onChange={(e) => updateMoldRule(i, "minQty", Number(e.target.value) || 0)}
+                                className="h-8"
+                                data-testid={`mold-min-${i}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={rule.maxQty === Infinity ? "" : (rule.maxQty || "")}
+                                onChange={(e) => updateMoldRule(i, "maxQty", e.target.value === "" ? Infinity : (Number(e.target.value) || 0))}
+                                className="h-8"
+                                placeholder="不限"
+                                data-testid={`mold-max-${i}`}
+                              />
                             </TableCell>
                             <TableCell>
                               <Input
@@ -899,11 +1022,68 @@ export default function GiftBoxSurveyPage({
                                 className="h-8"
                               />
                             </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeMoldRule(i)}
+                                className="text-destructive"
+                                data-testid={`remove-mold-${i}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))}
+                        <TableRow>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              value={newMoldRule.minQty || ""}
+                              onChange={(e) => setNewMoldRule({ ...newMoldRule, minQty: Number(e.target.value) || 0 })}
+                              className="h-8"
+                              placeholder="最小"
+                              data-testid="new-mold-min"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              value={newMoldRule.maxQty || ""}
+                              onChange={(e) => setNewMoldRule({ ...newMoldRule, maxQty: Number(e.target.value) || 0 })}
+                              className="h-8"
+                              placeholder="最大"
+                              data-testid="new-mold-max"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step={0.1}
+                              value={newMoldRule.price || ""}
+                              onChange={(e) => setNewMoldRule({ ...newMoldRule, price: Number(e.target.value) || 0 })}
+                              className="h-8"
+                              placeholder="单价"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              value={newMoldRule.desc}
+                              onChange={(e) => setNewMoldRule({ ...newMoldRule, desc: e.target.value })}
+                              className="h-8"
+                              placeholder="说明"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={addMoldRule} data-testid="add-mold">
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
                       </TableBody>
                     </Table>
                   </div>
+                  <SectionSaveButton section="moldFee" onSave={() => showSaveToast("模具费用")} />
                 </div>
               </AccordionContent>
             </AccordionItem>
