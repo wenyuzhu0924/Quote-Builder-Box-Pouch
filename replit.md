@@ -79,6 +79,13 @@ Preferred communication style: Simple, everyday language.
 - All roll film specific calculation logic, UI adaptations, and breakdown sections removed
 - Roll film config removed from gravure-config.ts
 
+### February 10, 2026 - Survey Page Label Changes & Post-Processing Split
+- **Section Renames**: 印刷→印刷费用, 复合→复合费用, 制袋→制袋费用
+- **Post-Processing Split**: Single "后处理" section split into two: "附加工艺" (拉链, 冲孔, 加铁丝, 手提, 透气阀, 定点开窗, 吸嘴) and "表面处理" (激光易撕线, 烫金, 激凸, 哑油工艺)
+- **Category Field**: `PostProcessingOptionConfig` now has `category: "additionalProcess" | "surfaceTreatment"` field
+- **Quote Page**: Post-processing options displayed in two separate cards matching the survey categories
+- **Making Formula Validation**: Preview only shows formula content if it matches pattern `number × dimension`; otherwise displays "制袋费用计算公式"
+
 ### February 10, 2026 - Eight-Side Bag Side Material Differentiation
 - **Eight-Side Bag (八边封) Added**: New bag type option in gravure printing bag type list
 - **Side Material Differentiation Mode**: Toggle between "sides same as front/back" vs "sides use different materials"

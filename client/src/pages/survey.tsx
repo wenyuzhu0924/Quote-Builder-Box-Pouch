@@ -11,7 +11,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuote, type CustomMaterial, type PrintingPriceRule, type LaminationPriceRule, type PostProcessingOptionConfig, type PostProcessingPricingType, type BagTypePrice, type SpecOption, type QuantityDiscountRule, type CustomBagType, type DigitalMaterial, type DigitalSpecialProcess, type DigitalZipperType, type DigitalValveType, type DigitalAccessory, type DigitalPrintingTier, parseDimensionsFromFormula } from "@/lib/quote-store";
+import { useQuote, type CustomMaterial, type PrintingPriceRule, type LaminationPriceRule, type PostProcessingOptionConfig, type PostProcessingPricingType, type PostProcessingCategory, type BagTypePrice, type SpecOption, type QuantityDiscountRule, type CustomBagType, type DigitalMaterial, type DigitalSpecialProcess, type DigitalZipperType, type DigitalValveType, type DigitalAccessory, type DigitalPrintingTier, parseDimensionsFromFormula } from "@/lib/quote-store";
 
 export default function SurveyPage() {
   const [, navigate] = useLocation();
@@ -37,7 +37,8 @@ export default function SurveyPage() {
   });
 
   const [newLamination, setNewLamination] = useState({ name: "", pricePerSqm: 0 });
-  const [newPostProcessing, setNewPostProcessing] = useState({ name: "" });
+  const [newPostProcessing, setNewPostProcessing] = useState({ name: "", category: "additionalProcess" as PostProcessingCategory });
+  const [newSurfaceTreatment, setNewSurfaceTreatment] = useState({ name: "" });
 
   const [newDigitalMaterial, setNewDigitalMaterial] = useState<Partial<DigitalMaterial>>({
     name: "",
@@ -194,18 +195,24 @@ export default function SurveyPage() {
     });
   };
 
-  const addPostProcessing = () => {
-    if (!newPostProcessing.name) return;
+  const addPostProcessing = (category: PostProcessingCategory) => {
+    const name = category === "additionalProcess" ? newPostProcessing.name : newSurfaceTreatment.name;
+    if (!name) return;
     const option: PostProcessingOptionConfig = {
       id: `pp_${Date.now()}`,
-      name: newPostProcessing.name,
+      name,
       enabled: true,
+      category,
       pricingType: "fixed",
       fixedPrice: 0,
       description: "",
     };
     updateConfig({ postProcessingOptions: [...config.postProcessingOptions, option] });
-    setNewPostProcessing({ name: "" });
+    if (category === "additionalProcess") {
+      setNewPostProcessing({ name: "", category: "additionalProcess" });
+    } else {
+      setNewSurfaceTreatment({ name: "" });
+    }
   };
 
   const removePostProcessing = (id: string) => {
@@ -2049,7 +2056,7 @@ export default function SurveyPage() {
                 <div className="flex items-center gap-3">
                   <Printer className="w-5 h-5 text-primary" />
                   <div className="text-left">
-                    <div className="font-semibold">印刷</div>
+                    <div className="font-semibold">印刷费用</div>
                     <div className="text-sm text-muted-foreground">
                       配置印刷价格逻辑（按覆盖率）
                     </div>
@@ -2136,7 +2143,7 @@ export default function SurveyPage() {
                 <div className="flex items-center gap-3">
                   <Combine className="w-5 h-5 text-primary" />
                   <div className="text-left">
-                    <div className="font-semibold">复合</div>
+                    <div className="font-semibold">复合费用</div>
                     <div className="text-sm text-muted-foreground">
                       配置复合价格逻辑（共 {config.laminationPriceRules.length} 种）
                     </div>
@@ -2239,7 +2246,7 @@ export default function SurveyPage() {
                 <div className="flex items-center gap-3">
                   <Zap className="w-5 h-5 text-primary" />
                   <div className="text-left">
-                    <div className="font-semibold">制袋</div>
+                    <div className="font-semibold">制袋费用</div>
                     <div className="text-sm text-muted-foreground">
                       已自动匹配 {config.customBagTypes.filter(b => b.enabled).length} 种已启用袋型的制袋公式
                     </div>
@@ -2277,13 +2284,17 @@ export default function SurveyPage() {
                             data-testid={`making-formula-${bagType.id}`}
                           />
                         </div>
-                        {bagType.makingCostFormula && (
-                          <div className="bg-muted/50 rounded-md px-3 py-2">
-                            <span className="text-xs text-muted-foreground">公式预览：</span>
-                            <span className="text-sm font-mono ml-2">{bagType.makingCostFormula}</span>
-                            <span className="text-xs text-muted-foreground ml-2">（尺寸单位：米）</span>
-                          </div>
-                        )}
+                        <div className="bg-muted/50 rounded-md px-3 py-2">
+                          {bagType.makingCostFormula && /[\d.]+\s*[×*]\s*[\u4e00-\u9fff(min|max]/.test(bagType.makingCostFormula) ? (
+                            <>
+                              <span className="text-xs text-muted-foreground">公式预览：</span>
+                              <span className="text-sm font-mono ml-2">{bagType.makingCostFormula}</span>
+                              <span className="text-xs text-muted-foreground ml-2">（尺寸单位：米）</span>
+                            </>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">制袋费用计算公式</span>
+                          )}
+                        </div>
                       </div>
                     ))}
                     {config.customBagTypes.filter(b => b.enabled).length === 0 && (
@@ -2302,269 +2313,281 @@ export default function SurveyPage() {
               </AccordionContent>
             </AccordionItem>
 
-            <AccordionItem value="postProcessing" className="border rounded-lg px-4">
-              <AccordionTrigger className="hover:no-underline py-4">
-                <div className="flex items-center gap-3">
-                  <Scissors className="w-5 h-5 text-primary" />
-                  <div className="text-left">
-                    <div className="font-semibold">后处理</div>
-                    <div className="text-sm text-muted-foreground">
-                      配置后处理选项库（已启用 {config.postProcessingOptions.filter(o => o.enabled).length} 个）
-                    </div>
-                  </div>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="pb-4">
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    勾选需要的后处理选项，选择计价方式后填入对应价格参数。
-                  </p>
-                  <div className="space-y-3">
-                    {config.postProcessingOptions.map((option) => (
-                      <div key={option.id} className="border rounded-lg p-4 space-y-3" data-testid={`postprocess-item-${option.id}`}>
-                        <div className="flex items-center gap-3">
-                          <Checkbox
-                            checked={option.enabled}
-                            onCheckedChange={() => togglePostProcessing(option.id)}
-                            data-testid={`postprocess-${option.id}`}
-                          />
-                          <Input
-                            value={option.name}
-                            onChange={(e) => updatePostProcessingName(option.id, e.target.value)}
-                            className="w-[160px]"
-                          />
-                          <Select
-                            value={option.pricingType}
-                            onValueChange={(val) => updatePostProcessingField(option.id, "pricingType", val as PostProcessingPricingType)}
-                          >
-                            <SelectTrigger className="w-[180px]" data-testid={`pricing-type-${option.id}`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="fixed">固定单价 (元/个)</SelectItem>
-                              <SelectItem value="perMeterWidth">按米×袋宽 (元/米)</SelectItem>
-                              <SelectItem value="perArea">按展开面积 (元/㎡)</SelectItem>
-                              <SelectItem value="perMeterWidthByBagType">按袋型分价×袋宽</SelectItem>
-                              <SelectItem value="free">免费 (标配)</SelectItem>
-                              <SelectItem value="specSelection">按规格选择</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removePostProcessing(option.id)}
-                            className="text-destructive shrink-0"
-                            data-testid={`remove-postprocess-${option.id}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+            {(["additionalProcess", "surfaceTreatment"] as PostProcessingCategory[]).map((cat) => {
+              const catLabel = cat === "additionalProcess" ? "附加工艺" : "表面处理";
+              const catIcon = cat === "additionalProcess" ? Scissors : Layers;
+              const CatIcon = catIcon;
+              const catOptions = config.postProcessingOptions.filter(o => (o.category || "additionalProcess") === cat);
+              const enabledCount = catOptions.filter(o => o.enabled).length;
+              return (
+                <AccordionItem key={cat} value={cat} className="border rounded-lg px-4">
+                  <AccordionTrigger className="hover:no-underline py-4">
+                    <div className="flex items-center gap-3">
+                      <CatIcon className="w-5 h-5 text-primary" />
+                      <div className="text-left">
+                        <div className="font-semibold">{catLabel}</div>
+                        <div className="text-sm text-muted-foreground">
+                          配置{catLabel}选项库（已启用 {enabledCount} 个）
                         </div>
-
-                        <div className="ml-8">
-                          {option.pricingType === "fixed" && (
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Label className="text-sm text-muted-foreground shrink-0">单价</Label>
-                              <Input
-                                type="number"
-                                value={option.fixedPrice ?? ""}
-                                onChange={(e) => updatePostProcessingField(option.id, "fixedPrice", e.target.value === "" ? "" : parseFloat(e.target.value))}
-                                className="w-[120px]"
-                                data-testid={`price-fixed-${option.id}`}
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4">
+                    <div className="space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        勾选需要的{catLabel}选项，选择计价方式后填入对应价格参数。
+                      </p>
+                      <div className="space-y-3">
+                        {catOptions.map((option) => (
+                          <div key={option.id} className="border rounded-lg p-4 space-y-3" data-testid={`postprocess-item-${option.id}`}>
+                            <div className="flex items-center gap-3">
+                              <Checkbox
+                                checked={option.enabled}
+                                onCheckedChange={() => togglePostProcessing(option.id)}
+                                data-testid={`postprocess-${option.id}`}
                               />
-                              <span className="text-sm text-muted-foreground">元/个</span>
-                            </div>
-                          )}
-
-                          {option.pricingType === "perMeterWidth" && (
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Label className="text-sm text-muted-foreground shrink-0">每米单价</Label>
                               <Input
-                                type="number"
-                                value={option.pricePerMeter ?? ""}
-                                onChange={(e) => updatePostProcessingField(option.id, "pricePerMeter", e.target.value === "" ? "" : parseFloat(e.target.value))}
-                                className="w-[120px]"
-                                data-testid={`price-permeter-${option.id}`}
+                                value={option.name}
+                                onChange={(e) => updatePostProcessingName(option.id, e.target.value)}
+                                className="w-[160px]"
                               />
-                              <span className="text-sm text-muted-foreground">元/米 × 袋宽(m)</span>
-                            </div>
-                          )}
-
-                          {option.pricingType === "perArea" && (
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Label className="text-sm text-muted-foreground shrink-0">每平方米</Label>
-                              <Input
-                                type="number"
-                                value={option.pricePerSqm ?? ""}
-                                onChange={(e) => updatePostProcessingField(option.id, "pricePerSqm", e.target.value === "" ? "" : parseFloat(e.target.value))}
-                                className="w-[100px]"
-                                data-testid={`price-persqm-${option.id}`}
-                              />
-                              <span className="text-sm text-muted-foreground">元/㎡</span>
-                              <Label className="text-sm text-muted-foreground shrink-0 ml-3">+ 固定附加</Label>
-                              <Input
-                                type="number"
-                                value={option.fixedAddition ?? ""}
-                                onChange={(e) => updatePostProcessingField(option.id, "fixedAddition", e.target.value === "" ? "" : parseFloat(e.target.value))}
-                                className="w-[100px]"
-                                data-testid={`price-fixedadd-${option.id}`}
-                              />
-                              <span className="text-sm text-muted-foreground">元/个</span>
-                            </div>
-                          )}
-
-                          {option.pricingType === "perMeterWidthByBagType" && (
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <Label className="text-sm text-muted-foreground shrink-0">默认单价</Label>
-                                <Input
-                                  type="number"
-                                  value={option.defaultPricePerMeter ?? ""}
-                                  onChange={(e) => updatePostProcessingField(option.id, "defaultPricePerMeter", e.target.value === "" ? "" : parseFloat(e.target.value))}
-                                  className="w-[120px]"
-                                  data-testid={`price-default-${option.id}`}
-                                />
-                                <span className="text-sm text-muted-foreground">元/米 × 袋宽(m)</span>
-                              </div>
-                              <div className="text-xs text-muted-foreground">特殊袋型单独定价：</div>
-                              {(option.bagTypePrices || []).map((btp, idx) => (
-                                <div key={idx} className="flex items-center gap-2 flex-wrap">
-                                  <Input
-                                    value={btp.bagTypeName}
-                                    onChange={(e) => {
-                                      const updated = [...(option.bagTypePrices || [])];
-                                      updated[idx] = { ...updated[idx], bagTypeName: e.target.value };
-                                      updatePostProcessingField(option.id, "bagTypePrices", updated);
-                                    }}
-                                    className="w-[100px]"
-                                    placeholder="袋型名"
-                                  />
-                                  <Input
-                                    type="number"
-                                    value={btp.pricePerMeter ?? ""}
-                                    onChange={(e) => {
-                                      const updated = [...(option.bagTypePrices || [])];
-                                      updated[idx] = { ...updated[idx], pricePerMeter: e.target.value === "" ? "" : parseFloat(e.target.value) };
-                                      updatePostProcessingField(option.id, "bagTypePrices", updated);
-                                    }}
-                                    className="w-[100px]"
-                                  />
-                                  <span className="text-sm text-muted-foreground">元/米</span>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => {
-                                      const updated = (option.bagTypePrices || []).filter((_, i) => i !== idx);
-                                      updatePostProcessingField(option.id, "bagTypePrices", updated);
-                                    }}
-                                    className="text-destructive"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                              ))}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  const updated = [...(option.bagTypePrices || []), { bagTypeId: "", bagTypeName: "", pricePerMeter: 0 }];
-                                  updatePostProcessingField(option.id, "bagTypePrices", updated);
-                                }}
+                              <Select
+                                value={option.pricingType}
+                                onValueChange={(val) => updatePostProcessingField(option.id, "pricingType", val as PostProcessingPricingType)}
                               >
-                                <Plus className="w-3 h-3 mr-1" /> 添加袋型价格
+                                <SelectTrigger className="w-[180px]" data-testid={`pricing-type-${option.id}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="fixed">固定单价 (元/个)</SelectItem>
+                                  <SelectItem value="perMeterWidth">按米×袋宽 (元/米)</SelectItem>
+                                  <SelectItem value="perArea">按展开面积 (元/㎡)</SelectItem>
+                                  <SelectItem value="perMeterWidthByBagType">按袋型分价×袋宽</SelectItem>
+                                  <SelectItem value="free">免费 (标配)</SelectItem>
+                                  <SelectItem value="specSelection">按规格选择</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removePostProcessing(option.id)}
+                                className="text-destructive shrink-0"
+                                data-testid={`remove-postprocess-${option.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </Button>
                             </div>
-                          )}
 
-                          {option.pricingType === "free" && (
-                            <div className="text-sm text-muted-foreground">标配免费，不计入成本</div>
-                          )}
-
-                          {option.pricingType === "specSelection" && (
-                            <div className="space-y-2">
-                              <div className="text-xs text-muted-foreground">报价时用户从下拉框选择规格，自动带入对应单价：</div>
-                              {(option.specOptions || []).map((spec, idx) => (
-                                <div key={idx} className="flex items-center gap-2 flex-wrap">
-                                  <Input
-                                    value={spec.specName}
-                                    onChange={(e) => {
-                                      const updated = [...(option.specOptions || [])];
-                                      updated[idx] = { ...updated[idx], specName: e.target.value };
-                                      updatePostProcessingField(option.id, "specOptions", updated);
-                                    }}
-                                    className="w-[120px]"
-                                    placeholder="规格名称"
-                                  />
+                            <div className="ml-8">
+                              {option.pricingType === "fixed" && (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Label className="text-sm text-muted-foreground shrink-0">单价</Label>
                                   <Input
                                     type="number"
-                                    value={spec.price ?? ""}
-                                    onChange={(e) => {
-                                      const updated = [...(option.specOptions || [])];
-                                      updated[idx] = { ...updated[idx], price: e.target.value === "" ? "" : parseFloat(e.target.value) };
-                                      updatePostProcessingField(option.id, "specOptions", updated);
-                                    }}
-                                    className="w-[100px]"
-                                    placeholder="单价"
+                                    value={option.fixedPrice ?? ""}
+                                    onChange={(e) => updatePostProcessingField(option.id, "fixedPrice", e.target.value === "" ? "" : parseFloat(e.target.value))}
+                                    className="w-[120px]"
+                                    data-testid={`price-fixed-${option.id}`}
                                   />
                                   <span className="text-sm text-muted-foreground">元/个</span>
+                                </div>
+                              )}
+
+                              {option.pricingType === "perMeterWidth" && (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Label className="text-sm text-muted-foreground shrink-0">每米单价</Label>
+                                  <Input
+                                    type="number"
+                                    value={option.pricePerMeter ?? ""}
+                                    onChange={(e) => updatePostProcessingField(option.id, "pricePerMeter", e.target.value === "" ? "" : parseFloat(e.target.value))}
+                                    className="w-[120px]"
+                                    data-testid={`price-permeter-${option.id}`}
+                                  />
+                                  <span className="text-sm text-muted-foreground">元/米 × 袋宽(m)</span>
+                                </div>
+                              )}
+
+                              {option.pricingType === "perArea" && (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Label className="text-sm text-muted-foreground shrink-0">每平方米</Label>
+                                  <Input
+                                    type="number"
+                                    value={option.pricePerSqm ?? ""}
+                                    onChange={(e) => updatePostProcessingField(option.id, "pricePerSqm", e.target.value === "" ? "" : parseFloat(e.target.value))}
+                                    className="w-[100px]"
+                                    data-testid={`price-persqm-${option.id}`}
+                                  />
+                                  <span className="text-sm text-muted-foreground">元/㎡</span>
+                                  <Label className="text-sm text-muted-foreground shrink-0 ml-3">+ 固定附加</Label>
+                                  <Input
+                                    type="number"
+                                    value={option.fixedAddition ?? ""}
+                                    onChange={(e) => updatePostProcessingField(option.id, "fixedAddition", e.target.value === "" ? "" : parseFloat(e.target.value))}
+                                    className="w-[100px]"
+                                    data-testid={`price-fixedadd-${option.id}`}
+                                  />
+                                  <span className="text-sm text-muted-foreground">元/个</span>
+                                </div>
+                              )}
+
+                              {option.pricingType === "perMeterWidthByBagType" && (
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Label className="text-sm text-muted-foreground shrink-0">默认单价</Label>
+                                    <Input
+                                      type="number"
+                                      value={option.defaultPricePerMeter ?? ""}
+                                      onChange={(e) => updatePostProcessingField(option.id, "defaultPricePerMeter", e.target.value === "" ? "" : parseFloat(e.target.value))}
+                                      className="w-[120px]"
+                                      data-testid={`price-default-${option.id}`}
+                                    />
+                                    <span className="text-sm text-muted-foreground">元/米 × 袋宽(m)</span>
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">特殊袋型单独定价：</div>
+                                  {(option.bagTypePrices || []).map((btp, idx) => (
+                                    <div key={idx} className="flex items-center gap-2 flex-wrap">
+                                      <Input
+                                        value={btp.bagTypeName}
+                                        onChange={(e) => {
+                                          const updated = [...(option.bagTypePrices || [])];
+                                          updated[idx] = { ...updated[idx], bagTypeName: e.target.value };
+                                          updatePostProcessingField(option.id, "bagTypePrices", updated);
+                                        }}
+                                        className="w-[100px]"
+                                        placeholder="袋型名"
+                                      />
+                                      <Input
+                                        type="number"
+                                        value={btp.pricePerMeter ?? ""}
+                                        onChange={(e) => {
+                                          const updated = [...(option.bagTypePrices || [])];
+                                          updated[idx] = { ...updated[idx], pricePerMeter: e.target.value === "" ? "" : parseFloat(e.target.value) };
+                                          updatePostProcessingField(option.id, "bagTypePrices", updated);
+                                        }}
+                                        className="w-[100px]"
+                                      />
+                                      <span className="text-sm text-muted-foreground">元/米</span>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => {
+                                          const updated = (option.bagTypePrices || []).filter((_, i) => i !== idx);
+                                          updatePostProcessingField(option.id, "bagTypePrices", updated);
+                                        }}
+                                        className="text-destructive"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  ))}
                                   <Button
-                                    variant="ghost"
-                                    size="icon"
+                                    variant="outline"
+                                    size="sm"
                                     onClick={() => {
-                                      const updated = (option.specOptions || []).filter((_, i) => i !== idx);
-                                      updatePostProcessingField(option.id, "specOptions", updated);
+                                      const updated = [...(option.bagTypePrices || []), { bagTypeId: "", bagTypeName: "", pricePerMeter: 0 }];
+                                      updatePostProcessingField(option.id, "bagTypePrices", updated);
                                     }}
-                                    className="text-destructive"
                                   >
-                                    <Trash2 className="w-3 h-3" />
+                                    <Plus className="w-3 h-3 mr-1" /> 添加袋型价格
                                   </Button>
                                 </div>
-                              ))}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  const updated = [...(option.specOptions || []), { specName: "", price: 0 }];
-                                  updatePostProcessingField(option.id, "specOptions", updated);
-                                }}
-                              >
-                                <Plus className="w-3 h-3 mr-1" /> 添加规格
-                              </Button>
+                              )}
+
+                              {option.pricingType === "free" && (
+                                <div className="text-sm text-muted-foreground">标配免费，不计入成本</div>
+                              )}
+
+                              {option.pricingType === "specSelection" && (
+                                <div className="space-y-2">
+                                  <div className="text-xs text-muted-foreground">报价时用户从下拉框选择规格，自动带入对应单价：</div>
+                                  {(option.specOptions || []).map((spec, idx) => (
+                                    <div key={idx} className="flex items-center gap-2 flex-wrap">
+                                      <Input
+                                        value={spec.specName}
+                                        onChange={(e) => {
+                                          const updated = [...(option.specOptions || [])];
+                                          updated[idx] = { ...updated[idx], specName: e.target.value };
+                                          updatePostProcessingField(option.id, "specOptions", updated);
+                                        }}
+                                        className="w-[120px]"
+                                        placeholder="规格名称"
+                                      />
+                                      <Input
+                                        type="number"
+                                        value={spec.price ?? ""}
+                                        onChange={(e) => {
+                                          const updated = [...(option.specOptions || [])];
+                                          updated[idx] = { ...updated[idx], price: e.target.value === "" ? "" : parseFloat(e.target.value) };
+                                          updatePostProcessingField(option.id, "specOptions", updated);
+                                        }}
+                                        className="w-[100px]"
+                                        placeholder="单价"
+                                      />
+                                      <span className="text-sm text-muted-foreground">元/个</span>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => {
+                                          const updated = (option.specOptions || []).filter((_, i) => i !== idx);
+                                          updatePostProcessingField(option.id, "specOptions", updated);
+                                        }}
+                                        className="text-destructive"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      const updated = [...(option.specOptions || []), { specName: "", price: 0 }];
+                                      updatePostProcessingField(option.id, "specOptions", updated);
+                                    }}
+                                  >
+                                    <Plus className="w-3 h-3 mr-1" /> 添加规格
+                                  </Button>
+                                </div>
+                              )}
                             </div>
-                          )}
+                          </div>
+                        ))}
+                        <div className="border rounded-lg p-4 border-dashed">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <div className="w-5" />
+                            <Input
+                              value={cat === "additionalProcess" ? newPostProcessing.name : newSurfaceTreatment.name}
+                              onChange={(e) => cat === "additionalProcess"
+                                ? setNewPostProcessing({ ...newPostProcessing, name: e.target.value })
+                                : setNewSurfaceTreatment({ ...newSurfaceTreatment, name: e.target.value })
+                              }
+                              placeholder={`新${catLabel}名称`}
+                              className="w-[180px]"
+                              data-testid={`new-${cat}-name`}
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => addPostProcessing(cat)}
+                              data-testid={`add-${cat}`}
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                            <span className="text-xs text-muted-foreground">添加后可选择计价方式</span>
+                          </div>
                         </div>
                       </div>
-                    ))}
-                    <div className="border rounded-lg p-4 border-dashed">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <div className="w-5" />
-                        <Input
-                          value={newPostProcessing.name}
-                          onChange={(e) => setNewPostProcessing({ ...newPostProcessing, name: e.target.value })}
-                          placeholder="新选项名称"
-                          className="w-[180px]"
-                          data-testid="new-postprocess-name"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={addPostProcessing}
-                          data-testid="add-postprocess"
-                        >
-                          <Plus className="w-4 h-4" />
+                      <div className="flex justify-end">
+                        <Button variant="outline" onClick={() => toast({ title: `${catLabel}选项已保存`, description: `共 ${enabledCount} 个启用选项` })} className="gap-2" data-testid={`save-${cat}`}>
+                          <Save className="w-4 h-4" />
+                          保存{catLabel}选项
                         </Button>
-                        <span className="text-xs text-muted-foreground">添加后可选择计价方式</span>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button variant="outline" onClick={savePostProcessingLibrary} className="gap-2" data-testid="save-postprocess">
-                      <Save className="w-4 h-4" />
-                      保存后处理选项
-                    </Button>
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
 
             <AccordionItem value="plate" className="border rounded-lg px-4">
               <AccordionTrigger className="hover:no-underline py-4">

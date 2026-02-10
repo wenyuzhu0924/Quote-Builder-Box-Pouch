@@ -77,10 +77,13 @@ export interface SpecOption {
   price: number | string;
 }
 
+export type PostProcessingCategory = "additionalProcess" | "surfaceTreatment";
+
 export interface PostProcessingOptionConfig {
   id: string;
   name: string;
   enabled: boolean;
+  category?: PostProcessingCategory;
   pricingType: PostProcessingPricingType;
   fixedPrice?: number | string;
   pricePerMeter?: number | string;
@@ -396,54 +399,54 @@ const defaultLaminationPriceRules: LaminationPriceRule[] = [
 
 const defaultPostProcessingOptions: PostProcessingOptionConfig[] = [
   {
-    id: "zipper_normal", name: "普通拉链", enabled: true, pricingType: "perMeterWidthByBagType",
+    id: "zipper_normal", name: "普通拉链", enabled: true, category: "additionalProcess", pricingType: "perMeterWidthByBagType",
     defaultPricePerMeter: 0.10,
     bagTypePrices: [{ bagTypeId: "eightSide", bagTypeName: "八边封", pricePerMeter: 0.22 }],
     description: "",
   },
   {
-    id: "zipper_easyTear", name: "易撕拉链", enabled: true, pricingType: "perMeterWidthByBagType",
+    id: "zipper_easyTear", name: "易撕拉链", enabled: true, category: "additionalProcess", pricingType: "perMeterWidthByBagType",
     defaultPricePerMeter: 0.20,
     bagTypePrices: [{ bagTypeId: "eightSide", bagTypeName: "八边封", pricePerMeter: 0.47 }],
     description: "",
   },
   {
-    id: "zipper_eco", name: "可降解拉链", enabled: true, pricingType: "perMeterWidth",
+    id: "zipper_eco", name: "可降解拉链", enabled: true, category: "additionalProcess", pricingType: "perMeterWidth",
     pricePerMeter: 0.50, description: "",
   },
   {
-    id: "punchHole", name: "冲孔", enabled: true, pricingType: "free", description: "",
+    id: "punchHole", name: "冲孔", enabled: true, category: "additionalProcess", pricingType: "free", description: "",
   },
   {
-    id: "laserTear", name: "激光易撕线", enabled: true, pricingType: "perMeterWidth",
+    id: "laserTear", name: "激光易撕线", enabled: true, category: "surfaceTreatment", pricingType: "perMeterWidth",
     pricePerMeter: 0.2, description: "",
   },
   {
-    id: "hotStamp", name: "烫金", enabled: true, pricingType: "perArea",
+    id: "hotStamp", name: "烫金", enabled: true, category: "surfaceTreatment", pricingType: "perArea",
     pricePerSqm: 1.2, fixedAddition: 0.02, description: "",
   },
   {
-    id: "wire", name: "加铁丝", enabled: true, pricingType: "fixed",
+    id: "wire", name: "加铁丝", enabled: true, category: "additionalProcess", pricingType: "fixed",
     fixedPrice: 0.05, description: "",
   },
   {
-    id: "handle", name: "手提", enabled: true, pricingType: "fixed",
+    id: "handle", name: "手提", enabled: true, category: "additionalProcess", pricingType: "fixed",
     fixedPrice: 0.15, description: "",
   },
   {
-    id: "airValve", name: "透气阀", enabled: true, pricingType: "fixed",
+    id: "airValve", name: "透气阀", enabled: true, category: "additionalProcess", pricingType: "fixed",
     fixedPrice: 0.11, description: "",
   },
   {
-    id: "emboss", name: "激凸", enabled: true, pricingType: "fixed",
+    id: "emboss", name: "激凸", enabled: true, category: "surfaceTreatment", pricingType: "fixed",
     fixedPrice: 0.2, description: "",
   },
   {
-    id: "windowCut", name: "定点开窗", enabled: true, pricingType: "fixed",
+    id: "windowCut", name: "定点开窗", enabled: true, category: "additionalProcess", pricingType: "fixed",
     fixedPrice: 0.03, description: "",
   },
   {
-    id: "spout", name: "吸嘴（含吸嘴+压费）", enabled: true, pricingType: "specSelection",
+    id: "spout", name: "吸嘴（含吸嘴+压费）", enabled: true, category: "additionalProcess", pricingType: "specSelection",
     specOptions: [
       { specName: "8.2mm", price: 0.04 },
       { specName: "8.6mm", price: 0.056 },
@@ -462,7 +465,7 @@ const defaultPostProcessingOptions: PostProcessingOptionConfig[] = [
     description: "",
   },
   {
-    id: "matteOil", name: "哑油工艺", enabled: true, pricingType: "perArea",
+    id: "matteOil", name: "哑油工艺", enabled: true, category: "surfaceTreatment", pricingType: "perArea",
     pricePerSqm: 0.15, description: "",
   },
 ];

@@ -1933,119 +1933,128 @@ export default function QuotePage() {
             </Card>
           )}
 
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg">附加工艺（可多选）</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {config.postProcessingOptions
-                  .filter((opt) => opt.enabled)
-                  .map((option) => {
-                    const _widthM = toNum(String(dimensions.width)) / 1000;
-                    const currentCost = calcPostProcessingCost(option, _widthM, gravureCosts.area, selectedBagType?.id, selectedSpecs[option.id]);
+          {[
+            { cat: "additionalProcess" as const, label: "附加工艺（可多选）" },
+            { cat: "surfaceTreatment" as const, label: "表面处理（可多选）" },
+          ].map(({ cat, label }) => {
+            const catOptions = config.postProcessingOptions.filter(
+              (opt) => opt.enabled && (opt.category || "additionalProcess") === cat
+            );
+            if (catOptions.length === 0) return null;
+            return (
+              <Card key={cat}>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">{label}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {catOptions.map((option) => {
+                      const _widthM = toNum(String(dimensions.width)) / 1000;
+                      const currentCost = calcPostProcessingCost(option, _widthM, gravureCosts.area, selectedBagType?.id, selectedSpecs[option.id]);
 
-                    let pricingLabel = "";
-                    if (option.pricingType === "fixed") {
-                      pricingLabel = `${toNum(String(option.fixedPrice ?? 0))} 元/个`;
-                    } else if (option.pricingType === "perMeterWidth") {
-                      pricingLabel = `${toNum(String(option.pricePerMeter ?? 0))} 元/米 x 袋宽`;
-                    } else if (option.pricingType === "perArea") {
-                      pricingLabel = `${toNum(String(option.pricePerSqm ?? 0))} 元/㎡`;
-                      if (toNum(String(option.fixedAddition ?? 0)) > 0) pricingLabel += ` + ${toNum(String(option.fixedAddition ?? 0))}元/个`;
-                    } else if (option.pricingType === "perMeterWidthByBagType") {
-                      pricingLabel = `默认 ${toNum(String(option.defaultPricePerMeter ?? 0))} 元/米 x 袋宽`;
-                      const overrides = (option.bagTypePrices || []).filter(b => b.bagTypeName);
-                      if (overrides.length > 0) pricingLabel += `；${overrides.map(b => `${b.bagTypeName}: ${toNum(String(b.pricePerMeter))}`).join("、")}`;
-                    } else if (option.pricingType === "free") {
-                      pricingLabel = "免费标配";
-                    } else if (option.pricingType === "specSelection") {
-                      const specCount = (option.specOptions || []).length;
-                      pricingLabel = `按规格选择（${specCount}种）`;
-                    }
+                      let pricingLabel = "";
+                      if (option.pricingType === "fixed") {
+                        pricingLabel = `${toNum(String(option.fixedPrice ?? 0))} 元/个`;
+                      } else if (option.pricingType === "perMeterWidth") {
+                        pricingLabel = `${toNum(String(option.pricePerMeter ?? 0))} 元/米 x 袋宽`;
+                      } else if (option.pricingType === "perArea") {
+                        pricingLabel = `${toNum(String(option.pricePerSqm ?? 0))} 元/㎡`;
+                        if (toNum(String(option.fixedAddition ?? 0)) > 0) pricingLabel += ` + ${toNum(String(option.fixedAddition ?? 0))}元/个`;
+                      } else if (option.pricingType === "perMeterWidthByBagType") {
+                        pricingLabel = `默认 ${toNum(String(option.defaultPricePerMeter ?? 0))} 元/米 x 袋宽`;
+                        const overrides = (option.bagTypePrices || []).filter(b => b.bagTypeName);
+                        if (overrides.length > 0) pricingLabel += `；${overrides.map(b => `${b.bagTypeName}: ${toNum(String(b.pricePerMeter))}`).join("、")}`;
+                      } else if (option.pricingType === "free") {
+                        pricingLabel = "免费标配";
+                      } else if (option.pricingType === "specSelection") {
+                        const specCount = (option.specOptions || []).length;
+                        pricingLabel = `按规格选择（${specCount}种）`;
+                      }
 
-                    return (
-                      <Card
-                        key={option.id}
-                        className={`cursor-pointer transition-colors ${
-                          selectedPostProcessing[option.id]
-                            ? "border-primary bg-primary/5"
-                            : "hover-elevate"
-                        }`}
-                        onClick={() =>
-                          setSelectedPostProcessing({
-                            ...selectedPostProcessing,
-                            [option.id]: !selectedPostProcessing[option.id],
-                          })
-                        }
-                        data-testid={`postprocess-card-${option.id}`}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-start gap-3">
-                            <Checkbox
-                              checked={selectedPostProcessing[option.id] || false}
-                              onCheckedChange={() =>
-                                setSelectedPostProcessing({
-                                  ...selectedPostProcessing,
-                                  [option.id]: !selectedPostProcessing[option.id],
-                                })
-                              }
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium">{option.name}</div>
-                              <div className="text-xs text-muted-foreground mt-1">
-                                {pricingLabel}
-                              </div>
-                              {option.pricingType !== "free" && (
-                                <div className="text-sm text-primary mt-2">
-                                  当前成本: {currentCost.toFixed(4)} 元/个
+                      return (
+                        <Card
+                          key={option.id}
+                          className={`cursor-pointer transition-colors ${
+                            selectedPostProcessing[option.id]
+                              ? "border-primary bg-primary/5"
+                              : "hover-elevate"
+                          }`}
+                          onClick={() =>
+                            setSelectedPostProcessing({
+                              ...selectedPostProcessing,
+                              [option.id]: !selectedPostProcessing[option.id],
+                            })
+                          }
+                          data-testid={`postprocess-card-${option.id}`}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-start gap-3">
+                              <Checkbox
+                                checked={selectedPostProcessing[option.id] || false}
+                                onCheckedChange={() =>
+                                  setSelectedPostProcessing({
+                                    ...selectedPostProcessing,
+                                    [option.id]: !selectedPostProcessing[option.id],
+                                  })
+                                }
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium">{option.name}</div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {pricingLabel}
                                 </div>
-                              )}
+                                {option.pricingType !== "free" && (
+                                  <div className="text-sm text-primary mt-2">
+                                    当前成本: {currentCost.toFixed(4)} 元/个
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-              </div>
-              {config.postProcessingOptions
-                .filter(opt => opt.enabled && opt.pricingType === "specSelection" && selectedPostProcessing[opt.id])
-                .map(option => (
-                  <div key={option.id} className="mt-4">
-                    <Label className="text-sm mb-2 block">{option.name} - 规格选择</Label>
-                    <Select
-                      value={selectedSpecs[option.id] || ""}
-                      onValueChange={(val) => setSelectedSpecs({ ...selectedSpecs, [option.id]: val })}
-                    >
-                      <SelectTrigger data-testid={`select-spec-${option.id}`}>
-                        <SelectValue placeholder={`选择${option.name}规格`} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(option.specOptions || []).map((spec) => (
-                          <SelectItem key={spec.specName} value={spec.specName}>
-                            {spec.specName} - {toNum(String(spec.price))} 元/个
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {!selectedSpecs[option.id] && (
-                      <p className="text-xs text-destructive mt-1">请选择规格，否则该项成本按0计算</p>
-                    )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
-                ))}
-              {Object.entries(selectedPostProcessing).filter(([, v]) => v).length > 0 && (
-                <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    已选工艺：
-                    {Object.entries(selectedPostProcessing)
-                      .filter(([, v]) => v)
-                      .map(([id]) => config.postProcessingOptions.find((o) => o.id === id)?.name)
-                      .join("、")}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  {catOptions
+                    .filter(opt => opt.pricingType === "specSelection" && selectedPostProcessing[opt.id])
+                    .map(option => (
+                      <div key={option.id} className="mt-4">
+                        <Label className="text-sm mb-2 block">{option.name} - 规格选择</Label>
+                        <Select
+                          value={selectedSpecs[option.id] || ""}
+                          onValueChange={(val) => setSelectedSpecs({ ...selectedSpecs, [option.id]: val })}
+                        >
+                          <SelectTrigger data-testid={`select-spec-${option.id}`}>
+                            <SelectValue placeholder={`选择${option.name}规格`} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(option.specOptions || []).map((spec) => (
+                              <SelectItem key={spec.specName} value={spec.specName}>
+                                {spec.specName} - {toNum(String(spec.price))} 元/个
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {!selectedSpecs[option.id] && (
+                          <p className="text-xs text-destructive mt-1">请选择规格，否则该项成本按0计算</p>
+                        )}
+                      </div>
+                    ))}
+                </CardContent>
+              </Card>
+            );
+          })}
+          {Object.entries(selectedPostProcessing).filter(([, v]) => v).length > 0 && (
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                已选工艺：
+                {Object.entries(selectedPostProcessing)
+                  .filter(([, v]) => v)
+                  .map(([id]) => config.postProcessingOptions.find((o) => o.id === id)?.name)
+                  .join("、")}
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
