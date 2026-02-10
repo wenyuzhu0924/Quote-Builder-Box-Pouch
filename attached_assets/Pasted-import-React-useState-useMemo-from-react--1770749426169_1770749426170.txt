@@ -1,0 +1,1019 @@
+import React, { useState, useMemo } from "react";
+
+// ====================== 类型定义 ======================
+const BOX_TYPES = [
+  "天地盖",
+  "天地盖带内插",
+  "书型盒（含磁吸）",
+  "抽屉盒（含丝带）"
+] as const;
+type BoxType = typeof BOX_TYPES[number];
+
+const LINER_TYPES = [
+  "珍珠棉内衬",
+  "EVA内衬",
+  "卡纸内衬"
+] as const;
+type LinerType = typeof LINER_TYPES[number];
+
+const PAPER_TYPES = [
+  "艺术纸（无覆膜）",
+  "金银卡+光膜",
+  "铜版纸+光/哑膜",
+  "铜版纸+防刮花膜/触感膜"
+] as const;
+type PaperType = typeof PAPER_TYPES[number];
+
+// 特殊工艺类型
+const CRAFT_TYPES = [
+  {
+    id: "hotStamping",
+    name: "烫金",
+    desc: "0.2元/个（起步价400元）",
+    calcType: "perUnit",
+    price: 0.2
+  },
+  {
+    id: "uv",
+    name: "UV",
+    desc: "0.2元/个（起步价400元）",
+    calcType: "perUnit",
+    price: 0.2
+  },
+  {
+    id: "embossing",
+    name: "激凸",
+    desc: "0.2元/个（起步价400元）",
+    calcType: "perUnit",
+    price: 0.2
+  },
+  {
+    id: "copperLaser",
+    name: "铜板+激光雕刻",
+    desc: "2元/平方厘米",
+    calcType: "perArea",
+    price: 2,
+    areaLabel: "雕刻面积（平方厘米）"
+  }
+] as const;
+type CraftType = typeof CRAFT_TYPES[number]["id"];
+
+// 刀版+模具费用规则
+const MOLD_FEE_RULES = [
+  { minQty: 0, maxQty: 1999, price: 0.4, desc: "0.4元/个（含刀版及运费，合计600-800元）" },
+  { minQty: 2000, maxQty: 4999, price: 0.1, desc: "0.1元/个" },
+  { minQty: 5000, maxQty: Infinity, price: 0, desc: "免费" }
+];
+
+// ====================== 常量配置（计算规则） ======================
+// 面纸单价（元/㎡）
+const PAPER_PRICE: Record<PaperType, number> = {
+  "艺术纸（无覆膜）": 3.5,
+  "金银卡+光膜": 3.5,
+  "铜版纸+光/哑膜": 2.5,
+  "铜版纸+防刮花膜/触感膜": 3.5
+};
+
+// 盒型阶梯报价规则
+const BOX_PRICE_LADDER: Record<BoxType, Array<{ minQty: number; maxQty: number; price: number; minPrice?: number }>> = {
+  "天地盖": [
+    { minQty: 0, maxQty: 999, price: 5, minPrice: 3000 },
+    { minQty: 1000, maxQty: 2999, price: 4 },
+    { minQty: 3000, maxQty: 4999, price: 3.5 },
+    { minQty: 5000, maxQty: 9999, price: 3 },
+    { minQty: 10000, maxQty: Infinity, price: 3 }
+  ],
+  "天地盖带内插": [
+    { minQty: 0, maxQty: 999, price: 6, minPrice: 3000 },
+    { minQty: 1000, maxQty: 2999, price: 5 },
+    { minQty: 3000, maxQty: 4999, price: 4.5 },
+    { minQty: 5000, maxQty: Infinity, price: 4 }
+  ],
+  "书型盒（含磁吸）": [
+    { minQty: 0, maxQty: 999, price: 6, minPrice: 3000 },
+    { minQty: 1000, maxQty: 2999, price: 5 },
+    { minQty: 3000, maxQty: 4999, price: 4.5 },
+    { minQty: 5000, maxQty: Infinity, price: 4 }
+  ],
+  "抽屉盒（含丝带）": [
+    { minQty: 0, maxQty: 999, price: 6, minPrice: 3000 },
+    { minQty: 1000, maxQty: 2999, price: 5 },
+    { minQty: 3000, maxQty: 4999, price: 4.5 },
+    { minQty: 5000, maxQty: Infinity, price: 4 }
+  ]
+};
+
+// 获取盒型阶梯价格
+const getBoxPriceByQty = (boxType: BoxType, qty: number): { price: number; minPrice: number; currentLadder: number; nextLadder?: { qty: number; price: number } } => {
+  const ladders = BOX_PRICE_LADDER[boxType];
+  let currentLadderIndex = 0;
+  let currentPrice = 0;
+  let minPrice = 0;
+  
+  for (let i = 0; i < ladders.length; i++) {
+    const ladder = ladders[i];
+    if (qty >= ladder.minQty && qty <= ladder.maxQty) {
+      currentPrice = ladder.price;
+      minPrice = ladder.minPrice || 0;
+      currentLadderIndex = i;
+      break;
+    }
+  }
+
+  let nextLadder = undefined;
+  if (currentLadderIndex < ladders.length - 1) {
+    const next = ladders[currentLadderIndex + 1];
+    nextLadder = {
+      qty: next.minQty,
+      price: next.price
+    };
+  }
+
+  return { price: currentPrice, minPrice, currentLadder: currentLadderIndex, nextLadder };
+};
+
+// 获取刀版+模具费用信息
+const getMoldFeeInfo = (qty: number): { price: number; desc: string; total: number } => {
+  const validQty = qty || 1;
+  let moldPrice = 0;
+  let moldDesc = "";
+  
+  for (const rule of MOLD_FEE_RULES) {
+    if (validQty >= rule.minQty && validQty <= rule.maxQty) {
+      moldPrice = rule.price;
+      moldDesc = rule.desc;
+      break;
+    }
+  }
+  
+  const totalMoldFee = moldPrice * validQty;
+  return { price: moldPrice, desc: moldDesc, total: totalMoldFee };
+};
+
+// ====================== 工具函数：处理空输入值 ======================
+const handleEmptyInput = (value: string) => {
+  return value === "" ? 0 : Number(value);
+};
+
+// ====================== 礼盒报价器组件 ======================
+const GiftBoxQuoteCalculator: React.FC = () => {
+  // 基础配置状态
+  const [boxType, setBoxType] = useState<BoxType>("天地盖");
+  const [dimensions, setDimensions] = useState({
+    length: 20,
+    width: 10,
+    height: 5,
+  });
+  const [orderInfo, setOrderInfo] = useState({
+    qty: 1000,
+    customBoxPrice: 3,
+    moldDiscount: 0,
+    cartonCount: 10, // 新增：运输纸箱个数
+    exchangeRate: 7.2, // 新增：美元汇率（默认7.2）
+    taxRate: 13 // 新增：税率（默认13%）
+  });
+  const [materialConfig, setMaterialConfig] = useState({
+    paperType: "艺术纸（无覆膜）" as PaperType,
+    linerType: "珍珠棉内衬" as LinerType,
+    linerHeightRatio: 0.5,
+    holeCount: 0 // 内衬孔位数量
+  });
+  // 特殊工艺状态
+  const [craftConfig, setCraftConfig] = useState({
+    selectedCrafts: [] as CraftType[],
+    craftAreas: {
+      copperLaser: 20
+    }
+  });
+
+  // 自动计算核心逻辑
+  const calculationResult = useMemo(() => {
+    // 解构并处理空值
+    const { length, width, height } = dimensions;
+    const validLength = length || 0;
+    const validWidth = width || 0;
+    const validHeight = height || 0;
+    const { qty, customBoxPrice, moldDiscount, cartonCount, exchangeRate, taxRate } = orderInfo;
+    const validQty = qty || 1;
+    const validCartonCount = cartonCount || 0;
+    const validExchangeRate = exchangeRate || 7.2;
+    const validTaxRate = taxRate || 13;
+    const { paperType, linerType, linerHeightRatio, holeCount } = materialConfig;
+    const validHoleCount = holeCount || 0;
+    const { selectedCrafts, craftAreas } = craftConfig;
+
+    // 1. 获取阶梯报价信息
+    const ladderInfo = getBoxPriceByQty(boxType, validQty);
+    const finalBoxPrice = validQty >= 10000 ? customBoxPrice : ladderInfo.price;
+
+    // 2. 获取刀版+模具费用信息
+    const moldFeeInfo = getMoldFeeInfo(validQty);
+    const finalMoldTotal = Math.max(moldFeeInfo.total - moldDiscount, 0);
+
+    // 3. 计算不同盒型的灰板/面纸展开面积（详细计算过程）
+    let boardAreaPerBox = 0; // 单盒灰板面积（㎡）
+    let paperAreaPerBox = 0; // 单盒面纸面积（㎡）
+    let insertBoardArea = 0; // 内插部分灰板面积（仅天地盖带内插）
+    let insertPaperArea = 0; // 内插部分面纸面积（仅天地盖带内插）
+    let areaCalculationDesc = ""; // 展开面积计算过程描述
+    let areaCalculationDetail = ""; // 更详细的展开面积计算步骤
+
+    // 转换单位：cm → m
+    const L = validLength / 100;
+    const W = validWidth / 100;
+    const H = validHeight / 100;
+    // 保留cm单位的数值用于展示计算过程
+    const L_cm = validLength;
+    const W_cm = validWidth;
+    const H_cm = validHeight;
+
+    switch (boxType) {
+      case "天地盖":
+        // 公式：(长 + 高×2) × (宽 + 高×2) × 2（上盖+下底）
+        const tdgStep1 = L_cm + H_cm * 2;
+        const tdgStep2 = W_cm + H_cm * 2;
+        const tdgStep3 = tdgStep1 * tdgStep2;
+        const tdgStep4 = tdgStep3 * 2; // 平方厘米
+        const tdgBoardArea = tdgStep4 / 10000; // 转换为㎡
+        
+        boardAreaPerBox = tdgBoardArea;
+        paperAreaPerBox = boardAreaPerBox * 1.3;
+        
+        // 详细计算过程描述
+        areaCalculationDesc = `天地盖展开面积 = (长 + 高×2) × (宽 + 高×2) × 2`;
+        areaCalculationDetail = `
+          步骤1：计算单边展开长度 = ${L_cm}cm + ${H_cm}cm×2 = ${tdgStep1}cm<br/>
+          步骤2：计算单边展开宽度 = ${W_cm}cm + ${H_cm}cm×2 = ${tdgStep2}cm<br/>
+          步骤3：计算单盖面积 = ${tdgStep1}cm × ${tdgStep2}cm = ${tdgStep3} 平方厘米<br/>
+          步骤4：计算天地盖总面积（上盖+下底）= ${tdgStep3} 平方厘米 × 2 = ${tdgStep4} 平方厘米<br/>
+          步骤5：转换为平方米 = ${tdgStep4} ÷ 10000 = ${tdgBoardArea.toFixed(4)} ㎡
+        `;
+        break;
+
+      case "天地盖带内插":
+        // 主体部分计算
+        const tdncMainStep1 = L_cm + (H_cm / 2) * 2;
+        const tdncMainStep2 = W_cm + (H_cm / 2) * 2;
+        const tdncMainStep3 = tdncMainStep1 * tdncMainStep2;
+        const tdncMainStep4 = tdncMainStep3 * 2; // 主体面积（平方厘米）
+        
+        // 内插部分计算
+        const tdncInsertStep1 = L_cm * 2 + W_cm * 2;
+        const tdncInsertStep2 = tdncInsertStep1 * H_cm; // 内插面积（平方厘米）
+        
+        // 总面积
+        const tdncTotalStep = tdncMainStep4 + tdncInsertStep2;
+        const tdncBoardArea = tdncTotalStep / 10000; // 转换为㎡
+        
+        boardAreaPerBox = tdncBoardArea;
+        paperAreaPerBox = boardAreaPerBox * 1.3;
+        insertBoardArea = tdncInsertStep2 / 10000;
+        insertPaperArea = insertBoardArea * 1.3;
+        
+        // 详细计算过程描述
+        areaCalculationDesc = `天地盖带内插展开面积 = 主体面积 + 内插面积`;
+        areaCalculationDetail = `
+          【主体部分】<br/>
+          步骤1：计算单边展开长度 = ${L_cm}cm + (${H_cm}cm÷2)×2 = ${tdncMainStep1}cm<br/>
+          步骤2：计算单边展开宽度 = ${W_cm}cm + (${H_cm}cm÷2)×2 = ${tdncMainStep2}cm<br/>
+          步骤3：计算单盖面积 = ${tdncMainStep1}cm × ${tdncMainStep2}cm = ${tdncMainStep3} 平方厘米<br/>
+          步骤4：计算主体总面积（上盖+下底）= ${tdncMainStep3} 平方厘米 × 2 = ${tdncMainStep4} 平方厘米<br/>
+          【内插部分】<br/>
+          步骤1：计算内插周长 = ${L_cm}cm×2 + ${W_cm}cm×2 = ${tdncInsertStep1}cm<br/>
+          步骤2：计算内插面积 = ${tdncInsertStep1}cm × ${H_cm}cm = ${tdncInsertStep2} 平方厘米<br/>
+          【总面积】<br/>
+          步骤1：合计面积 = ${tdncMainStep4} + ${tdncInsertStep2} = ${tdncTotalStep} 平方厘米<br/>
+          步骤2：转换为平方米 = ${tdncTotalStep} ÷ 10000 = ${tdncBoardArea.toFixed(4)} ㎡
+        `;
+        break;
+
+      case "书型盒（含磁吸）":
+        // 公式：(宽 + 高) × 2 × 长
+        const sxbStep1 = W_cm + H_cm;
+        const sxbStep2 = sxbStep1 * 2;
+        const sxbStep3 = sxbStep2 * L_cm; // 平方厘米
+        const sxbBoardArea = sxbStep3 / 10000; // 转换为㎡
+        
+        boardAreaPerBox = sxbBoardArea;
+        paperAreaPerBox = boardAreaPerBox * 1.3;
+        
+        // 详细计算过程描述
+        areaCalculationDesc = `书型盒展开面积 = (宽 + 高) × 2 × 长`;
+        areaCalculationDetail = `
+          步骤1：计算单边展开高度 = ${W_cm}cm + ${H_cm}cm = ${sxbStep1}cm<br/>
+          步骤2：计算双面展开高度 = ${sxbStep1}cm × 2 = ${sxbStep2}cm<br/>
+          步骤3：计算总面积 = ${sxbStep2}cm × ${L_cm}cm = ${sxbStep3} 平方厘米<br/>
+          步骤4：转换为平方米 = ${sxbStep3} ÷ 10000 = ${sxbBoardArea.toFixed(4)} ㎡
+        `;
+        break;
+
+      case "抽屉盒（含丝带）":
+        // 公式：(长 + 高×2) × (宽×2 + 高×3)
+        const cthStep1 = L_cm + H_cm * 2;
+        const cthStep2 = W_cm * 2 + H_cm * 3;
+        const cthStep3 = cthStep1 * cthStep2; // 平方厘米
+        const cthBoardArea = cthStep3 / 10000; // 转换为㎡
+        
+        boardAreaPerBox = cthBoardArea;
+        paperAreaPerBox = boardAreaPerBox * 1.3;
+        
+        // 详细计算过程描述
+        areaCalculationDesc = `抽屉盒展开面积 = (长 + 高×2) × (宽×2 + 高×3)`;
+        areaCalculationDetail = `
+          步骤1：计算展开长度 = ${L_cm}cm + ${H_cm}cm×2 = ${cthStep1}cm<br/>
+          步骤2：计算展开宽度 = ${W_cm}cm×2 + ${H_cm}cm×3 = ${cthStep2}cm<br/>
+          步骤3：计算总面积 = ${cthStep1}cm × ${cthStep2}cm = ${cthStep3} 平方厘米<br/>
+          步骤4：转换为平方米 = ${cthStep3} ÷ 10000 = ${cthBoardArea.toFixed(4)} ㎡
+        `;
+        break;
+    }
+
+    // 4. 灰板成本计算
+    const totalBoardArea = boardAreaPerBox + insertBoardArea;
+    const boardPricePerSqm = 7; // 灰板单价：7元/㎡
+    const boardCostPerBox = totalBoardArea * boardPricePerSqm;
+    const totalBoardCost = boardCostPerBox * validQty;
+    const boardCalculationDetail = `
+      单盒灰板成本 = 灰板面积 × 灰板单价 = ${totalBoardArea.toFixed(4)} ㎡ × 7 元/㎡ = ${boardCostPerBox.toFixed(2)} 元/个<br/>
+      总灰板成本 = 单盒成本 × 数量 = ${boardCostPerBox.toFixed(2)} 元/个 × ${validQty} 个 = ${totalBoardCost.toFixed(2)} 元
+    `;
+
+    // 5. 面纸成本计算
+    const totalPaperArea = paperAreaPerBox + insertPaperArea;
+    const paperPrice = PAPER_PRICE[paperType];
+    const paperCostPerBox = totalPaperArea * paperPrice;
+    const totalPaperCost = paperCostPerBox * validQty;
+    const paperCalculationDetail = `
+      单盒面纸成本 = 面纸面积 × 面纸单价 = ${totalPaperArea.toFixed(4)} ㎡ × ${paperPrice} 元/㎡ = ${paperCostPerBox.toFixed(2)} 元/个<br/>
+      总面纸成本 = 单盒成本 × 数量 = ${paperCostPerBox.toFixed(2)} 元/个 × ${validQty} 个 = ${totalPaperCost.toFixed(2)} 元
+    `;
+
+    // 6. 内衬成本计算（详细计算过程 + 孔位费用）
+    let linerCostPerBox = 0;
+    let linerMinCost = 0;
+    let linerVolume = 0;
+    let linerCalculationDesc = "";
+    let linerCalculationDetail = "";
+    // 孔位费用计算
+    const holeCostPerBox = validHoleCount * 0.2; // 0.2元/个孔位
+    const totalHoleCost = holeCostPerBox * validQty;
+
+    if (linerType === "珍珠棉内衬") {
+      // 体积计算公式：长 × 宽 × 内衬高度（高度×比例）
+      linerVolume = L * W * (H * linerHeightRatio); // 立方米
+      linerCostPerBox = linerVolume * 850; // 850元/立方米
+      linerMinCost = 1000;
+      
+      linerCalculationDesc = `珍珠棉内衬成本 = 体积 × 单价 + 孔位费用`;
+      linerCalculationDetail = `
+        【体积计算】<br/>
+        内衬高度 = ${H_cm}cm × ${linerHeightRatio} = ${(H_cm * linerHeightRatio).toFixed(2)}cm<br/>
+        内衬体积 = ${L_cm}cm × ${W_cm}cm × ${(H_cm * linerHeightRatio).toFixed(2)}cm = ${(linerVolume * 1000000).toFixed(2)} 立方厘米 = ${linerVolume.toFixed(6)} 立方米<br/>
+        【单盒内衬成本】<br/>
+        基础内衬成本 = ${linerVolume.toFixed(6)} 立方米 × 850 元/立方米 = ${(linerVolume * 850).toFixed(2)} 元/个<br/>
+        孔位费用 = ${validHoleCount} 个 × 0.2 元/个 = ${holeCostPerBox.toFixed(2)} 元/个<br/>
+        单盒总成本 = ${(linerVolume * 850).toFixed(2)} + ${holeCostPerBox.toFixed(2)} = ${(linerVolume * 850 + holeCostPerBox).toFixed(2)} 元/个<br/>
+        【总内衬成本】<br/>
+        基础总成本 = ${(linerVolume * 850 * validQty).toFixed(2)} 元（≥ ${linerMinCost} 元）<br/>
+        孔位总成本 = ${totalHoleCost.toFixed(2)} 元<br/>
+        最终总成本 = ${Math.max(linerVolume * 850 * validQty, linerMinCost).toFixed(2)} + ${totalHoleCost.toFixed(2)} = ${(Math.max(linerVolume * 850 * validQty, linerMinCost) + totalHoleCost).toFixed(2)} 元
+      `;
+    } else if (linerType === "EVA内衬") {
+      linerVolume = L * (H * linerHeightRatio) * W; // 立方米
+      linerCostPerBox = linerVolume * 2100 + 0.2; // 2100元/立方米 + 基础加工费0.2元
+      linerMinCost = 1000;
+      
+      linerCalculationDesc = `EVA内衬成本 = (体积 × 单价 + 基础加工费) + 孔位费用`;
+      linerCalculationDetail = `
+        【体积计算】<br/>
+        内衬高度 = ${H_cm}cm × ${linerHeightRatio} = ${(H_cm * linerHeightRatio).toFixed(2)}cm<br/>
+        内衬体积 = ${L_cm}cm × ${(H_cm * linerHeightRatio).toFixed(2)}cm × ${W_cm}cm = ${(linerVolume * 1000000).toFixed(2)} 立方厘米 = ${linerVolume.toFixed(6)} 立方米<br/>
+        【单盒内衬成本】<br/>
+        基础内衬成本 = ${linerVolume.toFixed(6)} 立方米 × 2100 元/立方米 + 0.2 元 = ${(linerVolume * 2100 + 0.2).toFixed(2)} 元/个<br/>
+        孔位费用 = ${validHoleCount} 个 × 0.2 元/个 = ${holeCostPerBox.toFixed(2)} 元/个<br/>
+        单盒总成本 = ${(linerVolume * 2100 + 0.2).toFixed(2)} + ${holeCostPerBox.toFixed(2)} = ${(linerVolume * 2100 + 0.2 + holeCostPerBox).toFixed(2)} 元/个<br/>
+        【总内衬成本】<br/>
+        基础总成本 = ${(linerCostPerBox * validQty).toFixed(2)} 元（≥ ${linerMinCost} 元）<br/>
+        孔位总成本 = ${totalHoleCost.toFixed(2)} 元<br/>
+        最终总成本 = ${Math.max(linerCostPerBox * validQty, linerMinCost).toFixed(2)} + ${totalHoleCost.toFixed(2)} = ${(Math.max(linerCostPerBox * validQty, linerMinCost) + totalHoleCost).toFixed(2)} 元
+      `;
+    } else if (linerType === "卡纸内衬") {
+      linerCostPerBox = (boardCostPerBox / 2); // 卡纸内衬成本 = 灰板成本/2
+      linerMinCost = 800;
+      
+      linerCalculationDesc = `卡纸内衬成本 = 灰板成本/2 + 孔位费用`;
+      linerCalculationDetail = `
+        【单盒内衬成本】<br/>
+        基础内衬成本 = 灰板单盒成本 ÷ 2 = ${boardCostPerBox.toFixed(2)} 元 ÷ 2 = ${linerCostPerBox.toFixed(2)} 元/个<br/>
+        孔位费用 = ${validHoleCount} 个 × 0.2 元/个 = ${holeCostPerBox.toFixed(2)} 元/个<br/>
+        单盒总成本 = ${linerCostPerBox.toFixed(2)} + ${holeCostPerBox.toFixed(2)} = ${(linerCostPerBox + holeCostPerBox).toFixed(2)} 元/个<br/>
+        【总内衬成本】<br/>
+        基础总成本 = ${(linerCostPerBox * validQty).toFixed(2)} 元（≥ ${linerMinCost} 元）<br/>
+        孔位总成本 = ${totalHoleCost.toFixed(2)} 元<br/>
+        最终总成本 = ${Math.max(linerCostPerBox * validQty, linerMinCost).toFixed(2)} + ${totalHoleCost.toFixed(2)} = ${(Math.max(linerCostPerBox * validQty, linerMinCost) + totalHoleCost).toFixed(2)} 元
+      `;
+    }
+    // 最终内衬总成本（含孔位）
+    const baseLinerCost = Math.max(linerCostPerBox * validQty, linerMinCost);
+    const totalLinerCost = baseLinerCost + totalHoleCost;
+
+    // 7. 盒型做工成本
+    const totalBoxCost = Math.max(finalBoxPrice * validQty, ladderInfo.minPrice || 0);
+    const boxCalculationDetail = `
+      单盒做工成本 = ${finalBoxPrice.toFixed(2)} 元/个<br/>
+      基础总做工成本 = ${finalBoxPrice.toFixed(2)} 元/个 × ${validQty} 个 = ${(finalBoxPrice * validQty).toFixed(2)} 元<br/>
+      最终总做工成本 = max(基础成本, 起步价) = max(${finalBoxPrice * validQty} 元, ${ladderInfo.minPrice || 0} 元) = ${totalBoxCost.toFixed(2)} 元
+    `;
+
+    // 8. 特殊工艺成本
+    let totalCraftCost = 0;
+    const craftDetails: Array<{ name: string; cost: string; calcDesc: string }> = [];
+    const CRAFT_START_PRICE = 400;
+    let craftCalculationDetail = "";
+
+    selectedCrafts.forEach((craftId, idx) => {
+      const craft = CRAFT_TYPES.find(c => c.id === craftId)!;
+      let craftCost = 0;
+      let calcDesc = "";
+
+      if (craft.calcType === "perUnit") {
+        const unitCost = craft.price * validQty;
+        craftCost = Math.max(unitCost, CRAFT_START_PRICE);
+        calcDesc = `${craft.name}：${craft.price}元/个 × ${validQty}个 = ${unitCost.toFixed(2)}元（≥${CRAFT_START_PRICE}元）`;
+        craftCalculationDetail += `${idx+1}. ${craft.name}：<br/>`;
+        craftCalculationDetail += `   基础费用 = ${craft.price} 元/个 × ${validQty} 个 = ${unitCost.toFixed(2)} 元<br/>`;
+        craftCalculationDetail += `   最终费用 = max(基础费用, 起步价) = max(${unitCost.toFixed(2)} 元, ${CRAFT_START_PRICE} 元) = ${craftCost.toFixed(2)} 元<br/><br/>`;
+      } else if (craft.calcType === "perArea") {
+        const area = craftAreas[craftId as "copperLaser"] || 0;
+        craftCost = area * craft.price * validQty;
+        calcDesc = `${craft.name}：${area}平方厘米 × ${craft.price}元/平方厘米 × ${validQty}个 = ${craftCost.toFixed(2)}元`;
+        craftCalculationDetail += `${idx+1}. ${craft.name}：<br/>`;
+        craftCalculationDetail += `   总费用 = ${area} 平方厘米 × ${craft.price} 元/平方厘米 × ${validQty} 个 = ${craftCost.toFixed(2)} 元<br/><br/>`;
+      }
+
+      totalCraftCost += craftCost;
+      craftDetails.push({
+        name: craft.name,
+        cost: craftCost.toFixed(2),
+        calcDesc
+      });
+    });
+    if (selectedCrafts.length === 0) {
+      craftCalculationDetail = "未选择任何特殊工艺，费用为0元";
+    } else {
+      craftCalculationDetail += `特殊工艺总费用 = ${totalCraftCost.toFixed(2)} 元`;
+    }
+
+    // 9. 运输纸箱成本（使用新增的纸箱个数参数）
+    const cartonCostPerBox = validCartonCount > 0 ? (validCartonCount * 5) / validQty : 0.5; // 纸箱成本：5元/个纸箱，按数量均摊
+    const totalCartonCost = cartonCostPerBox * validQty;
+    const cartonCalculationDetail = `
+      纸箱总成本 = ${validCartonCount} 个 × 5 元/个 = ${validCartonCount * 5} 元<br/>
+      单盒纸箱成本 = 纸箱总成本 ÷ 数量 = ${validCartonCount * 5} 元 ÷ ${validQty} 个 = ${cartonCostPerBox.toFixed(2)} 元/个<br/>
+      总纸箱成本 = ${cartonCostPerBox.toFixed(2)} 元/个 × ${validQty} 个 = ${totalCartonCost.toFixed(2)} 元
+    `;
+
+    // 10. 刀版+模具成本
+    const moldCalculationDetail = `
+      单盒模具成本 = ${moldFeeInfo.price.toFixed(2)} 元/个<br/>
+      基础总模具成本 = ${moldFeeInfo.price.toFixed(2)} 元/个 × ${validQty} 个 = ${moldFeeInfo.total.toFixed(2)} 元<br/>
+      优惠后总模具成本 = 基础成本 - 额外优惠 = ${moldFeeInfo.total.toFixed(2)} 元 - ${moldDiscount} 元 = ${finalMoldTotal.toFixed(2)} 元（最低0元）
+    `;
+
+    // 总价计算（含税率）
+    const totalCostBeforeTax = (
+      totalBoardCost +
+      totalPaperCost +
+      totalLinerCost +
+      totalBoxCost +
+      totalCraftCost +
+      totalCartonCost +
+      finalMoldTotal
+    );
+    // 含税总价
+    const taxAmount = totalCostBeforeTax * (validTaxRate / 100);
+    const totalCost = totalCostBeforeTax + taxAmount;
+    // 单个成本
+    const unitCost = totalCost / validQty;
+    
+    // 美元价格计算
+    const unitCostInUsd = unitCost / validExchangeRate;
+    const totalCostInUsd = totalCost / validExchangeRate;
+
+    // 返回计算明细
+    return {
+      ladderInfo,
+      moldFeeInfo: { ...moldFeeInfo, finalTotal: finalMoldTotal },
+      areaCalculationDesc,
+      areaCalculationDetail,
+      boardCalculationDetail,
+      paperCalculationDetail,
+      linerCalculationDesc,
+      linerCalculationDetail,
+      boxCalculationDetail,
+      craftCalculationDetail,
+      cartonCalculationDetail,
+      moldCalculationDetail,
+      craftDetails,
+      details: {
+        board: { 
+          perBox: boardCostPerBox.toFixed(2), 
+          total: totalBoardCost.toFixed(2),
+          area: totalBoardArea.toFixed(4)
+        },
+        paper: { 
+          perBox: paperCostPerBox.toFixed(2), 
+          total: totalPaperCost.toFixed(2),
+          area: totalPaperArea.toFixed(4)
+        },
+        liner: { 
+          perBox: (linerCostPerBox + holeCostPerBox).toFixed(2), 
+          total: totalLinerCost.toFixed(2),
+          minCost: linerMinCost,
+          holeCost: totalHoleCost.toFixed(2)
+        },
+        box: { 
+          perBox: finalBoxPrice.toFixed(2), 
+          total: totalBoxCost.toFixed(2),
+          ladderPrice: ladderInfo.price.toFixed(2)
+        },
+        craft: { total: totalCraftCost.toFixed(2) },
+        carton: { perBox: cartonCostPerBox.toFixed(2), total: totalCartonCost.toFixed(2) },
+        mold: { 
+          perBox: moldFeeInfo.price.toFixed(2), 
+          total: finalMoldTotal.toFixed(2),
+          discount: moldDiscount.toFixed(2)
+        },
+        tax: {
+          rate: validTaxRate,
+          amount: taxAmount.toFixed(2),
+          beforeTax: totalCostBeforeTax.toFixed(2)
+        },
+        usd: {
+          unitCost: unitCostInUsd.toFixed(4),
+          totalCost: totalCostInUsd.toFixed(2),
+          exchangeRate: validExchangeRate
+        }
+      },
+      totalCost: totalCost.toFixed(2),
+      unitCost: unitCost.toFixed(2),
+      totalCostBeforeTax: totalCostBeforeTax.toFixed(2)
+    };
+  }, [boxType, dimensions, orderInfo, materialConfig, craftConfig]);
+
+  // 渲染界面
+  return (
+    <div style={{ 
+      fontFamily: "Arial", 
+      maxWidth: "1200px", 
+      margin: "0 auto", 
+      padding: "20px",
+      textAlign: "left"
+    }}>
+      <h1 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "20px", textAlign: "left" }}>礼盒自动报价器</h1>
+
+      {/* 1. 盒型与尺寸配置 */}
+      <div style={{ marginBottom: "30px", padding: "20px", border: "1px solid #e0e0e0", borderRadius: "8px", textAlign: "left" }}>
+        <h2 style={{ fontSize: "18px", marginBottom: "15px", borderBottom: "1px solid #e0e0e0", paddingBottom: "10px", textAlign: "left" }}>盒型与尺寸</h2>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", marginBottom: "15px", textAlign: "left" }}>
+          <div style={{ flex: 1, minWidth: "150px", textAlign: "left" }}>
+            <label style={{ display: "block", marginBottom: "5px", textAlign: "left" }}>盒型</label>
+            <select 
+              style={{ width: "100%", padding: "8px", textAlign: "left" }}
+              value={boxType}
+              onChange={(e) => setBoxType(e.target.value as BoxType)}
+            >
+              {BOX_TYPES.map(type => <option key={type} value={type} style={{ textAlign: "left" }}>{type}</option>)}
+            </select>
+          </div>
+          <div style={{ flex: 1, minWidth: "150px", textAlign: "left" }}>
+            <label style={{ display: "block", marginBottom: "5px", textAlign: "left" }}>长（cm）</label>
+            <input
+              type="number"
+              style={{ width: "100%", padding: "8px", textAlign: "left" }}
+              value={dimensions.length || ''}
+              onChange={(e) => setDimensions({ 
+                ...dimensions, 
+                length: handleEmptyInput(e.target.value) 
+              })}
+            />
+          </div>
+          <div style={{ flex: 1, minWidth: "150px", textAlign: "left" }}>
+            <label style={{ display: "block", marginBottom: "5px", textAlign: "left" }}>宽（cm）</label>
+            <input
+              type="number"
+              style={{ width: "100%", padding: "8px", textAlign: "left" }}
+              value={dimensions.width || ''}
+              onChange={(e) => setDimensions({ 
+                ...dimensions, 
+                width: handleEmptyInput(e.target.value) 
+              })}
+            />
+          </div>
+          <div style={{ flex: 1, minWidth: "150px", textAlign: "left" }}>
+            <label style={{ display: "block", marginBottom: "5px", textAlign: "left" }}>高（cm）</label>
+            <input
+              type="number"
+              style={{ width: "100%", padding: "8px", textAlign: "left" }}
+              value={dimensions.height || ''}
+              onChange={(e) => setDimensions({ 
+                ...dimensions, 
+                height: handleEmptyInput(e.target.value) 
+              })}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* 2. 订单信息（左右布局） */}
+      <div style={{ marginBottom: "30px", padding: "20px", border: "1px solid #e0e0e0", borderRadius: "8px", textAlign: "left" }}>
+        <h2 style={{ fontSize: "18px", marginBottom: "15px", borderBottom: "1px solid #e0e0e0", paddingBottom: "10px", textAlign: "left" }}>订单信息</h2>
+        
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", marginBottom: "20px", textAlign: "left" }}>
+          {/* 左侧：阶梯价格卡片 + 刀版模具卡片 */}
+          <div style={{ flex: 1, minWidth: "300px", textAlign: "left" }}>
+            {/* 阶梯价格展示卡片 */}
+            <div style={{ 
+              marginBottom: "15px", 
+              padding: "15px", 
+              backgroundColor: "#e8f4f8", 
+              borderRadius: "8px",
+              border: "1px solid #b3d9e8",
+              textAlign: "left"
+            }}>
+              <h3 style={{ fontSize: "16px", marginBottom: "10px", color: "#2c5aa0", textAlign: "left" }}>当前阶梯价格</h3>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "15px", textAlign: "left" }}>
+                <div style={{ padding: "10px", backgroundColor: "#fff", borderRadius: "4px", textAlign: "left" }}>
+                  <div style={{ fontSize: "14px", color: "#666", textAlign: "left" }}>当前单价</div>
+                  <div style={{ fontSize: "18px", fontWeight: "bold", color: "#2c5aa0", textAlign: "left" }}>¥{calculationResult.ladderInfo.price}</div>
+                  <div style={{ fontSize: "12px", color: "#999", textAlign: "left" }}>（数量：{orderInfo.qty}个）</div>
+                </div>
+                {calculationResult.ladderInfo.nextLadder && (
+                  <div style={{ padding: "10px", backgroundColor: "#fff", borderRadius: "4px", textAlign: "left" }}>
+                    <div style={{ fontSize: "14px", color: "#666", textAlign: "left" }}>下一档单价（≥{calculationResult.ladderInfo.nextLadder.qty}个）</div>
+                    <div style={{ fontSize: "18px", fontWeight: "bold", color: "#e91e63", textAlign: "left" }}>¥{calculationResult.ladderInfo.nextLadder.price}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 刀版+模具费用卡片 */}
+            <div style={{ 
+              padding: "15px", 
+              backgroundColor: "#f5fafe", 
+              borderRadius: "8px",
+              border: "1px solid #b3d9e8",
+              textAlign: "left"
+            }}>
+              <h3 style={{ fontSize: "16px", marginBottom: "10px", color: "#2c5aa0", textAlign: "left" }}>刀版+模具费用</h3>
+              <div style={{ fontSize: "14px", lineHeight: "1.6", textAlign: "left" }}>
+                <div style={{ marginBottom: "8px", textAlign: "left" }}>当前单价：¥{calculationResult.moldFeeInfo.price}/个</div>
+                <div style={{ marginBottom: "8px", color: "#666", textAlign: "left" }}>规则说明：{calculationResult.moldFeeInfo.desc}</div>
+                <div style={{ fontWeight: "bold", textAlign: "left" }}>
+                  合计：¥{calculationResult.moldFeeInfo.total.toFixed(2)} - 优惠¥{orderInfo.moldDiscount} = ¥{calculationResult.moldFeeInfo.finalTotal.toFixed(2)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 右侧：输入框区域（包含新增的三个参数） */}
+          <div style={{ flex: 1, minWidth: "300px", textAlign: "left" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "15px", textAlign: "left", marginBottom: "15px" }}>
+              <div style={{ flex: 1, minWidth: "150px", textAlign: "left" }}>
+                <label style={{ display: "block", marginBottom: "5px", textAlign: "left" }}>数量（个）</label>
+                <input
+                  type="number"
+                  style={{ width: "100%", padding: "8px", textAlign: "left" }}
+                  value={orderInfo.qty || ''}
+                  onChange={(e) => setOrderInfo({ 
+                    ...orderInfo, 
+                    qty: handleEmptyInput(e.target.value) 
+                  })}
+                />
+              </div>
+              
+              {/* 数量≥10000时显示自定义价格输入框 */}
+              {orderInfo.qty >= 10000 && (
+                <div style={{ flex: 1, minWidth: "150px", textAlign: "left" }}>
+                  <label style={{ display: "block", marginBottom: "5px", textAlign: "left" }}>自定义单价（元/个）<span style={{ color: "#e91e63", fontSize: "12px" }}>（上万可议价）</span></label>
+                  <input
+                    type="number"
+                    style={{ width: "100%", padding: "8px", textAlign: "left" }}
+                    value={orderInfo.customBoxPrice || ''}
+                    onChange={(e) => setOrderInfo({ 
+                      ...orderInfo, 
+                      customBoxPrice: handleEmptyInput(e.target.value) 
+                    })}
+                    step={0.1}
+                    min={0}
+                  />
+                </div>
+              )}
+
+              <div style={{ flex: 1, minWidth: "150px", textAlign: "left" }}>
+                <label style={{ display: "block", marginBottom: "5px", textAlign: "left" }}>模具费额外优惠（元）</label>
+                <input
+                  type="number"
+                  style={{ width: "100%", padding: "8px", textAlign: "left" }}
+                  value={orderInfo.moldDiscount || ''}
+                  onChange={(e) => setOrderInfo({ 
+                    ...orderInfo, 
+                    moldDiscount: handleEmptyInput(e.target.value) 
+                  })}
+                />
+              </div>
+            </div>
+            
+            {/* 新增：运输纸箱个数、汇率、税率输入框 */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "15px", textAlign: "left" }}>
+              <div style={{ flex: 1, minWidth: "150px", textAlign: "left" }}>
+                <label style={{ display: "block", marginBottom: "5px", textAlign: "left" }}>运输纸箱个数</label>
+                <input
+                  type="number"
+                  style={{ width: "100%", padding: "8px", textAlign: "left" }}
+                  value={orderInfo.cartonCount || ''}
+                  onChange={(e) => setOrderInfo({ 
+                    ...orderInfo, 
+                    cartonCount: handleEmptyInput(e.target.value) 
+                  })}
+                  min={0}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: "150px", textAlign: "left" }}>
+                <label style={{ display: "block", marginBottom: "5px", textAlign: "left" }}>美元汇率（默认7.2）</label>
+                <input
+                  type="number"
+                  style={{ width: "100%", padding: "8px", textAlign: "left" }}
+                  value={orderInfo.exchangeRate || ''}
+                  onChange={(e) => setOrderInfo({ 
+                    ...orderInfo, 
+                    exchangeRate: handleEmptyInput(e.target.value) 
+                  })}
+                  step={0.01}
+                  min={0.01}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: "150px", textAlign: "left" }}>
+                <label style={{ display: "block", marginBottom: "5px", textAlign: "left" }}>税率（%，默认13）</label>
+                <input
+                  type="number"
+                  style={{ width: "100%", padding: "8px", textAlign: "left" }}
+                  value={orderInfo.taxRate || ''}
+                  onChange={(e) => setOrderInfo({ 
+                    ...orderInfo, 
+                    taxRate: handleEmptyInput(e.target.value) 
+                  })}
+                  step={0.1}
+                  min={0}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. 材料配置 */}
+      <div style={{ marginBottom: "30px", padding: "20px", border: "1px solid #e0e0e0", borderRadius: "8px", textAlign: "left" }}>
+        <h2 style={{ fontSize: "18px", marginBottom: "15px", borderBottom: "1px solid #e0e0e0", paddingBottom: "10px", textAlign: "left" }}>材料配置</h2>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", marginBottom: "15px", textAlign: "left" }}>
+          <div style={{ flex: 1, minWidth: "150px", textAlign: "left" }}>
+            <label style={{ display: "block", marginBottom: "5px", textAlign: "left" }}>面纸类型</label>
+            <select
+              style={{ width: "100%", padding: "8px", textAlign: "left" }}
+              value={materialConfig.paperType}
+              onChange={(e) => setMaterialConfig({ ...materialConfig, paperType: e.target.value as PaperType })}
+            >
+              {PAPER_TYPES.map(type => <option key={type} value={type} style={{ textAlign: "left" }}>{type}</option>)}
+            </select>
+          </div>
+          <div style={{ flex: 1, minWidth: "150px", textAlign: "left" }}>
+            <label style={{ display: "block", marginBottom: "5px", textAlign: "left" }}>内衬类型</label>
+            <select
+              style={{ width: "100%", padding: "8px", textAlign: "left" }}
+              value={materialConfig.linerType}
+              onChange={(e) => setMaterialConfig({ ...materialConfig, linerType: e.target.value as LinerType })}
+            >
+              {LINER_TYPES.map(type => <option key={type} value={type} style={{ textAlign: "left" }}>{type}</option>)}
+            </select>
+          </div>
+          <div style={{ flex: 1, minWidth: "150px", textAlign: "left" }}>
+            <label style={{ display: "block", marginBottom: "5px", textAlign: "left" }}>内衬高度比例（默认0.5）</label>
+            <input
+              type="number"
+              style={{ width: "100%", padding: "8px", textAlign: "left" }}
+              value={materialConfig.linerHeightRatio || ''}
+              onChange={(e) => setMaterialConfig({ 
+                ...materialConfig, 
+                linerHeightRatio: handleEmptyInput(e.target.value) 
+              })}
+              step={0.1}
+            />
+          </div>
+          <div style={{ flex: 1, minWidth: "150px", textAlign: "left" }}>
+            <label style={{ display: "block", marginBottom: "5px", textAlign: "left" }}>内衬孔位数量（0.2元/个）</label>
+            <input
+              type="number"
+              style={{ width: "100%", padding: "8px", textAlign: "left" }}
+              value={materialConfig.holeCount || ''}
+              onChange={(e) => setMaterialConfig({ 
+                ...materialConfig, 
+                holeCount: handleEmptyInput(e.target.value) 
+              })}
+              min={0}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* 4. 特殊工艺（卡片形式） */}
+      <div style={{ marginBottom: "30px", padding: "20px", border: "1px solid #e0e0e0", borderRadius: "8px", textAlign: "left" }}>
+        <h2 style={{ fontSize: "18px", marginBottom: "15px", borderBottom: "1px solid #e0e0e0", paddingBottom: "10px", textAlign: "left" }}>特殊工艺</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "15px", textAlign: "left" }}>
+          {CRAFT_TYPES.map(craft => (
+            <div 
+              key={craft.id}
+              style={{ 
+                padding: "15px", 
+                border: "1px solid #e0e0e0", 
+                borderRadius: "8px", 
+                backgroundColor: "#fff",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+                textAlign: "left"
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px", textAlign: "left" }}>
+                <div style={{ textAlign: "left" }}>
+                  <h3 style={{ fontSize: "16px", margin: "0 0 5px 0", textAlign: "left" }}>{craft.name}</h3>
+                  <p style={{ fontSize: "12px", color: "#666", margin: 0, textAlign: "left" }}>{craft.desc}</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={craftConfig.selectedCrafts.includes(craft.id)}
+                  onChange={() => setCraftConfig({
+                    ...craftConfig,
+                    selectedCrafts: craftConfig.selectedCrafts.includes(craft.id)
+                      ? craftConfig.selectedCrafts.filter(c => c !== craft.id)
+                      : [...craftConfig.selectedCrafts, craft.id]
+                  })}
+                />
+              </div>
+              
+              {/* 面积输入框 */}
+              {craft.calcType === "perArea" && craftConfig.selectedCrafts.includes(craft.id) && (
+                <div style={{ marginTop: "10px", textAlign: "left" }}>
+                  <label style={{ display: "block", fontSize: "12px", marginBottom: "5px", textAlign: "left" }}>{craft.areaLabel}</label>
+                  <input
+                    type="number"
+                    style={{ width: "100%", padding: "6px", fontSize: "14px", textAlign: "left" }}
+                    value={craftConfig.craftAreas[craft.id as "copperLaser"] || ''}
+                    onChange={(e) => setCraftConfig({
+                      ...craftConfig,
+                      craftAreas: {
+                        ...craftConfig.craftAreas,
+                        [craft.id]: handleEmptyInput(e.target.value)
+                      }
+                    })}
+                    min={1}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 5. 报价结果（详细计算步骤） */}
+      <div style={{ padding: "20px", border: "1px solid #e0e0e0", borderRadius: "8px", backgroundColor: "#f9f9f9", textAlign: "left" }}>
+        <h2 style={{ fontSize: "18px", marginBottom: "15px", borderBottom: "1px solid #e0e0e0", paddingBottom: "10px", textAlign: "left" }}>报价结果</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "15px", marginBottom: "20px", textAlign: "left" }}>
+          <div style={{ padding: "15px", border: "1px solid #e0e0e0", borderRadius: "4px", textAlign: "left" }}>
+            <div style={{ fontSize: "14px", color: "#666", textAlign: "left" }}>单个成本（含税）</div>
+            <div style={{ fontSize: "16px", fontWeight: "bold", textAlign: "left" }}>¥{calculationResult.unitCost}</div>
+            <div style={{ fontSize: "12px", color: "#999", textAlign: "left", marginTop: "5px" }}>
+              ≈ ${calculationResult.details.usd.unitCost}（汇率：1:${calculationResult.details.usd.exchangeRate}）
+            </div>
+          </div>
+          <div style={{ padding: "15px", border: "1px solid #e0e0e0", borderRadius: "4px", backgroundColor: "#fff3f3", textAlign: "left" }}>
+            <div style={{ fontSize: "14px", color: "#666", textAlign: "left" }}>总金额（含税）</div>
+            <div style={{ fontSize: "16px", fontWeight: "bold", color: "#e91e63", textAlign: "left" }}>¥{calculationResult.totalCost}</div>
+            <div style={{ fontSize: "12px", color: "#999", textAlign: "left", marginTop: "5px" }}>
+              ≈ ${calculationResult.details.usd.totalCost}（汇率：1:${calculationResult.details.usd.exchangeRate}）
+            </div>
+          </div>
+        </div>
+
+        {/* 详细计算过程 */}
+        <div style={{ marginBottom: "20px", textAlign: "left" }}>
+          {/* 展开面积计算 */}
+          <div style={{ marginBottom: "15px", padding: "15px", backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>一、展开面积计算</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.6", color: "#333", marginBottom: "10px", textAlign: "left" }}>
+              <strong>计算公式：</strong> {calculationResult.areaCalculationDesc}
+            </div>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }} 
+                 dangerouslySetInnerHTML={{ __html: calculationResult.areaCalculationDetail.replace(/<br\/>/g, '<br style="text-align:left"/>') }}>
+            </div>
+            <div style={{ marginTop: "10px", fontSize: "14px", fontWeight: "bold", textAlign: "left" }}>
+              面纸面积 = 灰板展开面积 × 1.3 = {calculationResult.details.board.area} × 1.3 = {calculationResult.details.paper.area} ㎡
+            </div>
+          </div>
+
+          {/* 灰板成本计算 */}
+          <div style={{ marginBottom: "15px", padding: "15px", backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>二、灰板成本计算</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }} 
+                 dangerouslySetInnerHTML={{ __html: calculationResult.boardCalculationDetail.replace(/<br\/>/g, '<br style="text-align:left"/>') }}>
+            </div>
+          </div>
+
+          {/* 面纸成本计算 */}
+          <div style={{ marginBottom: "15px", padding: "15px", backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>三、面纸成本计算</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }} 
+                 dangerouslySetInnerHTML={{ __html: calculationResult.paperCalculationDetail.replace(/<br\/>/g, '<br style="text-align:left"/>') }}>
+            </div>
+          </div>
+
+          {/* 内衬成本计算 */}
+          <div style={{ marginBottom: "15px", padding: "15px", backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>四、内衬成本计算（含孔位）</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.6", color: "#333", marginBottom: "10px", textAlign: "left" }}>
+              <strong>计算公式：</strong> {calculationResult.linerCalculationDesc}
+            </div>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }} 
+                 dangerouslySetInnerHTML={{ __html: calculationResult.linerCalculationDetail.replace(/<br\/>/g, '<br style="text-align:left"/>') }}>
+            </div>
+          </div>
+
+          {/* 盒型做工成本计算 */}
+          <div style={{ marginBottom: "15px", padding: "15px", backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>五、盒型做工成本计算</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }} 
+                 dangerouslySetInnerHTML={{ __html: calculationResult.boxCalculationDetail.replace(/<br\/>/g, '<br style="text-align:left"/>') }}>
+            </div>
+          </div>
+
+          {/* 特殊工艺成本计算 */}
+          <div style={{ marginBottom: "15px", padding: "15px", backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>六、特殊工艺成本计算</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }} 
+                 dangerouslySetInnerHTML={{ __html: calculationResult.craftCalculationDetail.replace(/<br\/>/g, '<br style="text-align:left"/>') }}>
+            </div>
+          </div>
+
+          {/* 运输纸箱成本计算 */}
+          <div style={{ marginBottom: "15px", padding: "15px", backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>七、运输纸箱成本计算</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }} 
+                 dangerouslySetInnerHTML={{ __html: calculationResult.cartonCalculationDetail.replace(/<br\/>/g, '<br style="text-align:left"/>') }}>
+            </div>
+          </div>
+
+          {/* 刀版+模具成本计算 */}
+          <div style={{ marginBottom: "15px", padding: "15px", backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>八、刀版+模具成本计算</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }} 
+                 dangerouslySetInnerHTML={{ __html: calculationResult.moldCalculationDetail.replace(/<br\/>/g, '<br style="text-align:left"/>') }}>
+            </div>
+          </div>
+
+          {/* 税费计算 */}
+          <div style={{ marginBottom: "15px", padding: "15px", backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>九、税费计算</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }}>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>不含税总价：¥{calculationResult.totalCostBeforeTax}</p>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>税率：{calculationResult.details.tax.rate}%</p>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>税额 = 不含税总价 × 税率 = ¥{calculationResult.totalCostBeforeTax} × {calculationResult.details.tax.rate}% = ¥{calculationResult.details.tax.amount}</p>
+              <p style={{ margin: "5px 0", fontWeight: "bold", textAlign: "left" }}>含税总价 = 不含税总价 + 税额 = ¥{calculationResult.totalCostBeforeTax} + ¥{calculationResult.details.tax.amount} = ¥{calculationResult.totalCost}</p>
+            </div>
+          </div>
+
+          {/* 总成本汇总 */}
+          <div style={{ padding: "15px", backgroundColor: "#f8f8f8", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>十、总成本汇总</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }}>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>灰板成本：¥{calculationResult.details.board.total}</p>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>面纸成本：¥{calculationResult.details.paper.total}</p>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>内衬成本（含孔位）：¥{calculationResult.details.liner.total}</p>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>盒型做工成本：¥{calculationResult.details.box.total}</p>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>特殊工艺成本：¥{calculationResult.details.craft.total}</p>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>运输纸箱成本：¥{calculationResult.details.carton.total}</p>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>刀版+模具成本：¥{calculationResult.details.mold.total}</p>
+              <p style={{ margin: "5px 0", textAlign: "left", fontWeight: "bold" }}>不含税总成本：¥{calculationResult.totalCostBeforeTax}</p>
+              <p style={{ margin: "5px 0", textAlign: "left", fontWeight: "bold" }}>税额：¥{calculationResult.details.tax.amount}（税率{calculationResult.details.tax.rate}%）</p>
+              <hr style={{ margin: "10px 0", border: "none", borderTop: "1px dashed #ccc" }} />
+              <p style={{ margin: "5px 0", fontSize: "16px", fontWeight: "bold", color: "#e91e63", textAlign: "left" }}>
+                含税总成本 = ¥{calculationResult.totalCost}
+              </p>
+              <p style={{ margin: "5px 0", fontSize: "14px", textAlign: "left" }}>
+                单个成本（含税） = 含税总成本 ÷ 数量 = ¥{calculationResult.totalCost} ÷ {orderInfo.qty || 1} = ¥{calculationResult.unitCost}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default GiftBoxQuoteCalculator;
