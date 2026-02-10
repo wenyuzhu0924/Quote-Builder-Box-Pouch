@@ -586,7 +586,7 @@ export default function SurveyPage() {
                 <AccordionContent className="pb-4">
                   <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
-                      数码印刷支持的袋型。包含三边封、自立袋、中封袋、风琴袋、八边封、卷膜、异形袋等。
+                      数码印刷支持的袋型。包含三边封、自立袋、中封袋、风琴袋、八边封、异形袋等。
                     </p>
                     
                     <div className="border rounded-lg overflow-hidden">
@@ -956,7 +956,7 @@ export default function SurveyPage() {
                 <AccordionContent className="pb-4">
                   <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
-                      热封层材料包括PE、PLA、CPP、APE等。袋子最少包含2层印刷层和热封层；卷膜可以只选1层。
+                      热封层材料包括PE、PLA、CPP、APE等。袋子最少包含2层印刷层和热封层。
                     </p>
                     
                     <div className="border rounded-lg overflow-x-auto">

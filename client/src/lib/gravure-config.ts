@@ -157,18 +157,6 @@ export const BAG_TYPES: Record<BagType, BagTypeConfig> = {
     bagMakingFormula: "(0.09 × 袋宽(m)) + 0.018",
     areaFormula: "{ (高 + 底插入)×2 + 0.03 } × (宽 + 0.005)",
   },
-  rollFilm: {
-    name: "rollFilm",
-    nameZh: "卷膜",
-    description: "按kg计价：材料+印刷+复合+分切",
-    requiredDimensions: ["width"],
-    wasteCoefficient: 1.10,
-    wasteFee: 150,
-    bagMakingRate: 0.05,
-    bagMakingUnit: "area",
-    bagMakingFormula: "0.05元/㎡（分切费）",
-    areaFormula: "按kg计价，不按袋展开面积",
-  },
 };
 
 export const PRINT_COVERAGE: Record<PrintCoverage, { label: string; labelShort: string; price: number; description: string }> = {

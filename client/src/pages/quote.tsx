@@ -392,10 +392,6 @@ export default function QuotePage() {
         unfoldedLengthMM = h * 2 + sg * 2;
         unfoldedWidthMM = w + sg * 2;
         break;
-      case "rollFilm":
-        unfoldedLengthMM = h;
-        unfoldedWidthMM = w;
-        break;
       case "shapedBag":
         unfoldedLengthMM = h * 2 * areaCoef;
         unfoldedWidthMM = w;
@@ -608,8 +604,6 @@ export default function QuotePage() {
           unfoldedWidthMm = w * 2 + 10; unfoldedHeightMm = h + 5; break;
         case "taperShape":
           unfoldedWidthMm = (h + bi) * 2 + 30; unfoldedHeightMm = w + 5; break;
-        case "rollFilm":
-          unfoldedWidthMm = w; unfoldedHeightMm = 1; break;
       }
     }
     return { unfoldedWidthMm, unfoldedHeightMm };
@@ -657,13 +651,9 @@ export default function QuotePage() {
         case "taperShape":
           area = ((h + bi) * 2 + 0.03) * (w + 0.005);
           break;
-        case "rollFilm":
-          area = 1;
-          break;
       }
     }
 
-    const isRollFilm = selectedBagType?.id === "rollFilm";
     const { unfoldedWidthMm } = getUnfoldedDimensions(dimensions, selectedBagType);
 
     let frontBackBottomArea = area;
@@ -733,11 +723,7 @@ export default function QuotePage() {
     }
 
     let makingCostPerUnit = 0;
-    if (isRollFilm) {
-      makingCostPerUnit = selectedBagType?.makingCostFormula
-        ? parseFloat(selectedBagType.makingCostFormula) || 0
-        : 0.05;
-    } else if (selectedBagType?.makingCostFormula) {
+    if (selectedBagType?.makingCostFormula) {
       makingCostPerUnit = parseMakingCostFormula(selectedBagType.makingCostFormula, {
         width: w, height: h, bottomInsert: bi, sideExpansion: se, backSeal: bs
       });
@@ -745,14 +731,12 @@ export default function QuotePage() {
 
     let postProcessingCostPerUnit = 0;
     const widthM = toNum(String(dimensions.width)) / 1000;
-    if (!isRollFilm) {
-      Object.entries(selectedPostProcessing).forEach(([id, isSelected]) => {
-        if (!isSelected) return;
-        const opt = config.postProcessingOptions.find(o => o.id === id);
-        if (!opt) return;
-        postProcessingCostPerUnit += calcPostProcessingCost(opt, widthM, area, selectedBagType?.id, selectedSpecs[id]);
-      });
-    }
+    Object.entries(selectedPostProcessing).forEach(([id, isSelected]) => {
+      if (!isSelected) return;
+      const opt = config.postProcessingOptions.find(o => o.id === id);
+      if (!opt) return;
+      postProcessingCostPerUnit += calcPostProcessingCost(opt, widthM, area, selectedBagType?.id, selectedSpecs[id]);
+    });
 
     const plateCost = plateConfig.plateLength * plateConfig.plateCircumference * plateConfig.colorCount * plateConfig.pricePerSqcm;
     const setupFee = _qty < 10000 ? Math.min(200 * plateConfig.colorCount, 1800) : 0;
@@ -768,26 +752,7 @@ export default function QuotePage() {
 
     const wasteCoefficient = selectedBagType?.wasteCoefficient || 1.1;
 
-    let weightPerSqmGrams = 0;
-    if (isRollFilm) {
-      materialLayers.forEach((layer) => {
-        if (layer.density === 0 || layer.density === undefined) {
-          weightPerSqmGrams += layer.thickness;
-        } else {
-          weightPerSqmGrams += layer.thickness * layer.density;
-        }
-      });
-    }
-    const weightPerSqmKg = weightPerSqmGrams / 1000;
-
-    const costPerSqm = materialCostPerUnit + printCostPerUnit + laminationCostPerUnit + makingCostPerUnit + postProcessingCostPerUnit;
-
-    let costPerKg = 0;
-    if (isRollFilm && weightPerSqmKg > 0) {
-      costPerKg = costPerSqm / weightPerSqmKg;
-    }
-
-    const baseCostPerUnit = isRollFilm ? costPerKg : (materialCostPerUnit + printCostPerUnit + laminationCostPerUnit + makingCostPerUnit + postProcessingCostPerUnit);
+    const baseCostPerUnit = materialCostPerUnit + printCostPerUnit + laminationCostPerUnit + makingCostPerUnit + postProcessingCostPerUnit;
     const costWithWaste = baseCostPerUnit * wasteCoefficient;
     const costWithQuantity = costWithWaste * quantityCoefficient;
     const profitMultiplier = 1 + _profit / 100;
@@ -832,11 +797,6 @@ export default function QuotePage() {
       withPlateFreightTaxUnit,
       withPlateFreightTaxTotal,
       isEightSideDiff: _isEightSideDiff,
-      isRollFilm,
-      costPerSqm,
-      costPerKg,
-      weightPerSqmGrams,
-      weightPerSqmKg,
     };
   }, [
     dimensions,
@@ -1517,7 +1477,7 @@ export default function QuotePage() {
                 ))}
                 <div>
                   <Label className="text-sm text-muted-foreground mb-2 block">
-                    {selectedBagType?.id === "rollFilm" ? "数量 (kg)" : "数量 (个)"}
+                    数量 (个)
                   </Label>
                   <Input
                     type="number"
@@ -1973,7 +1933,6 @@ export default function QuotePage() {
             </Card>
           )}
 
-          {selectedBagType?.id !== "rollFilm" && (
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-lg">附加工艺（可多选）</CardTitle>
@@ -2087,7 +2046,6 @@ export default function QuotePage() {
               )}
             </CardContent>
           </Card>
-          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
@@ -2214,9 +2172,8 @@ export default function QuotePage() {
             const f2 = (n: number) => n.toFixed(2);
             const usd = (cny: number) => cny / (toNum(String(exchangeRate)) || 1);
             const gc = gravureCosts;
-            const priceUnit = gc.isRollFilm ? "元/kg" : "元/个";
-            const priceUnitEn = gc.isRollFilm ? "USD/kg" : "USD/pc";
-            const perSqmUnit = "元/㎡";
+            const priceUnit = "元/个";
+            const priceUnitEn = "USD/pc";
 
             return (
               <Card>
@@ -2306,49 +2263,33 @@ export default function QuotePage() {
                     </div>
                   </div>
 
-                  {gc.isRollFilm && (
-                    <div className="p-3 rounded-md border bg-muted/30 text-sm">
-                      <div className="font-medium mb-1">卷膜参数</div>
-                      <div>克重合计：{f2(gc.weightPerSqmGrams)} g/㎡ = {f4(gc.weightPerSqmKg)} kg/㎡</div>
-                      <div>每平方米成本：{f4(gc.costPerSqm)} {perSqmUnit}</div>
-                      <div>每公斤成本：{f4(gc.costPerKg)} 元/kg（= 每㎡成本 ÷ 每㎡重量）</div>
-                    </div>
-                  )}
-
-                  <div className={`grid ${gc.isRollFilm ? "grid-cols-4" : "grid-cols-5"} gap-3 text-sm`} data-testid="cost-breakdown-grid">
+                  <div className="grid grid-cols-5 gap-3 text-sm" data-testid="cost-breakdown-grid">
                     <div className="p-3 rounded-md border" data-testid="cost-material">
                       <div className="text-muted-foreground">材料</div>
-                      <div className="font-semibold" data-testid="text-cost-material">{f4(gc.materialCostPerUnit)} {gc.isRollFilm ? perSqmUnit : "元"}</div>
+                      <div className="font-semibold" data-testid="text-cost-material">{f4(gc.materialCostPerUnit)} 元</div>
                     </div>
                     <div className="p-3 rounded-md border" data-testid="cost-print">
                       <div className="text-muted-foreground">印刷</div>
-                      <div className="font-semibold" data-testid="text-cost-print">{f4(gc.printCostPerUnit)} {gc.isRollFilm ? perSqmUnit : "元"}</div>
+                      <div className="font-semibold" data-testid="text-cost-print">{f4(gc.printCostPerUnit)} 元</div>
                     </div>
                     <div className="p-3 rounded-md border" data-testid="cost-lamination">
                       <div className="text-muted-foreground">复合</div>
-                      <div className="font-semibold" data-testid="text-cost-lamination">{f4(gc.laminationCostPerUnit)} {gc.isRollFilm ? perSqmUnit : "元"}</div>
+                      <div className="font-semibold" data-testid="text-cost-lamination">{f4(gc.laminationCostPerUnit)} 元</div>
                     </div>
                     <div className="p-3 rounded-md border" data-testid="cost-making">
-                      <div className="text-muted-foreground">{gc.isRollFilm ? "分切" : "制袋"}</div>
-                      <div className="font-semibold" data-testid="text-cost-making">{f4(gc.makingCostPerUnit)} {gc.isRollFilm ? perSqmUnit : "元"}</div>
+                      <div className="text-muted-foreground">制袋</div>
+                      <div className="font-semibold" data-testid="text-cost-making">{f4(gc.makingCostPerUnit)} 元</div>
                     </div>
-                    {!gc.isRollFilm && (
-                      <div className="p-3 rounded-md border" data-testid="cost-postprocess">
-                        <div className="text-muted-foreground">后加工</div>
-                        <div className="font-semibold" data-testid="text-cost-postprocess">{f4(gc.postProcessingCostPerUnit)} 元</div>
-                      </div>
-                    )}
+                    <div className="p-3 rounded-md border" data-testid="cost-postprocess">
+                      <div className="text-muted-foreground">后加工</div>
+                      <div className="font-semibold" data-testid="text-cost-postprocess">{f4(gc.postProcessingCostPerUnit)} 元</div>
+                    </div>
                   </div>
 
                   <div className="text-xs md:text-sm space-y-2 p-4 bg-muted/30 rounded-lg" data-testid="calculation-detail">
                     <div className="font-medium text-base mb-3">计算明细</div>
 
-                    <div className="font-medium">一、材料成本（合计 {f4(gc.materialCostPerUnit)} {gc.isRollFilm ? "元/㎡" : "元/个"}）</div>
-                    {gc.isRollFilm && (
-                      <div className="pl-5 text-muted-foreground mb-1">
-                        卷膜按 1㎡ 为基准计算材料/印刷/复合/分切成本，再转换为 元/kg
-                      </div>
-                    )}
+                    <div className="font-medium">一、材料成本（合计 {f4(gc.materialCostPerUnit)} 元/个）</div>
                     {gc.isEightSideDiff && (
                       <div className="pl-5 text-muted-foreground mb-1">
                         八边封分区：正背底面积 {f4(gc.frontBackBottomArea)}㎡ + 两侧面积 {f4(gc.twoSideArea)}㎡ = 总 {f4(gc.area)}㎡
@@ -2451,8 +2392,8 @@ export default function QuotePage() {
                         }
                         return (
                           <>
-                            公式：印刷 = {gc.isRollFilm ? "1㎡" : "展开面积"} × 覆盖单价<br />
-                            代入：{f4(gc.area)} ㎡ × {pricePerSqm} 元/㎡ = <b>{f4(gc.printCostPerUnit)} {gc.isRollFilm ? "元/㎡" : "元/个"}</b>
+                            公式：印刷 = 展开面积 × 覆盖单价<br />
+                            代入：{f4(gc.area)} ㎡ × {pricePerSqm} 元/㎡ = <b>{f4(gc.printCostPerUnit)} 元/个</b>
                           </>
                         );
                       })()}
@@ -2484,24 +2425,20 @@ export default function QuotePage() {
                         }
                         return (
                           <>
-                            公式：复合 = {gc.isRollFilm ? "1㎡" : "展开面积"} × (各步单价之和)<br />
+                            公式：复合 = 展开面积 × (各步单价之和)<br />
                             {stepDetails.map((d, i) => (
                               <span key={i}>{i > 0 ? " + " : ""}{d.label} {d.price}元/㎡</span>
                             ))}
                             {" = "}{laminationSum} 元/㎡<br />
-                            代入：{f4(gc.area)} ㎡ × {laminationSum} = <b>{f4(gc.laminationCostPerUnit)} {gc.isRollFilm ? "元/㎡" : "元/个"}</b>
+                            代入：{f4(gc.area)} ㎡ × {laminationSum} = <b>{f4(gc.laminationCostPerUnit)} 元/个</b>
                           </>
                         );
                       })()}
                     </div>
 
-                    <div className="font-medium mt-3">四、{gc.isRollFilm ? "分切成本" : "制袋成本"}</div>
+                    <div className="font-medium mt-3">四、制袋成本</div>
                     <div className="pl-5">
-                      {gc.isRollFilm ? (
-                        <>
-                          分切费 = <b>{f4(gc.makingCostPerUnit)} 元/㎡</b>
-                        </>
-                      ) : selectedBagType?.makingCostFormula ? (
+                      {selectedBagType?.makingCostFormula ? (
                         <>
                           公式：{selectedBagType.makingCostFormula}<br />
                           代入尺寸：袋宽={toNum(String(dimensions.width)) / 1000}m 袋高={toNum(String(dimensions.height)) / 1000}m
@@ -2516,88 +2453,55 @@ export default function QuotePage() {
                       )}
                     </div>
 
-                    {!gc.isRollFilm && (
-                      <>
-                        <div className="font-medium mt-3">五、后加工成本</div>
-                        <div className="pl-5">
-                          {Object.entries(selectedPostProcessing).filter(([, v]) => v).length === 0 ? (
-                            <>未选择后加工，后加工费 = <b>0 元/个</b></>
-                          ) : (
-                            <ul className="list-disc pl-5 space-y-1">
-                              {Object.entries(selectedPostProcessing).filter(([, v]) => v).map(([id]) => {
-                                const opt = config.postProcessingOptions.find(o => o.id === id);
-                                if (!opt) return null;
-                                const _wM = toNum(String(dimensions.width)) / 1000;
-                                const _cost = calcPostProcessingCost(opt, _wM, gravureCosts.area, selectedBagType?.id, selectedSpecs[id]);
-                                return (
-                                  <li key={id}>
-                                    {opt.name}
-                                    {opt.pricingType === "specSelection" && selectedSpecs[id] && (
-                                      <span className="text-muted-foreground"> ({selectedSpecs[id]})</span>
-                                    )}
-                                    {opt.pricingType !== "free" && (
-                                      <span>：{_cost.toFixed(4)} 元/个</span>
-                                    )}
-                                    {opt.pricingType === "free" && (
-                                      <span className="text-muted-foreground">（免费）</span>
-                                    )}
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          )}
-                          合计后加工 = <b>{f4(gc.postProcessingCostPerUnit)} 元/个</b>
-                        </div>
-                      </>
-                    )}
+                    <div className="font-medium mt-3">五、后加工成本</div>
+                    <div className="pl-5">
+                      {Object.entries(selectedPostProcessing).filter(([, v]) => v).length === 0 ? (
+                        <>未选择后加工，后加工费 = <b>0 元/个</b></>
+                      ) : (
+                        <ul className="list-disc pl-5 space-y-1">
+                          {Object.entries(selectedPostProcessing).filter(([, v]) => v).map(([id]) => {
+                            const opt = config.postProcessingOptions.find(o => o.id === id);
+                            if (!opt) return null;
+                            const _wM = toNum(String(dimensions.width)) / 1000;
+                            const _cost = calcPostProcessingCost(opt, _wM, gravureCosts.area, selectedBagType?.id, selectedSpecs[id]);
+                            return (
+                              <li key={id}>
+                                {opt.name}
+                                {opt.pricingType === "specSelection" && selectedSpecs[id] && (
+                                  <span className="text-muted-foreground"> ({selectedSpecs[id]})</span>
+                                )}
+                                {opt.pricingType !== "free" && (
+                                  <span>：{_cost.toFixed(4)} 元/个</span>
+                                )}
+                                {opt.pricingType === "free" && (
+                                  <span className="text-muted-foreground">（免费）</span>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                      合计后加工 = <b>{f4(gc.postProcessingCostPerUnit)} 元/个</b>
+                    </div>
 
-                    {gc.isRollFilm ? (
-                      <>
-                        <div className="font-medium mt-3 pt-3 border-t">五、平方米成本与公斤转换</div>
-                        <div className="pl-5 space-y-1">
-                          <div data-testid="text-base-cost">
-                            每㎡成本 = 材料 + 印刷 + 复合 + 分切<br />
-                            = {f4(gc.materialCostPerUnit)} + {f4(gc.printCostPerUnit)} + {f4(gc.laminationCostPerUnit)} + {f4(gc.makingCostPerUnit)} = <b>{f4(gc.costPerSqm)} 元/㎡</b>
-                          </div>
-                          <div>
-                            克重合计 = {f2(gc.weightPerSqmGrams)} g/㎡ = {f4(gc.weightPerSqmKg)} kg/㎡
-                          </div>
-                          <div>
-                            每kg成本 = {f4(gc.costPerSqm)} ÷ {f4(gc.weightPerSqmKg)} = <b>{f4(gc.costPerKg)} 元/kg</b>
-                          </div>
-                          <div data-testid="text-waste-coeff">
-                            × 损耗系数 {gc.wasteCoefficient.toFixed(2)} = {f4(gc.costWithWaste)} 元/kg
-                          </div>
-                          <div data-testid="text-qty-coeff">
-                            × 数量系数 {gc.quantityCoefficient.toFixed(2)} = {f4(gc.costWithQuantity)} 元/kg
-                          </div>
-                          <div data-testid="text-profit-coeff">
-                            × 利润系数 {gc.profitMultiplier.toFixed(2)} = <b>{f4(gc.exFactoryUnit)} 元/kg</b>（出厂价）
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="font-medium mt-3 pt-3 border-t">六、单价合计与系数</div>
-                        <div className="pl-5 space-y-1">
-                          <div data-testid="text-base-cost">
-                            基础单价 = 材料 + 印刷 + 复合 + 制袋 + 后加工<br />
-                            = {f4(gc.materialCostPerUnit)} + {f4(gc.printCostPerUnit)} + {f4(gc.laminationCostPerUnit)} + {f4(gc.makingCostPerUnit)} + {f4(gc.postProcessingCostPerUnit)} = <b>{f4(gc.baseCostPerUnit)} 元/个</b>
-                          </div>
-                          <div data-testid="text-waste-coeff">
-                            × 损耗系数 {gc.wasteCoefficient.toFixed(2)} = {f4(gc.costWithWaste)} 元/个
-                          </div>
-                          <div data-testid="text-qty-coeff">
-                            × 数量系数 {gc.quantityCoefficient.toFixed(2)} = {f4(gc.costWithQuantity)} 元/个
-                          </div>
-                          <div data-testid="text-profit-coeff">
-                            × 利润系数 {gc.profitMultiplier.toFixed(2)} = <b>{f4(gc.exFactoryUnit)} 元/个</b>（出厂价）
-                          </div>
-                        </div>
-                      </>
-                    )}
+                    <div className="font-medium mt-3 pt-3 border-t">六、单价合计与系数</div>
+                    <div className="pl-5 space-y-1">
+                      <div data-testid="text-base-cost">
+                        基础单价 = 材料 + 印刷 + 复合 + 制袋 + 后加工<br />
+                        = {f4(gc.materialCostPerUnit)} + {f4(gc.printCostPerUnit)} + {f4(gc.laminationCostPerUnit)} + {f4(gc.makingCostPerUnit)} + {f4(gc.postProcessingCostPerUnit)} = <b>{f4(gc.baseCostPerUnit)} 元/个</b>
+                      </div>
+                      <div data-testid="text-waste-coeff">
+                        × 损耗系数 {gc.wasteCoefficient.toFixed(2)} = {f4(gc.costWithWaste)} 元/个
+                      </div>
+                      <div data-testid="text-qty-coeff">
+                        × 数量系数 {gc.quantityCoefficient.toFixed(2)} = {f4(gc.costWithQuantity)} 元/个
+                      </div>
+                      <div data-testid="text-profit-coeff">
+                        × 利润系数 {gc.profitMultiplier.toFixed(2)} = <b>{f4(gc.exFactoryUnit)} 元/个</b>（出厂价）
+                      </div>
+                    </div>
 
-                    <div className="font-medium mt-3 pt-3 border-t">{gc.isRollFilm ? "六" : "七"}、版费与上机费</div>
+                    <div className="font-medium mt-3 pt-3 border-t">七、版费与上机费</div>
                     <div className="pl-5 space-y-1">
                       <div data-testid="text-plate-cost">
                         版费 = 版长 {plateConfig.plateLength}cm × 版周 {plateConfig.plateCircumference}cm × {plateConfig.colorCount}色 × {plateConfig.pricePerSqcm} 元/cm² = <b>{f2(gc.plateCost)} 元</b>
@@ -2610,7 +2514,7 @@ export default function QuotePage() {
                       </div>
                     </div>
 
-                    <div className="font-medium mt-3 pt-3 border-t">{gc.isRollFilm ? "七" : "八"}、最终价格推导</div>
+                    <div className="font-medium mt-3 pt-3 border-t">八、最终价格推导</div>
                     <div className="pl-5 space-y-1">
                       <div data-testid="text-exfactory-derivation">出厂单价 = <b>{f4(gc.exFactoryUnit)}</b> {priceUnit} → 总 {f2(gc.exFactoryTotal)} 元</div>
                       <div data-testid="text-freight-derivation">+ 运费 3% → 含运单价 = {f4(gc.exFactoryUnit)} × 1.03 = <b>{f4(gc.withFreightUnit)}</b> {priceUnit} → 总 {f2(gc.withFreightTotal)} 元</div>
