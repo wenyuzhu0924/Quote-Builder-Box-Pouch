@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { useQuote, type CustomMaterial, type PrintingPriceRule, type LaminationPriceRule, type PostProcessingOptionConfig, type QuantityDiscountRule, type CustomBagType, type DigitalMaterial, type DigitalSpecialProcess, type DigitalZipperType, type DigitalValveType, type DigitalAccessory, type DigitalPrintingTier, parseDimensionsFromFormula } from "@/lib/quote-store";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuote, type CustomMaterial, type PrintingPriceRule, type LaminationPriceRule, type PostProcessingOptionConfig, type PostProcessingPricingType, type BagTypePrice, type SpecOption, type QuantityDiscountRule, type CustomBagType, type DigitalMaterial, type DigitalSpecialProcess, type DigitalZipperType, type DigitalValveType, type DigitalAccessory, type DigitalPrintingTier, parseDimensionsFromFormula } from "@/lib/quote-store";
 
 export default function SurveyPage() {
   const [, navigate] = useLocation();
@@ -36,7 +37,7 @@ export default function SurveyPage() {
   });
 
   const [newLamination, setNewLamination] = useState({ name: "", pricePerSqm: 0 });
-  const [newPostProcessing, setNewPostProcessing] = useState({ name: "", priceFormula: "" });
+  const [newPostProcessing, setNewPostProcessing] = useState({ name: "" });
 
   const [newDigitalMaterial, setNewDigitalMaterial] = useState<Partial<DigitalMaterial>>({
     name: "",
@@ -177,10 +178,10 @@ export default function SurveyPage() {
     });
   };
 
-  const updatePostProcessingFormula = (id: string, formula: string) => {
+  const updatePostProcessingField = (id: string, field: string, value: any) => {
     updateConfig({
       postProcessingOptions: config.postProcessingOptions.map((opt) =>
-        opt.id === id ? { ...opt, priceFormula: formula } : opt
+        opt.id === id ? { ...opt, [field]: value } : opt
       ),
     });
   };
@@ -199,11 +200,12 @@ export default function SurveyPage() {
       id: `pp_${Date.now()}`,
       name: newPostProcessing.name,
       enabled: true,
-      priceFormula: newPostProcessing.priceFormula,
+      pricingType: "fixed",
+      fixedPrice: 0,
       description: "",
     };
     updateConfig({ postProcessingOptions: [...config.postProcessingOptions, option] });
-    setNewPostProcessing({ name: "", priceFormula: "" });
+    setNewPostProcessing({ name: "" });
   };
 
   const removePostProcessing = (id: string) => {
@@ -2315,46 +2317,231 @@ export default function SurveyPage() {
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    勾选需要包含在报价器中的后处理选项，并配置价格公式。公式预览显示在每行下方。
+                    勾选需要的后处理选项，选择计价方式后填入对应价格参数。
                   </p>
                   <div className="space-y-3">
                     {config.postProcessingOptions.map((option) => (
-                      <div key={option.id} className="border rounded-lg p-4 space-y-2" data-testid={`postprocess-item-${option.id}`}>
+                      <div key={option.id} className="border rounded-lg p-4 space-y-3" data-testid={`postprocess-item-${option.id}`}>
                         <div className="flex items-center gap-3">
                           <Checkbox
                             checked={option.enabled}
                             onCheckedChange={() => togglePostProcessing(option.id)}
                             data-testid={`postprocess-${option.id}`}
                           />
-                          <div className="flex-1 flex items-center gap-3 flex-wrap">
-                            <Input
-                              value={option.name}
-                              onChange={(e) => updatePostProcessingName(option.id, e.target.value)}
-                              className="w-[180px]"
-                            />
-                            <Input
-                              value={option.priceFormula}
-                              onChange={(e) => updatePostProcessingFormula(option.id, e.target.value)}
-                              placeholder="价格公式说明"
-                              className="flex-1 min-w-[300px]"
-                            />
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removePostProcessing(option.id)}
-                              className="text-destructive shrink-0"
-                              data-testid={`remove-postprocess-${option.id}`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          <Input
+                            value={option.name}
+                            onChange={(e) => updatePostProcessingName(option.id, e.target.value)}
+                            className="w-[160px]"
+                          />
+                          <Select
+                            value={option.pricingType}
+                            onValueChange={(val) => updatePostProcessingField(option.id, "pricingType", val as PostProcessingPricingType)}
+                          >
+                            <SelectTrigger className="w-[180px]" data-testid={`pricing-type-${option.id}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="fixed">固定单价 (元/个)</SelectItem>
+                              <SelectItem value="perMeterWidth">按米×袋宽 (元/米)</SelectItem>
+                              <SelectItem value="perArea">按展开面积 (元/㎡)</SelectItem>
+                              <SelectItem value="perMeterWidthByBagType">按袋型分价×袋宽</SelectItem>
+                              <SelectItem value="free">免费 (标配)</SelectItem>
+                              <SelectItem value="specSelection">按规格选择</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removePostProcessing(option.id)}
+                            className="text-destructive shrink-0"
+                            data-testid={`remove-postprocess-${option.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
-                        {option.priceFormula && (
-                          <div className="ml-8 bg-muted/50 rounded-md px-3 py-2">
-                            <span className="text-xs text-muted-foreground">计算公式：</span>
-                            <span className="text-sm font-mono ml-2">{option.priceFormula}</span>
-                          </div>
-                        )}
+
+                        <div className="ml-8">
+                          {option.pricingType === "fixed" && (
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Label className="text-sm text-muted-foreground shrink-0">单价</Label>
+                              <Input
+                                type="number"
+                                value={option.fixedPrice ?? ""}
+                                onChange={(e) => updatePostProcessingField(option.id, "fixedPrice", e.target.value === "" ? "" : parseFloat(e.target.value))}
+                                className="w-[120px]"
+                                data-testid={`price-fixed-${option.id}`}
+                              />
+                              <span className="text-sm text-muted-foreground">元/个</span>
+                            </div>
+                          )}
+
+                          {option.pricingType === "perMeterWidth" && (
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Label className="text-sm text-muted-foreground shrink-0">每米单价</Label>
+                              <Input
+                                type="number"
+                                value={option.pricePerMeter ?? ""}
+                                onChange={(e) => updatePostProcessingField(option.id, "pricePerMeter", e.target.value === "" ? "" : parseFloat(e.target.value))}
+                                className="w-[120px]"
+                                data-testid={`price-permeter-${option.id}`}
+                              />
+                              <span className="text-sm text-muted-foreground">元/米 × 袋宽(m)</span>
+                            </div>
+                          )}
+
+                          {option.pricingType === "perArea" && (
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Label className="text-sm text-muted-foreground shrink-0">每平方米</Label>
+                              <Input
+                                type="number"
+                                value={option.pricePerSqm ?? ""}
+                                onChange={(e) => updatePostProcessingField(option.id, "pricePerSqm", e.target.value === "" ? "" : parseFloat(e.target.value))}
+                                className="w-[100px]"
+                                data-testid={`price-persqm-${option.id}`}
+                              />
+                              <span className="text-sm text-muted-foreground">元/㎡</span>
+                              <Label className="text-sm text-muted-foreground shrink-0 ml-3">+ 固定附加</Label>
+                              <Input
+                                type="number"
+                                value={option.fixedAddition ?? ""}
+                                onChange={(e) => updatePostProcessingField(option.id, "fixedAddition", e.target.value === "" ? "" : parseFloat(e.target.value))}
+                                className="w-[100px]"
+                                data-testid={`price-fixedadd-${option.id}`}
+                              />
+                              <span className="text-sm text-muted-foreground">元/个</span>
+                            </div>
+                          )}
+
+                          {option.pricingType === "perMeterWidthByBagType" && (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Label className="text-sm text-muted-foreground shrink-0">默认单价</Label>
+                                <Input
+                                  type="number"
+                                  value={option.defaultPricePerMeter ?? ""}
+                                  onChange={(e) => updatePostProcessingField(option.id, "defaultPricePerMeter", e.target.value === "" ? "" : parseFloat(e.target.value))}
+                                  className="w-[120px]"
+                                  data-testid={`price-default-${option.id}`}
+                                />
+                                <span className="text-sm text-muted-foreground">元/米 × 袋宽(m)</span>
+                              </div>
+                              <div className="text-xs text-muted-foreground">特殊袋型单独定价：</div>
+                              {(option.bagTypePrices || []).map((btp, idx) => (
+                                <div key={idx} className="flex items-center gap-2 flex-wrap">
+                                  <Input
+                                    value={btp.bagTypeName}
+                                    onChange={(e) => {
+                                      const updated = [...(option.bagTypePrices || [])];
+                                      updated[idx] = { ...updated[idx], bagTypeName: e.target.value };
+                                      updatePostProcessingField(option.id, "bagTypePrices", updated);
+                                    }}
+                                    className="w-[100px]"
+                                    placeholder="袋型名"
+                                  />
+                                  <Input
+                                    value={btp.bagTypeId}
+                                    onChange={(e) => {
+                                      const updated = [...(option.bagTypePrices || [])];
+                                      updated[idx] = { ...updated[idx], bagTypeId: e.target.value };
+                                      updatePostProcessingField(option.id, "bagTypePrices", updated);
+                                    }}
+                                    className="w-[120px]"
+                                    placeholder="袋型ID"
+                                  />
+                                  <Input
+                                    type="number"
+                                    value={btp.pricePerMeter ?? ""}
+                                    onChange={(e) => {
+                                      const updated = [...(option.bagTypePrices || [])];
+                                      updated[idx] = { ...updated[idx], pricePerMeter: e.target.value === "" ? "" : parseFloat(e.target.value) };
+                                      updatePostProcessingField(option.id, "bagTypePrices", updated);
+                                    }}
+                                    className="w-[100px]"
+                                  />
+                                  <span className="text-sm text-muted-foreground">元/米</span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      const updated = (option.bagTypePrices || []).filter((_, i) => i !== idx);
+                                      updatePostProcessingField(option.id, "bagTypePrices", updated);
+                                    }}
+                                    className="text-destructive"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              ))}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const updated = [...(option.bagTypePrices || []), { bagTypeId: "", bagTypeName: "", pricePerMeter: 0 }];
+                                  updatePostProcessingField(option.id, "bagTypePrices", updated);
+                                }}
+                              >
+                                <Plus className="w-3 h-3 mr-1" /> 添加袋型价格
+                              </Button>
+                            </div>
+                          )}
+
+                          {option.pricingType === "free" && (
+                            <div className="text-sm text-muted-foreground">标配免费，不计入成本</div>
+                          )}
+
+                          {option.pricingType === "specSelection" && (
+                            <div className="space-y-2">
+                              <div className="text-xs text-muted-foreground">报价时用户从下拉框选择规格，自动带入对应单价：</div>
+                              {(option.specOptions || []).map((spec, idx) => (
+                                <div key={idx} className="flex items-center gap-2 flex-wrap">
+                                  <Input
+                                    value={spec.specName}
+                                    onChange={(e) => {
+                                      const updated = [...(option.specOptions || [])];
+                                      updated[idx] = { ...updated[idx], specName: e.target.value };
+                                      updatePostProcessingField(option.id, "specOptions", updated);
+                                    }}
+                                    className="w-[120px]"
+                                    placeholder="规格名称"
+                                  />
+                                  <Input
+                                    type="number"
+                                    value={spec.price ?? ""}
+                                    onChange={(e) => {
+                                      const updated = [...(option.specOptions || [])];
+                                      updated[idx] = { ...updated[idx], price: e.target.value === "" ? "" : parseFloat(e.target.value) };
+                                      updatePostProcessingField(option.id, "specOptions", updated);
+                                    }}
+                                    className="w-[100px]"
+                                    placeholder="单价"
+                                  />
+                                  <span className="text-sm text-muted-foreground">元/个</span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      const updated = (option.specOptions || []).filter((_, i) => i !== idx);
+                                      updatePostProcessingField(option.id, "specOptions", updated);
+                                    }}
+                                    className="text-destructive"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              ))}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const updated = [...(option.specOptions || []), { specName: "", price: 0 }];
+                                  updatePostProcessingField(option.id, "specOptions", updated);
+                                }}
+                              >
+                                <Plus className="w-3 h-3 mr-1" /> 添加规格
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                     <div className="border rounded-lg p-4 border-dashed">
@@ -2367,12 +2554,6 @@ export default function SurveyPage() {
                           className="w-[180px]"
                           data-testid="new-postprocess-name"
                         />
-                        <Input
-                          value={newPostProcessing.priceFormula}
-                          onChange={(e) => setNewPostProcessing({ ...newPostProcessing, priceFormula: e.target.value })}
-                          placeholder="价格公式说明"
-                          className="flex-1 min-w-[300px]"
-                        />
                         <Button
                           variant="ghost"
                           size="icon"
@@ -2381,6 +2562,7 @@ export default function SurveyPage() {
                         >
                           <Plus className="w-4 h-4" />
                         </Button>
+                        <span className="text-xs text-muted-foreground">添加后可选择计价方式</span>
                       </div>
                     </div>
                   </div>

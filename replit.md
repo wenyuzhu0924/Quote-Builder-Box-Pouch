@@ -89,6 +89,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### February 10, 2026 - Post-Processing Structured Pricing Redesign
+- **PostProcessingOptionConfig Restructured**: Replaced natural language `priceFormula` with structured `pricingType` system
+  - 6 pricing types: `fixed` (固定单价), `perMeterWidth` (按米×袋宽), `perArea` (按展开面积), `perMeterWidthByBagType` (按袋型分价×袋宽), `free` (免费标配), `specSelection` (按规格选择)
+  - Each type has dedicated structured fields (fixedPrice, pricePerMeter, pricePerSqm, fixedAddition, defaultPricePerMeter, bagTypePrices[], specOptions[])
+- **Survey Page UI**: Pricing type dropdown for each option, context-dependent input fields appear based on selected type
+  - perMeterWidthByBagType: shows default price + add/remove bag-type-specific override prices
+  - specSelection: shows add/remove spec rows with name and price
+- **Quote Page Calculation**: Universal `calcPostProcessingCost()` function replaces hardcoded if/else chains
+  - Dynamically calculates cost based on pricingType, dimensions, area, and bag type
+  - specSelection type shows dropdown in quote page for user to pick spec
+  - Warning shown when specSelection is checked but no spec is selected
+- **Spout Data Migration**: Spout specs/prices moved from hardcoded SPOUT_PRICES constant into specSelection-type config data
+- **Wire Cost Simplified**: Converted from complex width-based formula to fixed price (user-configurable)
+
 ### January 31, 2026 - Digital Printing Quote Page (Complete)
 - **Digital Quote Page** with 9 major sections:
   - 袋型与尺寸: Bag type dropdown with dynamic dimension fields based on formula

@@ -8,7 +8,38 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuote, type CustomMaterial, type CustomBagType, type DigitalMaterial } from "@/lib/quote-store";
+import { useQuote, type CustomMaterial, type CustomBagType, type DigitalMaterial, type PostProcessingOptionConfig } from "@/lib/quote-store";
+
+function calcPostProcessingCost(
+  opt: PostProcessingOptionConfig,
+  widthM: number,
+  area: number,
+  bagTypeId?: string,
+  selectedSpec?: string,
+): number {
+  switch (opt.pricingType) {
+    case "fixed":
+      return toNum(String(opt.fixedPrice ?? 0));
+    case "perMeterWidth":
+      return toNum(String(opt.pricePerMeter ?? 0)) * widthM;
+    case "perArea":
+      return area * toNum(String(opt.pricePerSqm ?? 0)) + toNum(String(opt.fixedAddition ?? 0));
+    case "perMeterWidthByBagType": {
+      const match = (opt.bagTypePrices || []).find(b => b.bagTypeId === bagTypeId);
+      const pm = match ? toNum(String(match.pricePerMeter)) : toNum(String(opt.defaultPricePerMeter ?? 0));
+      return pm * widthM;
+    }
+    case "free":
+      return 0;
+    case "specSelection": {
+      if (!selectedSpec) return 0;
+      const spec = (opt.specOptions || []).find(s => s.specName === selectedSpec);
+      return spec ? toNum(String(spec.price)) : 0;
+    }
+    default:
+      return 0;
+  }
+}
 
 function numStr(v: number | string): string {
   if (v === "" || v === undefined || v === null) return "";
@@ -20,11 +51,6 @@ function toNum(v: string): number {
   return isNaN(n) ? 0 : n;
 }
 
-const SPOUT_PRICES: Record<string, number> = {
-  "8.2mm": 0.04, "8.6mm": 0.056, "9.6mm": 0.10, "10mm": 0.08,
-  "13mm": 0.12, "15mm": 0.125, "16mm_单卡": 0.145, "16mm_双卡": 0.16,
-  "20mm": 0.24, "22mm": 0.24, "26mm": 0.29, "33mm": 0.34, "40mm": 0.80,
-};
 
 interface SpliceConfig {
   enabled: boolean;
@@ -156,7 +182,7 @@ export default function QuotePage() {
   });
 
   const [profitRate, setProfitRate] = useState<number | string>(10);
-  const [spoutSpec, setSpoutSpec] = useState<string>("");
+  const [selectedSpecs, setSelectedSpecs] = useState<Record<string, string>>({});
 
   if (!state.productType) {
     navigate("/");
@@ -606,40 +632,13 @@ export default function QuotePage() {
     }
 
     let postProcessingCostPerUnit = 0;
+    const widthM = toNum(String(dimensions.width)) / 1000;
     Object.entries(selectedPostProcessing).forEach(([id, isSelected]) => {
       if (!isSelected) return;
-      const widthM = toNum(String(dimensions.width)) / 1000;
-      
-      if (id === "zipper_normal") {
-        postProcessingCostPerUnit += selectedBagType?.id === "eightSide" ? 0.22 * widthM : 0.10 * widthM;
-      } else if (id === "zipper_easyTear") {
-        postProcessingCostPerUnit += selectedBagType?.id === "eightSide" ? 0.47 * widthM : 0.20 * widthM;
-      } else if (id === "zipper_eco") {
-        postProcessingCostPerUnit += 0.50 * widthM;
-      } else if (id === "laserTear") {
-        postProcessingCostPerUnit += 0.2 * widthM;
-      } else if (id === "hotStamp") {
-        postProcessingCostPerUnit += area * 1.2 + 0.02;
-      } else if (id === "wire") {
-        const wireCost = (toNum(String(dimensions.width)) + 40) * 0.00013;
-        const laborCost = toNum(String(dimensions.width)) <= 140 ? 0.024 : 0.026;
-        postProcessingCostPerUnit += wireCost + laborCost;
-      } else if (id === "handle") {
-        postProcessingCostPerUnit += 0.15;
-      } else if (id === "airValve") {
-        postProcessingCostPerUnit += 0.11;
-      } else if (id === "emboss") {
-        postProcessingCostPerUnit += 0.2;
-      } else if (id === "windowCut") {
-        postProcessingCostPerUnit += 0.03;
-      } else if (id === "matteOil") {
-        postProcessingCostPerUnit += area * 0.15;
-      }
+      const opt = config.postProcessingOptions.find(o => o.id === id);
+      if (!opt) return;
+      postProcessingCostPerUnit += calcPostProcessingCost(opt, widthM, area, selectedBagType?.id, selectedSpecs[id]);
     });
-
-    if (selectedPostProcessing["spout"] && spoutSpec) {
-      postProcessingCostPerUnit += SPOUT_PRICES[spoutSpec] || 0;
-    }
 
     const plateCost = plateConfig.plateLength * plateConfig.plateCircumference * plateConfig.colorCount * plateConfig.pricePerSqcm;
     const setupFee = _qty < 10000 ? Math.min(200 * plateConfig.colorCount, 1800) : 0;
@@ -708,7 +707,7 @@ export default function QuotePage() {
     profitRate,
     config,
     selectedBagType,
-    spoutSpec,
+    selectedSpecs,
     exchangeRate,
   ]);
 
@@ -1661,33 +1660,26 @@ export default function QuotePage() {
                 {config.postProcessingOptions
                   .filter((opt) => opt.enabled)
                   .map((option) => {
-                    const widthM = toNum(String(dimensions.width)) / 1000;
-                    let currentCost = 0;
-                    
-                    if (option.id === "zipper_normal") {
-                      currentCost = selectedBagType?.id === "eightSide" ? 0.22 * widthM : 0.10 * widthM;
-                    } else if (option.id === "zipper_easyTear") {
-                      currentCost = selectedBagType?.id === "eightSide" ? 0.47 * widthM : 0.20 * widthM;
-                    } else if (option.id === "zipper_eco") {
-                      currentCost = 0.50 * widthM;
-                    } else if (option.id === "laserTear") {
-                      currentCost = 0.2 * widthM;
-                    } else if (option.id === "hotStamp") {
-                      currentCost = gravureCosts.area * 1.2 + 0.02;
-                    } else if (option.id === "wire") {
-                      const wireCost = (toNum(String(dimensions.width)) + 40) * 0.00013;
-                      const laborCost = toNum(String(dimensions.width)) <= 140 ? 0.024 : 0.026;
-                      currentCost = wireCost + laborCost;
-                    } else if (option.id === "handle") {
-                      currentCost = 0.15;
-                    } else if (option.id === "airValve") {
-                      currentCost = 0.11;
-                    } else if (option.id === "emboss") {
-                      currentCost = 0.2;
-                    } else if (option.id === "windowCut") {
-                      currentCost = 0.03;
-                    } else if (option.id === "matteOil") {
-                      currentCost = gravureCosts.area * 0.15;
+                    const _widthM = toNum(String(dimensions.width)) / 1000;
+                    const currentCost = calcPostProcessingCost(option, _widthM, gravureCosts.area, selectedBagType?.id, selectedSpecs[option.id]);
+
+                    let pricingLabel = "";
+                    if (option.pricingType === "fixed") {
+                      pricingLabel = `${toNum(String(option.fixedPrice ?? 0))} 元/个`;
+                    } else if (option.pricingType === "perMeterWidth") {
+                      pricingLabel = `${toNum(String(option.pricePerMeter ?? 0))} 元/米 x 袋宽`;
+                    } else if (option.pricingType === "perArea") {
+                      pricingLabel = `${toNum(String(option.pricePerSqm ?? 0))} 元/㎡`;
+                      if (toNum(String(option.fixedAddition ?? 0)) > 0) pricingLabel += ` + ${toNum(String(option.fixedAddition ?? 0))}元/个`;
+                    } else if (option.pricingType === "perMeterWidthByBagType") {
+                      pricingLabel = `默认 ${toNum(String(option.defaultPricePerMeter ?? 0))} 元/米 x 袋宽`;
+                      const overrides = (option.bagTypePrices || []).filter(b => b.bagTypeName);
+                      if (overrides.length > 0) pricingLabel += `；${overrides.map(b => `${b.bagTypeName}: ${toNum(String(b.pricePerMeter))}`).join("、")}`;
+                    } else if (option.pricingType === "free") {
+                      pricingLabel = "免费标配";
+                    } else if (option.pricingType === "specSelection") {
+                      const specCount = (option.specOptions || []).length;
+                      pricingLabel = `按规格选择（${specCount}种）`;
                     }
 
                     return (
@@ -1719,12 +1711,14 @@ export default function QuotePage() {
                             />
                             <div className="flex-1 min-w-0">
                               <div className="font-medium">{option.name}</div>
-                              <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                {option.priceFormula}
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {pricingLabel}
                               </div>
-                              <div className="text-sm text-primary mt-2">
-                                当前成本: {currentCost.toFixed(4)} 元/个
-                              </div>
+                              {option.pricingType !== "free" && (
+                                <div className="text-sm text-primary mt-2">
+                                  当前成本: {currentCost.toFixed(4)} 元/个
+                                </div>
+                              )}
                             </div>
                           </div>
                         </CardContent>
@@ -1732,23 +1726,31 @@ export default function QuotePage() {
                     );
                   })}
               </div>
-              {selectedPostProcessing["spout"] && (
-                <div className="mt-4">
-                  <Label className="text-sm mb-2 block">吸嘴规格选择</Label>
-                  <Select value={spoutSpec} onValueChange={setSpoutSpec}>
-                    <SelectTrigger data-testid="select-spout">
-                      <SelectValue placeholder="选择吸嘴规格" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(SPOUT_PRICES).map(([key, price]) => (
-                        <SelectItem key={key} value={key}>
-                          {key.includes('_') ? key.replace('_', '（') + '）' : key} — {price} 元/个
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              {config.postProcessingOptions
+                .filter(opt => opt.enabled && opt.pricingType === "specSelection" && selectedPostProcessing[opt.id])
+                .map(option => (
+                  <div key={option.id} className="mt-4">
+                    <Label className="text-sm mb-2 block">{option.name} - 规格选择</Label>
+                    <Select
+                      value={selectedSpecs[option.id] || ""}
+                      onValueChange={(val) => setSelectedSpecs({ ...selectedSpecs, [option.id]: val })}
+                    >
+                      <SelectTrigger data-testid={`select-spec-${option.id}`}>
+                        <SelectValue placeholder={`选择${option.name}规格`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(option.specOptions || []).map((spec) => (
+                          <SelectItem key={spec.specName} value={spec.specName}>
+                            {spec.specName} - {toNum(String(spec.price))} 元/个
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {!selectedSpecs[option.id] && (
+                      <p className="text-xs text-destructive mt-1">请选择规格，否则该项成本按0计算</p>
+                    )}
+                  </div>
+                ))}
               {Object.entries(selectedPostProcessing).filter(([, v]) => v).length > 0 && (
                 <div className="mt-4 p-3 bg-muted/50 rounded-lg">
                   <p className="text-sm text-muted-foreground">
@@ -2106,22 +2108,30 @@ export default function QuotePage() {
 
                     <div className="font-medium mt-3">五、后加工成本</div>
                     <div className="pl-5">
-                      {Object.entries(selectedPostProcessing).filter(([, v]) => v).length === 0 && !spoutSpec ? (
+                      {Object.entries(selectedPostProcessing).filter(([, v]) => v).length === 0 ? (
                         <>未选择后加工，后加工费 = <b>0 元/个</b></>
                       ) : (
                         <ul className="list-disc pl-5 space-y-1">
                           {Object.entries(selectedPostProcessing).filter(([, v]) => v).map(([id]) => {
                             const opt = config.postProcessingOptions.find(o => o.id === id);
+                            if (!opt) return null;
+                            const _wM = toNum(String(dimensions.width)) / 1000;
+                            const _cost = calcPostProcessingCost(opt, _wM, gravureCosts.area, selectedBagType?.id, selectedSpecs[id]);
                             return (
                               <li key={id}>
-                                {opt?.name || id}
-                                {opt?.priceFormula && <span className="text-muted-foreground">（{opt.priceFormula}）</span>}
+                                {opt.name}
+                                {opt.pricingType === "specSelection" && selectedSpecs[id] && (
+                                  <span className="text-muted-foreground"> ({selectedSpecs[id]})</span>
+                                )}
+                                {opt.pricingType !== "free" && (
+                                  <span>：{_cost.toFixed(4)} 元/个</span>
+                                )}
+                                {opt.pricingType === "free" && (
+                                  <span className="text-muted-foreground">（免费）</span>
+                                )}
                               </li>
                             );
                           })}
-                          {spoutSpec && selectedPostProcessing["spout"] && (
-                            <li>吸嘴 {spoutSpec}：{SPOUT_PRICES[spoutSpec] || 0} 元/个</li>
-                          )}
                         </ul>
                       )}
                       合计后加工 = <b>{f4(gc.postProcessingCostPerUnit)} 元/个</b>

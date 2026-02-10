@@ -65,11 +65,31 @@ export interface CustomMaterial {
   notes: string;
 }
 
+export type PostProcessingPricingType = 'fixed' | 'perMeterWidth' | 'perArea' | 'perMeterWidthByBagType' | 'free' | 'specSelection';
+
+export interface BagTypePrice {
+  bagTypeId: string;
+  bagTypeName: string;
+  pricePerMeter: number | string;
+}
+
+export interface SpecOption {
+  specName: string;
+  price: number | string;
+}
+
 export interface PostProcessingOptionConfig {
   id: string;
   name: string;
   enabled: boolean;
-  priceFormula: string;
+  pricingType: PostProcessingPricingType;
+  fixedPrice?: number | string;
+  pricePerMeter?: number | string;
+  pricePerSqm?: number | string;
+  fixedAddition?: number | string;
+  defaultPricePerMeter?: number | string;
+  bagTypePrices?: BagTypePrice[];
+  specOptions?: SpecOption[];
   description: string;
 }
 
@@ -376,19 +396,76 @@ const defaultLaminationPriceRules: LaminationPriceRule[] = [
 ];
 
 const defaultPostProcessingOptions: PostProcessingOptionConfig[] = [
-  { id: "zipper_normal", name: "普通拉链", enabled: true, priceFormula: "仅适用于自立袋/八边封袋；自立袋：0.10 元/米×袋宽；八边封袋：0.22 元/米×袋宽", description: "" },
-  { id: "zipper_easyTear", name: "易撕拉链", enabled: true, priceFormula: "仅适用于自立袋/八边封袋；自立袋：0.20 元/米×袋宽；八边封袋：0.47 元/米×袋宽", description: "" },
-  { id: "zipper_eco", name: "可降解拉链", enabled: true, priceFormula: "仅适用于自立袋；自立袋：0.50 元/米×袋宽", description: "" },
-  { id: "punchHole", name: "冲孔", enabled: true, priceFormula: "包含易撕口与挂孔，0 元/个（标配免费）", description: "" },
-  { id: "laserTear", name: "激光易撕线", enabled: true, priceFormula: "0.2 元/米 × 袋宽", description: "" },
-  { id: "hotStamp", name: "烫金", enabled: true, priceFormula: "烫金面积×1.2 元/㎡ + 0.02 元/次", description: "" },
-  { id: "wire", name: "加铁丝", enabled: true, priceFormula: "铁丝成本=(袋宽+40mm)×0.00013元/mm；贴铁丝人工费：≤140mm=0.024元/个，>140mm=0.026元/个", description: "" },
-  { id: "handle", name: "手提", enabled: true, priceFormula: "+0.15 元/个", description: "" },
-  { id: "airValve", name: "透气阀", enabled: true, priceFormula: "+0.11 元/个", description: "" },
-  { id: "emboss", name: "激凸", enabled: true, priceFormula: "0.2 元/次", description: "" },
-  { id: "windowCut", name: "定点开窗", enabled: true, priceFormula: "工钱：0.03 元/个", description: "" },
-  { id: "spout", name: "吸嘴（含吸嘴+压费）", enabled: true, priceFormula: "勾选后请选择规格；不同规格单价不同（元/个）", description: "" },
-  { id: "matteOil", name: "哑油工艺", enabled: true, priceFormula: "表面哑油处理，按展开面积计价：0.15 元/㎡", description: "" },
+  {
+    id: "zipper_normal", name: "普通拉链", enabled: true, pricingType: "perMeterWidthByBagType",
+    defaultPricePerMeter: 0.10,
+    bagTypePrices: [{ bagTypeId: "eightSide", bagTypeName: "八边封", pricePerMeter: 0.22 }],
+    description: "",
+  },
+  {
+    id: "zipper_easyTear", name: "易撕拉链", enabled: true, pricingType: "perMeterWidthByBagType",
+    defaultPricePerMeter: 0.20,
+    bagTypePrices: [{ bagTypeId: "eightSide", bagTypeName: "八边封", pricePerMeter: 0.47 }],
+    description: "",
+  },
+  {
+    id: "zipper_eco", name: "可降解拉链", enabled: true, pricingType: "perMeterWidth",
+    pricePerMeter: 0.50, description: "",
+  },
+  {
+    id: "punchHole", name: "冲孔", enabled: true, pricingType: "free", description: "",
+  },
+  {
+    id: "laserTear", name: "激光易撕线", enabled: true, pricingType: "perMeterWidth",
+    pricePerMeter: 0.2, description: "",
+  },
+  {
+    id: "hotStamp", name: "烫金", enabled: true, pricingType: "perArea",
+    pricePerSqm: 1.2, fixedAddition: 0.02, description: "",
+  },
+  {
+    id: "wire", name: "加铁丝", enabled: true, pricingType: "fixed",
+    fixedPrice: 0.05, description: "",
+  },
+  {
+    id: "handle", name: "手提", enabled: true, pricingType: "fixed",
+    fixedPrice: 0.15, description: "",
+  },
+  {
+    id: "airValve", name: "透气阀", enabled: true, pricingType: "fixed",
+    fixedPrice: 0.11, description: "",
+  },
+  {
+    id: "emboss", name: "激凸", enabled: true, pricingType: "fixed",
+    fixedPrice: 0.2, description: "",
+  },
+  {
+    id: "windowCut", name: "定点开窗", enabled: true, pricingType: "fixed",
+    fixedPrice: 0.03, description: "",
+  },
+  {
+    id: "spout", name: "吸嘴（含吸嘴+压费）", enabled: true, pricingType: "specSelection",
+    specOptions: [
+      { specName: "8.2mm", price: 0.04 },
+      { specName: "8.6mm", price: 0.056 },
+      { specName: "9.6mm", price: 0.10 },
+      { specName: "10mm", price: 0.08 },
+      { specName: "13mm", price: 0.12 },
+      { specName: "15mm", price: 0.125 },
+      { specName: "16mm 单卡", price: 0.145 },
+      { specName: "16mm 双卡", price: 0.16 },
+      { specName: "20mm", price: 0.24 },
+      { specName: "22mm", price: 0.24 },
+      { specName: "26mm", price: 0.29 },
+      { specName: "33mm", price: 0.34 },
+      { specName: "40mm", price: 0.80 },
+    ],
+    description: "",
+  },
+  {
+    id: "matteOil", name: "哑油工艺", enabled: true, pricingType: "perArea",
+    pricePerSqm: 0.15, description: "",
+  },
 ];
 
 const defaultPlatePriceConfig: PlatePriceConfig = {
