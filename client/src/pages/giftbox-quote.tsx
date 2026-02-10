@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getBoxPriceByQty, getMoldFeeInfo } from "@/lib/giftbox-config";
+import { getBoxPriceByQty, getMoldFeeInfo, evaluateGiftBoxAreaFormula } from "@/lib/giftbox-config";
 import { useGiftBox } from "@/lib/giftbox-store";
 
 interface GiftBoxQuotePageProps {
@@ -106,93 +106,19 @@ export default function GiftBoxQuotePage({
     const moldFeeInfo = getMoldFeeInfo(config.moldFeeRules, validQty);
     const finalMoldTotal = Math.max(moldFeeInfo.total - orderInfo.moldDiscount, 0);
 
-    let boardAreaPerBox = 0;
-    let insertBoardArea = 0;
-    let areaFormula = "";
-    const areaSteps: string[] = [];
+    const { areaCm2, error: formulaError } = evaluateGiftBoxAreaFormula(
+      selectedBoxType.areaFormula,
+      { length: L_cm, width: W_cm, height: H_cm }
+    );
+
+    const boardAreaPerBox = areaCm2 / 10000;
+    const totalBoardArea = boardAreaPerBox;
+    const paperAreaPerBox = boardAreaPerBox * config.paperAreaRatio;
+    const totalPaperArea = paperAreaPerBox;
 
     const L = L_cm / 100;
     const W = W_cm / 100;
     const H = H_cm / 100;
-
-    switch (selectedBoxType.id) {
-      case "tiandigai": {
-        const s1 = L_cm + H_cm * 2;
-        const s2 = W_cm + H_cm * 2;
-        const s3 = s1 * s2;
-        const s4 = s3 * 2;
-        boardAreaPerBox = s4 / 10000;
-        areaFormula = "(长 + 高×2) × (宽 + 高×2) × 2";
-        areaSteps.push(
-          `展开长度 = ${L_cm} + ${H_cm}×2 = ${s1} cm`,
-          `展开宽度 = ${W_cm} + ${H_cm}×2 = ${s2} cm`,
-          `单盖面积 = ${s1} × ${s2} = ${s3} cm²`,
-          `总面积（上盖+下底）= ${s3} × 2 = ${s4} cm²`,
-          `转换 = ${s4} ÷ 10000 = ${fmt(boardAreaPerBox, 4)} m²`
-        );
-        break;
-      }
-      case "tiandigai_insert": {
-        const ms1 = L_cm + (H_cm / 2) * 2;
-        const ms2 = W_cm + (H_cm / 2) * 2;
-        const ms3 = ms1 * ms2;
-        const ms4 = ms3 * 2;
-        const is1 = L_cm * 2 + W_cm * 2;
-        const is2 = is1 * H_cm;
-        const total = ms4 + is2;
-        boardAreaPerBox = total / 10000;
-        insertBoardArea = is2 / 10000;
-        areaFormula = "主体面积 + 内插面积";
-        areaSteps.push(
-          `【主体】展开长 = ${L_cm} + (${H_cm}÷2)×2 = ${ms1} cm`,
-          `【主体】展开宽 = ${W_cm} + (${H_cm}÷2)×2 = ${ms2} cm`,
-          `【主体】单盖面积 = ${ms1} × ${ms2} = ${ms3} cm²`,
-          `【主体】总面积 = ${ms3} × 2 = ${ms4} cm²`,
-          `【内插】周长 = ${L_cm}×2 + ${W_cm}×2 = ${is1} cm`,
-          `【内插】面积 = ${is1} × ${H_cm} = ${is2} cm²`,
-          `总面积 = ${ms4} + ${is2} = ${total} cm²`,
-          `转换 = ${total} ÷ 10000 = ${fmt(boardAreaPerBox, 4)} m²`
-        );
-        break;
-      }
-      case "book_box": {
-        const s1 = W_cm + H_cm;
-        const s2 = s1 * 2;
-        const s3 = s2 * L_cm;
-        boardAreaPerBox = s3 / 10000;
-        areaFormula = "(宽 + 高) × 2 × 长";
-        areaSteps.push(
-          `展开高度 = ${W_cm} + ${H_cm} = ${s1} cm`,
-          `双面展开 = ${s1} × 2 = ${s2} cm`,
-          `总面积 = ${s2} × ${L_cm} = ${s3} cm²`,
-          `转换 = ${s3} ÷ 10000 = ${fmt(boardAreaPerBox, 4)} m²`
-        );
-        break;
-      }
-      case "drawer_box": {
-        const s1 = L_cm + H_cm * 2;
-        const s2 = W_cm * 2 + H_cm * 3;
-        const s3 = s1 * s2;
-        boardAreaPerBox = s3 / 10000;
-        areaFormula = "(长 + 高×2) × (宽×2 + 高×3)";
-        areaSteps.push(
-          `展开长度 = ${L_cm} + ${H_cm}×2 = ${s1} cm`,
-          `展开宽度 = ${W_cm}×2 + ${H_cm}×3 = ${s2} cm`,
-          `总面积 = ${s1} × ${s2} = ${s3} cm²`,
-          `转换 = ${s3} ÷ 10000 = ${fmt(boardAreaPerBox, 4)} m²`
-        );
-        break;
-      }
-      default: {
-        areaFormula = selectedBoxType.areaFormula;
-        break;
-      }
-    }
-
-    const totalBoardArea = boardAreaPerBox + insertBoardArea;
-    const paperAreaPerBox = boardAreaPerBox * config.paperAreaRatio;
-    const insertPaperArea = insertBoardArea * config.paperAreaRatio;
-    const totalPaperArea = paperAreaPerBox + insertPaperArea;
 
     const boardCostPerBox = totalBoardArea * config.boardPricePerSqm;
     const totalBoardCost = boardCostPerBox * validQty;
@@ -262,7 +188,7 @@ export default function GiftBoxQuotePage({
 
     return {
       ladderInfo, finalBoxPrice, moldFeeInfo, finalMoldTotal,
-      areaFormula, areaSteps, totalBoardArea, totalPaperArea,
+      areaCm2, formulaError, totalBoardArea, totalPaperArea,
       boardCostPerBox, totalBoardCost, paperPrice, paperCostPerBox, totalPaperCost,
       linerCostPerBox, holeCostPerBox, totalHoleCost, baseLinerCost, totalLinerCost, linerMinCost, linerSteps,
       totalBoxCost, totalCraftCost, craftDetails,
@@ -321,56 +247,25 @@ export default function GiftBoxQuotePage({
       </header>
 
       <main className="flex-1 container mx-auto px-4 py-6 max-w-4xl space-y-6">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Card className="col-span-1">
-            <CardContent className="p-4 text-center">
-              <div className="text-xs text-muted-foreground mb-1">单个成本（含税）</div>
-              <div className="text-lg font-bold text-foreground" data-testid="text-unit-cost">¥{fmt(calc.unitCost)}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">≈ ${fmt(calc.unitCostUsd, 4)}</div>
-            </CardContent>
-          </Card>
-          <Card className="col-span-1 border-orange-200 dark:border-orange-800">
-            <CardContent className="p-4 text-center">
-              <div className="text-xs text-muted-foreground mb-1">总金额（含税）</div>
-              <div className="text-lg font-bold text-orange-600 dark:text-orange-400" data-testid="text-total-cost">¥{fmt(calc.totalCost)}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">≈ ${fmt(calc.totalCostUsd)}</div>
-            </CardContent>
-          </Card>
-          <Card className="col-span-1">
-            <CardContent className="p-4 text-center">
-              <div className="text-xs text-muted-foreground mb-1">税前总价</div>
-              <div className="text-lg font-bold text-foreground">¥{fmt(calc.totalCostBeforeTax)}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">税率 {calc.validTaxRate}%</div>
-            </CardContent>
-          </Card>
-          <Card className="col-span-1">
-            <CardContent className="p-4 text-center">
-              <div className="text-xs text-muted-foreground mb-1">税额</div>
-              <div className="text-lg font-bold text-foreground">¥{fmt(calc.taxAmount)}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">汇率 1:{calc.validExchangeRate}</div>
-            </CardContent>
-          </Card>
-        </div>
-
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">盒型与尺寸</CardTitle>
+            <CardTitle className="text-base font-semibold text-primary">盒型与尺寸</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label className="text-xs text-muted-foreground mb-1 block">盒型</Label>
-              <Select value={selectedBoxTypeId} onValueChange={setSelectedBoxTypeId}>
-                <SelectTrigger data-testid="select-box-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {enabledBoxTypes.map(b => (
-                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
+          <CardContent>
+            <div className="grid grid-cols-4 gap-3">
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">盒型</Label>
+                <Select value={selectedBoxTypeId} onValueChange={setSelectedBoxTypeId}>
+                  <SelectTrigger data-testid="select-box-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {enabledBoxTypes.map(b => (
+                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">长（cm）</Label>
                 <Input
@@ -404,150 +299,27 @@ export default function GiftBoxQuotePage({
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">材料选择</CardTitle>
+            <CardTitle className="text-base font-semibold text-primary">订单信息</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3 p-3 rounded-md bg-orange-50/50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30">
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">面纸类型</Label>
-                <Select value={selectedPaperId} onValueChange={setSelectedPaperId}>
-                  <SelectTrigger data-testid="select-paper-type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {config.paperTypes.map(p => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}（¥{p.pricePerSqm}/m²）</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">内衬类型</Label>
-                <Select value={selectedLinerId} onValueChange={setSelectedLinerId}>
-                  <SelectTrigger data-testid="select-liner-type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {config.linerTypes.map(l => (
-                      <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">内衬高度比例</Label>
-                <Input
-                  type="number"
-                  step={0.1}
-                  min={0}
-                  max={1}
-                  value={linerParams.linerHeightRatio || ""}
-                  onChange={(e) => setLinerParams({ ...linerParams, linerHeightRatio: handleNumInput(e.target.value) })}
-                  data-testid="input-liner-height-ratio"
-                />
-                <p className="text-xs text-muted-foreground mt-1">默认0.5，表示内衬高度为盒高的50%</p>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">内衬孔位数量</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={linerParams.holeCount || ""}
-                  onChange={(e) => setLinerParams({ ...linerParams, holeCount: handleNumInput(e.target.value) })}
-                  data-testid="input-hole-count"
-                />
-                <p className="text-xs text-muted-foreground mt-1">{config.holeCostPerUnit}元/个孔位</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {enabledCrafts.length > 0 && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">特殊工艺</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {enabledCrafts.map(craft => {
-                const isSelected = selectedCraftIds.includes(craft.id);
-                return (
-                  <div key={craft.id} className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => toggleCraft(craft.id)}
-                        data-testid={`checkbox-craft-${craft.id}`}
-                      />
-                      <div>
-                        <span className="text-sm font-medium">{craft.name}</span>
-                        <span className="text-xs text-muted-foreground ml-2">{craft.desc}</span>
-                      </div>
-                    </div>
-                    {isSelected && craft.calcType === "perArea" && (
-                      <div className="pl-8">
-                        <Label className="text-xs text-muted-foreground mb-1 block">
-                          {craft.areaLabel || "面积（cm²）"}
-                        </Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          value={craftAreas[craft.id] || ""}
-                          onChange={(e) => setCraftAreas(prev => ({ ...prev, [craft.id]: handleNumInput(e.target.value) }))}
-                          className="max-w-[200px]"
-                          data-testid={`input-craft-area-${craft.id}`}
-                        />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        )}
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">订单信息</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 p-3 rounded-md bg-orange-50/50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30">
-              <div>
-                <div className="text-xs text-muted-foreground mb-1">当前阶梯单价</div>
-                <div className="text-lg font-bold text-orange-600 dark:text-orange-400">¥{calc.ladderInfo.price}/个</div>
-                <div className="text-xs text-muted-foreground">数量：{calc.validQty}个</div>
+                <div className="text-xs text-muted-foreground mb-1">当前阶梯价格</div>
+                <div>
+                  <div className="text-xs text-muted-foreground">当前单价</div>
+                  <div className="text-xl font-bold text-orange-600 dark:text-orange-400">¥{calc.finalBoxPrice}</div>
+                  <div className="text-xs text-muted-foreground">（数量：{calc.validQty}个）</div>
+                </div>
               </div>
               {calc.ladderInfo.nextLadder && (
                 <div>
-                  <div className="text-xs text-muted-foreground mb-1">下一档单价（≥{calc.ladderInfo.nextLadder.qty}个）</div>
-                  <div className="text-lg font-bold text-green-600 dark:text-green-400">¥{calc.ladderInfo.nextLadder.price}/个</div>
+                  <div className="text-xs text-muted-foreground mb-1">&nbsp;</div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">下一档单价（≥{calc.ladderInfo.nextLadder.qty}个）</div>
+                    <div className="text-xl font-bold text-green-600 dark:text-green-400">¥{calc.ladderInfo.nextLadder.price}</div>
+                  </div>
                 </div>
               )}
-            </div>
-
-            <div className="p-3 rounded-md bg-muted/40 border">
-              <div className="text-xs font-medium mb-2">阶梯价格表 - {selectedBoxType.name}</div>
-              <div className="flex flex-wrap gap-2">
-                {selectedBoxType.ladder.map((l, i) => (
-                  <Badge
-                    key={i}
-                    variant={calc.ladderInfo.currentLadder === i ? "default" : "outline"}
-                    className={calc.ladderInfo.currentLadder === i ? "bg-orange-500 border-orange-600" : ""}
-                  >
-                    {l.maxQty === Infinity ? `≥${l.minQty}` : `${l.minQty}-${l.maxQty}`}: ¥{l.price}
-                    {l.minPrice ? ` (起步${l.minPrice})` : ""}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            <div className="p-3 rounded-md bg-muted/40 border">
-              <div className="text-xs font-medium mb-1">刀版+模具费用</div>
-              <div className="text-sm text-muted-foreground">{calc.moldFeeInfo.desc}</div>
-              <div className="text-sm font-medium mt-1">
-                合计：¥{fmt(calc.moldFeeInfo.total)} - 优惠¥{orderInfo.moldDiscount} = ¥{fmt(calc.finalMoldTotal)}
-              </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -558,6 +330,15 @@ export default function GiftBoxQuotePage({
                   value={orderInfo.qty || ""}
                   onChange={(e) => setOrderInfo({ ...orderInfo, qty: handleNumInput(e.target.value) })}
                   data-testid="input-qty"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">模具费额外优惠（元）</Label>
+                <Input
+                  type="number"
+                  value={orderInfo.moldDiscount || ""}
+                  onChange={(e) => setOrderInfo({ ...orderInfo, moldDiscount: handleNumInput(e.target.value) })}
+                  data-testid="input-mold-discount"
                 />
               </div>
               {orderInfo.qty >= 10000 && (
@@ -576,15 +357,6 @@ export default function GiftBoxQuotePage({
                 </div>
               )}
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">模具费优惠（元）</Label>
-                <Input
-                  type="number"
-                  value={orderInfo.moldDiscount || ""}
-                  onChange={(e) => setOrderInfo({ ...orderInfo, moldDiscount: handleNumInput(e.target.value) })}
-                  data-testid="input-mold-discount"
-                />
-              </div>
-              <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">运输纸箱个数</Label>
                 <Input
                   type="number"
@@ -595,7 +367,7 @@ export default function GiftBoxQuotePage({
                 />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">美元汇率</Label>
+                <Label className="text-xs text-muted-foreground mb-1 block">美元汇率（默认7.2）</Label>
                 <Input
                   type="number"
                   step={0.01}
@@ -605,7 +377,7 @@ export default function GiftBoxQuotePage({
                 />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">税率（%）</Label>
+                <Label className="text-xs text-muted-foreground mb-1 block">税率（%，默认13）</Label>
                 <Input
                   type="number"
                   step={0.1}
@@ -615,8 +387,122 @@ export default function GiftBoxQuotePage({
                 />
               </div>
             </div>
+
+            <div className="p-3 rounded-md bg-muted/40 border">
+              <div className="text-sm font-semibold text-primary mb-1">刀版+模具费用</div>
+              <div className="text-sm">当前单价：¥{calc.moldFeeInfo.price}/个</div>
+              <div className="text-xs text-muted-foreground">{calc.moldFeeInfo.desc}</div>
+              <div className="text-sm font-medium mt-1">
+                合计：¥{fmt(calc.moldFeeInfo.total)} - 优惠¥{orderInfo.moldDiscount} = ¥{fmt(calc.finalMoldTotal)}
+              </div>
+            </div>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold text-primary">材料配置</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">面纸类型</Label>
+                <Select value={selectedPaperId} onValueChange={setSelectedPaperId}>
+                  <SelectTrigger data-testid="select-paper-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {config.paperTypes.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">内衬类型</Label>
+                <Select value={selectedLinerId} onValueChange={setSelectedLinerId}>
+                  <SelectTrigger data-testid="select-liner-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {config.linerTypes.map(l => (
+                      <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">内衬高度比例（默认0.5）</Label>
+                <Input
+                  type="number"
+                  step={0.1}
+                  min={0}
+                  max={1}
+                  value={linerParams.linerHeightRatio || ""}
+                  onChange={(e) => setLinerParams({ ...linerParams, linerHeightRatio: handleNumInput(e.target.value) })}
+                  data-testid="input-liner-height-ratio"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">内衬孔位数量（{config.holeCostPerUnit}元/个）</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={linerParams.holeCount || ""}
+                  onChange={(e) => setLinerParams({ ...linerParams, holeCount: handleNumInput(e.target.value) })}
+                  data-testid="input-hole-count"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {enabledCrafts.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold text-primary">特殊工艺</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {enabledCrafts.map(craft => {
+                  const isSelected = selectedCraftIds.includes(craft.id);
+                  return (
+                    <div
+                      key={craft.id}
+                      className="border rounded-md p-3 space-y-2"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="text-sm font-medium">{craft.name}</div>
+                          <div className="text-xs text-muted-foreground">{craft.desc}</div>
+                        </div>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleCraft(craft.id)}
+                          data-testid={`checkbox-craft-${craft.id}`}
+                        />
+                      </div>
+                      {isSelected && craft.calcType === "perArea" && (
+                        <div>
+                          <Label className="text-xs text-muted-foreground mb-1 block">
+                            {craft.areaLabel || "面积（cm²）"}
+                          </Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={craftAreas[craft.id] || ""}
+                            onChange={(e) => setCraftAreas(prev => ({ ...prev, [craft.id]: handleNumInput(e.target.value) }))}
+                            data-testid={`input-craft-area-${craft.id}`}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader className="pb-3">
@@ -630,8 +516,11 @@ export default function GiftBoxQuotePage({
               onToggle={() => toggleSection("area")}
             >
               <div className="text-xs space-y-1 text-muted-foreground">
-                <div className="font-medium text-foreground">公式：{calc.areaFormula}</div>
-                {calc.areaSteps.map((s, i) => <div key={i}>{s}</div>)}
+                <div className="font-medium text-foreground">公式：{selectedBoxType.areaFormula}</div>
+                <div>展开面积 = {fmt(calc.areaCm2)} cm² = {fmt(calc.totalBoardArea, 4)} m²</div>
+                {calc.formulaError && (
+                  <div className="text-destructive font-medium">公式计算出错，请检查公式格式</div>
+                )}
                 <div className="font-medium text-foreground mt-2">
                   面纸面积 = 灰板面积 × {config.paperAreaRatio} = {fmt(calc.totalBoardArea, 4)} × {config.paperAreaRatio} = {fmt(calc.totalPaperArea, 4)} m²
                 </div>
@@ -779,17 +668,40 @@ export default function GiftBoxQuotePage({
                 <span>¥{fmt(calc.taxAmount)}</span>
               </div>
               <div className="border-t pt-2 flex justify-between gap-2 font-bold text-base">
-                <span>含税总价</span>
+                <span>总金额（含税）</span>
                 <span className="text-orange-600 dark:text-orange-400">¥{fmt(calc.totalCost)}</span>
               </div>
-              <div className="flex justify-between gap-2 text-muted-foreground">
-                <span>美元总价（汇率 1:{calc.validExchangeRate}）</span>
-                <span>${fmt(calc.totalCostUsd)}</span>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">单个成本</span>
+                <span data-testid="text-unit-cost">¥{fmt(calc.unitCost)} ≈ ${fmt(calc.unitCostUsd, 4)}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">总金额 USD</span>
+                <span data-testid="text-total-cost">${fmt(calc.totalCostUsd)}</span>
               </div>
             </div>
           </CardContent>
         </Card>
+
+        <div className="sticky bottom-4 bg-background/95 backdrop-blur py-3">
+          <Button
+            className="w-full gap-2"
+            size="lg"
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            data-testid="button-generate-quote"
+          >
+            生成报价
+          </Button>
+        </div>
       </main>
+
+      {!hideRestart && (
+        <footer className="border-t py-4 text-center text-xs text-muted-foreground">
+          礼盒报价器 · 实时计算
+        </footer>
+      )}
     </div>
   );
 }
@@ -810,21 +722,17 @@ function CostRow({
   return (
     <div className="border rounded-md">
       <button
-        className="w-full flex items-center justify-between p-3 text-left hover-elevate"
         onClick={onToggle}
+        className="w-full flex items-center justify-between gap-2 p-3 text-left hover-elevate"
         data-testid={`toggle-${label}`}
       >
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium">{label}</div>
           <div className="text-xs text-muted-foreground truncate">{summary}</div>
         </div>
-        {expanded ? <ChevronUp className="w-4 h-4 shrink-0 ml-2" /> : <ChevronDown className="w-4 h-4 shrink-0 ml-2" />}
+        {expanded ? <ChevronUp className="w-4 h-4 shrink-0" /> : <ChevronDown className="w-4 h-4 shrink-0" />}
       </button>
-      {expanded && (
-        <div className="px-3 pb-3 border-t pt-2">
-          {children}
-        </div>
-      )}
+      {expanded && <div className="px-3 pb-3 border-t pt-2">{children}</div>}
     </div>
   );
 }

@@ -2,8 +2,8 @@ export interface BoxTypeConfig {
   id: string;
   name: string;
   enabled: boolean;
-  isBuiltIn: boolean;
   areaFormula: string;
+  requiredDimensions: string[];
   ladder: Array<{ minQty: number; maxQty: number; price: number; minPrice?: number }>;
 }
 
@@ -52,14 +52,132 @@ export interface GiftBoxSurveyConfig {
   holeCostPerUnit: number;
 }
 
+export const giftBoxDimensionLabels: Record<string, string> = {
+  length: "长",
+  width: "宽",
+  height: "高",
+};
+
+export function parseGiftBoxDimensionsFromFormula(formula: string): string[] {
+  const dims: string[] = [];
+  if (formula.includes("长")) dims.push("length");
+  if (formula.includes("宽")) dims.push("width");
+  if (formula.includes("高")) dims.push("height");
+  return dims;
+}
+
+type Token = { type: "num"; value: number } | { type: "op"; value: string } | { type: "paren"; value: string };
+
+function tokenize(expr: string): Token[] | null {
+  const tokens: Token[] = [];
+  let i = 0;
+  while (i < expr.length) {
+    const ch = expr[i];
+    if (/\s/.test(ch)) { i++; continue; }
+    if (/[0-9.]/.test(ch)) {
+      let num = "";
+      while (i < expr.length && /[0-9.]/.test(expr[i])) { num += expr[i]; i++; }
+      const val = parseFloat(num);
+      if (isNaN(val)) return null;
+      tokens.push({ type: "num", value: val });
+      continue;
+    }
+    if ("+-*/".includes(ch)) { tokens.push({ type: "op", value: ch }); i++; continue; }
+    if ("()".includes(ch)) { tokens.push({ type: "paren", value: ch }); i++; continue; }
+    return null;
+  }
+  return tokens;
+}
+
+function parseExpr(tokens: Token[], pos: { i: number }): number | null {
+  let left = parseTerm(tokens, pos);
+  if (left === null) return null;
+  while (pos.i < tokens.length) {
+    const t = tokens[pos.i];
+    if (t.type === "op" && (t.value === "+" || t.value === "-")) {
+      pos.i++;
+      const right = parseTerm(tokens, pos);
+      if (right === null) return null;
+      left = t.value === "+" ? left + right : left - right;
+    } else break;
+  }
+  return left;
+}
+
+function parseTerm(tokens: Token[], pos: { i: number }): number | null {
+  let left = parseFactor(tokens, pos);
+  if (left === null) return null;
+  while (pos.i < tokens.length) {
+    const t = tokens[pos.i];
+    if (t.type === "op" && (t.value === "*" || t.value === "/")) {
+      pos.i++;
+      const right = parseFactor(tokens, pos);
+      if (right === null) return null;
+      left = t.value === "*" ? left * right : left / right;
+    } else break;
+  }
+  return left;
+}
+
+function parseFactor(tokens: Token[], pos: { i: number }): number | null {
+  if (pos.i >= tokens.length) return null;
+  const t = tokens[pos.i];
+  if (t.type === "num") { pos.i++; return t.value; }
+  if (t.type === "paren" && t.value === "(") {
+    pos.i++;
+    const val = parseExpr(tokens, pos);
+    if (val === null) return null;
+    if (pos.i >= tokens.length || tokens[pos.i].type !== "paren" || tokens[pos.i].value !== ")") return null;
+    pos.i++;
+    return val;
+  }
+  return null;
+}
+
+function safeEvalMath(expr: string): number | null {
+  const tokens = tokenize(expr);
+  if (!tokens || tokens.length === 0) return null;
+  const pos = { i: 0 };
+  const result = parseExpr(tokens, pos);
+  if (result === null || pos.i !== tokens.length) return null;
+  if (!isFinite(result) || result < 0) return null;
+  return result;
+}
+
+export function evaluateGiftBoxAreaFormula(
+  formula: string,
+  dims: { length: number; width: number; height: number }
+): { areaCm2: number; error: boolean } {
+  try {
+    let expr = formula;
+    expr = expr.replace(/长/g, `(${dims.length})`);
+    expr = expr.replace(/宽/g, `(${dims.width})`);
+    expr = expr.replace(/高/g, `(${dims.height})`);
+    expr = expr.replace(/×/g, "*");
+    expr = expr.replace(/÷/g, "/");
+    expr = expr.replace(/（/g, "(");
+    expr = expr.replace(/）/g, ")");
+    expr = expr.replace(/[\u4e00-\u9fff]/g, "");
+    expr = expr.trim();
+    if (!expr) return { areaCm2: 0, error: true };
+    const result = safeEvalMath(expr);
+    if (result !== null) {
+      return { areaCm2: result, error: false };
+    }
+    return { areaCm2: 0, error: true };
+  } catch {
+    return { areaCm2: 0, error: true };
+  }
+}
+
 export const DEFAULT_GIFTBOX_CONFIG: GiftBoxSurveyConfig = {
   boxTypes: [
     {
       id: "tiandigai",
       name: "天地盖",
       enabled: true,
-      isBuiltIn: true,
       areaFormula: "(长+高×2)×(宽+高×2)×2",
+      requiredDimensions: ["length", "width", "height"],
       ladder: [
         { minQty: 0, maxQty: 999, price: 5, minPrice: 3000 },
         { minQty: 1000, maxQty: 2999, price: 4 },
@@ -72,8 +190,8 @@ export const DEFAULT_GIFTBOX_CONFIG: GiftBoxSurveyConfig = {
       id: "tiandigai_insert",
       name: "天地盖带内插",
       enabled: true,
-      isBuiltIn: true,
-      areaFormula: "主体(长+(高÷2)×2)×(宽+(高÷2)×2)×2 + 内插(长×2+宽×2)×高",
+      areaFormula: "(长+(高÷2)×2)×(宽+(高÷2)×2)×2+(长×2+宽×2)×高",
+      requiredDimensions: ["length", "width", "height"],
       ladder: [
         { minQty: 0, maxQty: 999, price: 6, minPrice: 3000 },
         { minQty: 1000, maxQty: 2999, price: 5 },
@@ -85,8 +203,8 @@ export const DEFAULT_GIFTBOX_CONFIG: GiftBoxSurveyConfig = {
       id: "book_box",
       name: "书型盒（含磁吸）",
       enabled: true,
-      isBuiltIn: true,
       areaFormula: "(宽+高)×2×长",
+      requiredDimensions: ["length", "width", "height"],
       ladder: [
         { minQty: 0, maxQty: 999, price: 6, minPrice: 3000 },
         { minQty: 1000, maxQty: 2999, price: 5 },
@@ -98,8 +216,8 @@ export const DEFAULT_GIFTBOX_CONFIG: GiftBoxSurveyConfig = {
       id: "drawer_box",
       name: "抽屉盒（含丝带）",
       enabled: true,
-      isBuiltIn: true,
       areaFormula: "(长+高×2)×(宽×2+高×3)",
+      requiredDimensions: ["length", "width", "height"],
       ladder: [
         { minQty: 0, maxQty: 999, price: 6, minPrice: 3000 },
         { minQty: 1000, maxQty: 2999, price: 5 },
@@ -123,7 +241,7 @@ export const DEFAULT_GIFTBOX_CONFIG: GiftBoxSurveyConfig = {
     { id: "hotStamping", name: "烫金", enabled: true, calcType: "perUnit", price: 0.2, startPrice: 400, desc: "0.2元/个（起步价400元）" },
     { id: "uv", name: "UV", enabled: true, calcType: "perUnit", price: 0.2, startPrice: 400, desc: "0.2元/个（起步价400元）" },
     { id: "embossing", name: "激凸", enabled: true, calcType: "perUnit", price: 0.2, startPrice: 400, desc: "0.2元/个（起步价400元）" },
-    { id: "copperLaser", name: "铜板+激光雕刻", enabled: true, calcType: "perArea", price: 2, startPrice: 0, desc: "2元/cm²", areaLabel: "雕刻面积（cm²）" },
+    { id: "copperLaser", name: "铜板+激光雕刻", enabled: true, calcType: "perArea", price: 2, startPrice: 0, desc: "2元/平方厘米", areaLabel: "雕刻面积（cm²）" },
   ],
   moldFeeRules: [
     { minQty: 0, maxQty: 1999, price: 0.4, desc: "0.4元/个（含刀版及运费，合计600-800元）" },

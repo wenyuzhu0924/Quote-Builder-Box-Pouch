@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, ArrowRight, Plus, Trash2, Package, Layers, Sparkles, Settings, Wrench } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Trash2, Package, Layers, Sparkles, Wrench, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import {
   type BoxTypeConfig, type PaperTypeConfig, type LinerTypeConfig, type CraftConfig, type MoldFeeRule,
+  parseGiftBoxDimensionsFromFormula, giftBoxDimensionLabels,
 } from "@/lib/giftbox-config";
 import { useGiftBox } from "@/lib/giftbox-store";
 
@@ -30,6 +31,7 @@ export default function GiftBoxSurveyPage({
   const { config, updateConfig } = useGiftBox();
   const { toast } = useToast();
 
+  const [newBoxType, setNewBoxType] = useState({ name: "", formula: "" });
   const [newPaper, setNewPaper] = useState({ name: "", pricePerSqm: 0 });
   const [newLiner, setNewLiner] = useState({ name: "", calcMethod: "volume" as "volume" | "halfBoard", pricePerCubicM: 0, minCost: 0, baseProcessFee: 0 });
   const [newCraft, setNewCraft] = useState({ name: "", calcType: "perUnit" as "perUnit" | "perArea", price: 0, startPrice: 400, desc: "" });
@@ -43,6 +45,40 @@ export default function GiftBoxSurveyPage({
         b.id === id ? { ...b, enabled: !b.enabled } : b
       ),
     });
+  };
+
+  const updateBoxFormula = (boxId: string, formula: string) => {
+    const dims = parseGiftBoxDimensionsFromFormula(formula);
+    updateConfig({
+      boxTypes: config.boxTypes.map(b =>
+        b.id === boxId ? { ...b, areaFormula: formula, requiredDimensions: dims } : b
+      ),
+    });
+  };
+
+  const addBoxType = () => {
+    if (!newBoxType.name || !newBoxType.formula) return;
+    const dims = parseGiftBoxDimensionsFromFormula(newBoxType.formula);
+    const box: BoxTypeConfig = {
+      id: `box_${Date.now()}`,
+      name: newBoxType.name,
+      enabled: true,
+      areaFormula: newBoxType.formula,
+      requiredDimensions: dims,
+      ladder: [
+        { minQty: 0, maxQty: 999, price: 5, minPrice: 3000 },
+        { minQty: 1000, maxQty: 2999, price: 4 },
+        { minQty: 3000, maxQty: 4999, price: 3.5 },
+        { minQty: 5000, maxQty: Infinity, price: 3 },
+      ],
+    };
+    updateConfig({ boxTypes: [...config.boxTypes, box] });
+    setNewBoxType({ name: "", formula: "" });
+    toast({ title: "盒型已添加", description: `已自动匹配尺寸字段：${dims.map(d => giftBoxDimensionLabels[d] || d).join("、") || "无"}` });
+  };
+
+  const removeBoxType = (id: string) => {
+    updateConfig({ boxTypes: config.boxTypes.filter(b => b.id !== id) });
   };
 
   const updateBoxLadder = (boxId: string, ladderIndex: number, field: string, value: number) => {
@@ -182,9 +218,129 @@ export default function GiftBoxSurveyPage({
                 <div className="flex items-center gap-3">
                   <Package className="w-5 h-5 text-primary" />
                   <div className="text-left">
-                    <div className="font-semibold">盒型</div>
+                    <div className="font-semibold">盒型配置</div>
                     <div className="text-sm text-muted-foreground">
-                      选择盒型及配置阶梯价格（已选 {enabledBoxCount}/{config.boxTypes.length} 种）
+                      选择或添加盒型，配置展开面积公式（已选 {enabledBoxCount}/{config.boxTypes.length} 种）
+                    </div>
+                  </div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pb-4">
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    勾选需要包含在报价器中的盒型，或添加自定义盒型。输入面积公式后会自动匹配所需尺寸字段。
+                  </p>
+
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[50px]">选用</TableHead>
+                          <TableHead className="w-[140px]">盒型名称</TableHead>
+                          <TableHead className="min-w-[280px]">展开面积公式</TableHead>
+                          <TableHead className="w-[140px]">尺寸字段</TableHead>
+                          <TableHead className="w-[60px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {config.boxTypes.map(box => (
+                          <TableRow key={box.id}>
+                            <TableCell>
+                              <Checkbox
+                                checked={box.enabled}
+                                onCheckedChange={() => toggleBoxType(box.id)}
+                                data-testid={`boxtype-check-${box.id}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <span className="font-medium">{box.name}</span>
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={box.areaFormula}
+                                onChange={(e) => updateBoxFormula(box.id, e.target.value)}
+                                className="h-8"
+                                data-testid={`boxtype-formula-${box.id}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1">
+                                {box.requiredDimensions.map(dim => (
+                                  <Badge key={dim} variant="secondary" className="text-xs">
+                                    {giftBoxDimensionLabels[dim] || dim}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeBoxType(box.id)}
+                                className="text-destructive"
+                                data-testid={`remove-boxtype-${box.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow>
+                          <TableCell></TableCell>
+                          <TableCell>
+                            <Input
+                              value={newBoxType.name}
+                              onChange={(e) => setNewBoxType({ ...newBoxType, name: e.target.value })}
+                              placeholder="新盒型名称"
+                              className="h-8"
+                              data-testid="new-boxtype-name"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              value={newBoxType.formula}
+                              onChange={(e) => setNewBoxType({ ...newBoxType, formula: e.target.value })}
+                              placeholder="例如：(长+高×2)×(宽+高×2)×2"
+                              className="h-8"
+                              data-testid="new-boxtype-formula"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs text-muted-foreground">
+                              {newBoxType.formula
+                                ? parseGiftBoxDimensionsFromFormula(newBoxType.formula).map(d => giftBoxDimensionLabels[d] || d).join("、") || "无匹配"
+                                : "自动匹配"}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={addBoxType}
+                              data-testid="add-boxtype"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    提示：在公式中使用"长"、"宽"、"高"关键词，系统会自动识别所需尺寸字段。支持 ×、÷、+、- 运算符和括号。
+                  </p>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="ladderPricing" className="border rounded-lg px-4">
+              <AccordionTrigger className="hover:no-underline py-4" data-testid="section-ladder">
+                <div className="flex items-center gap-3">
+                  <DollarSign className="w-5 h-5 text-primary" />
+                  <div className="text-left">
+                    <div className="font-semibold">阶梯价格</div>
+                    <div className="text-sm text-muted-foreground">
+                      配置各盒型的做工阶梯价格（{enabledBoxCount} 种盒型）
                     </div>
                   </div>
                 </div>
@@ -192,66 +348,63 @@ export default function GiftBoxSurveyPage({
               <AccordionContent className="pb-4">
                 <div className="space-y-6">
                   <p className="text-sm text-muted-foreground">
-                    勾选需要包含在报价器中的盒型，并配置各盒型的做工阶梯价格。
+                    为每种盒型设置不同数量区间的做工单价。仅显示已启用的盒型。
                   </p>
 
-                  {config.boxTypes.map(box => (
+                  {config.boxTypes.filter(b => b.enabled).map(box => (
                     <div key={box.id} className="border rounded-lg p-4 space-y-3">
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          checked={box.enabled}
-                          onCheckedChange={() => toggleBoxType(box.id)}
-                          data-testid={`boxtype-check-${box.id}`}
-                        />
+                      <div className="flex items-center gap-2">
                         <span className="font-medium">{box.name}</span>
-                        {box.isBuiltIn && <Badge variant="outline" className="text-xs">内置</Badge>}
-                        {!box.enabled && <Badge variant="secondary" className="text-xs">未启用</Badge>}
+                        <span className="text-xs text-muted-foreground">公式：{box.areaFormula}</span>
                       </div>
-                      <div className="text-xs text-muted-foreground">面积公式：{box.areaFormula}</div>
 
-                      {box.enabled && (
-                        <div className="border rounded-lg overflow-hidden">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>数量范围</TableHead>
-                                <TableHead className="w-[100px]">单价(元/个)</TableHead>
-                                <TableHead className="w-[100px]">起步价(元)</TableHead>
+                      <div className="border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>数量范围</TableHead>
+                              <TableHead className="w-[100px]">单价(元/个)</TableHead>
+                              <TableHead className="w-[100px]">起步价(元)</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {box.ladder.map((l, i) => (
+                              <TableRow key={i}>
+                                <TableCell className="text-sm">
+                                  {l.maxQty === Infinity ? `≥${l.minQty}` : `${l.minQty} - ${l.maxQty}`}
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    step={0.1}
+                                    value={l.price || ""}
+                                    onChange={(e) => updateBoxLadder(box.id, i, "price", Number(e.target.value) || 0)}
+                                    className="h-8"
+                                    data-testid={`box-ladder-price-${box.id}-${i}`}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    value={l.minPrice || ""}
+                                    onChange={(e) => updateBoxLadder(box.id, i, "minPrice", Number(e.target.value) || 0)}
+                                    className="h-8"
+                                    placeholder="无"
+                                  />
+                                </TableCell>
                               </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {box.ladder.map((l, i) => (
-                                <TableRow key={i}>
-                                  <TableCell className="text-sm">
-                                    {l.maxQty === Infinity ? `≥${l.minQty}` : `${l.minQty} - ${l.maxQty}`}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Input
-                                      type="number"
-                                      step={0.1}
-                                      value={l.price || ""}
-                                      onChange={(e) => updateBoxLadder(box.id, i, "price", Number(e.target.value) || 0)}
-                                      className="h-8"
-                                      data-testid={`box-ladder-price-${box.id}-${i}`}
-                                    />
-                                  </TableCell>
-                                  <TableCell>
-                                    <Input
-                                      type="number"
-                                      value={l.minPrice || ""}
-                                      onChange={(e) => updateBoxLadder(box.id, i, "minPrice", Number(e.target.value) || 0)}
-                                      className="h-8"
-                                      placeholder="无"
-                                    />
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      )}
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
                     </div>
                   ))}
+
+                  {config.boxTypes.filter(b => b.enabled).length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      请先在"盒型配置"中启用至少一种盒型
+                    </p>
+                  )}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -334,7 +487,7 @@ export default function GiftBoxSurveyPage({
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => removePaperType(paper.id)}
-                                  className="h-8 w-8 text-destructive"
+                                  className="text-destructive"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
@@ -361,7 +514,7 @@ export default function GiftBoxSurveyPage({
                               />
                             </TableCell>
                             <TableCell>
-                              <Button variant="ghost" size="icon" onClick={addPaperType} className="h-8 w-8" data-testid="add-paper">
+                              <Button variant="ghost" size="icon" onClick={addPaperType} data-testid="add-paper">
                                 <Plus className="w-4 h-4" />
                               </Button>
                             </TableCell>
@@ -441,7 +594,7 @@ export default function GiftBoxSurveyPage({
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => removeLinerType(liner.id)}
-                                  className="h-8 w-8 text-destructive"
+                                  className="text-destructive"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
@@ -499,7 +652,7 @@ export default function GiftBoxSurveyPage({
                               />
                             </TableCell>
                             <TableCell>
-                              <Button variant="ghost" size="icon" onClick={addLinerType} className="h-8 w-8" data-testid="add-liner">
+                              <Button variant="ghost" size="icon" onClick={addLinerType} data-testid="add-liner">
                                 <Plus className="w-4 h-4" />
                               </Button>
                             </TableCell>
@@ -626,7 +779,7 @@ export default function GiftBoxSurveyPage({
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => removeCraft(craft.id)}
-                                className="h-8 w-8 text-destructive"
+                                className="text-destructive"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -684,7 +837,7 @@ export default function GiftBoxSurveyPage({
                             />
                           </TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon" onClick={addCraft} className="h-8 w-8" data-testid="add-craft">
+                            <Button variant="ghost" size="icon" onClick={addCraft} data-testid="add-craft">
                               <Plus className="w-4 h-4" />
                             </Button>
                           </TableCell>
@@ -772,7 +925,6 @@ export default function GiftBoxSurveyPage({
               data-testid="button-generate"
               onClick={handleNext}
               className="gap-2"
-              size="lg"
             >
               生成报价器
               <ArrowRight className="w-4 h-4" />

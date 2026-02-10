@@ -102,18 +102,23 @@ Preferred communication style: Simple, everyday language.
 
 ### February 10, 2026 - Gift Box (礼盒) Quote Generator (Builder Pattern)
 - **New Product Type**: Gift box quote generator following the gravure builder pattern
-- **Config**: `client/src/lib/giftbox-config.ts` - configurable arrays: BoxTypeConfig (with ladder pricing), PaperTypeConfig, LinerTypeConfig, CraftConfig, MoldFeeRule, plus helper functions getBoxPriceByQty/getMoldFeeInfo
+- **Config**: `client/src/lib/giftbox-config.ts` - configurable arrays: BoxTypeConfig (with requiredDimensions + areaFormula), PaperTypeConfig, LinerTypeConfig, CraftConfig, MoldFeeRule, plus helper functions getBoxPriceByQty/getMoldFeeInfo/evaluateGiftBoxAreaFormula/parseGiftBoxDimensionsFromFormula
+- **Safe Formula Evaluator**: Recursive descent math parser (tokenize → parseExpr → parseTerm → parseFactor) only accepts numbers, +, -, *, /, and parentheses. No `new Function` or `eval`.
 - **State**: `client/src/lib/giftbox-store.tsx` - GiftBoxProvider context holding GiftBoxSurveyConfig with config/updateConfig
-- **Survey Page (Builder)**: `client/src/pages/giftbox-survey.tsx` - full configuration builder with Accordion sections:
-  - Box types: editable ladder pricing tables per box type, enable/disable toggle
-  - Materials: paper types table (name + price/m²), liner types table (calcMethod/pricePerCubicM/minCost/processFee), board price, paper area ratio
-  - Crafts: enable/disable, calcType (perUnit/perArea), pricing, start price
-  - Mold fee rules: quantity-based pricing tiers
+- **Survey Page (Builder)**: `client/src/pages/giftbox-survey.tsx` - full configuration builder with 5 Accordion sections:
+  - 盒型配置: formula table with editable formulas, auto-detected dimension badges, enable/disable toggle (separate from ladder)
+  - 阶梯价格: per-box-type ladder pricing tables (only shows enabled box types)
+  - 材料: paper types table (name + price/m²), liner types table (calcMethod/pricePerCubicM/minCost/processFee), board price, paper area ratio
+  - 特殊工艺: enable/disable, calcType (perUnit/perArea), pricing, start price
+  - 模具费用: quantity-based pricing tiers
 - **Quote Page (Calculator)**: `client/src/pages/giftbox-quote.tsx` - config-driven real-time calculator:
-  - Select dropdowns for box type, paper type, liner type (from configured options)
-  - Craft checkboxes with per-area input for area-based crafts
+  - 盒型与尺寸: box type select + 长/宽/高 inputs in one row (4 columns)
+  - 订单信息: quantity, inline ladder price display, mold fee info, exchange rate, tax rate
+  - 材料配置: paper/liner dropdowns + liner height ratio + hole count in one row
+  - 特殊工艺: craft cards in grid layout with checkboxes, per-area input for area-based crafts
+  - 费用明细: expandable cost breakdown sections with formula details
+  - 汇总: summary with RMB and USD totals
   - Defensive useEffect for selection validity when config changes
-  - Cost breakdown with expandable detail sections
 - **Main App Integration**: Product select → /giftbox/survey (builder) → /giftbox/quote (calculator)
 - **Demo Route**: `/demo/giftbox` - standalone access with no back/restart buttons
 - **Routing**: App.tsx uses location-based routing to separate giftbox, demo, and pouch flows with independent providers
