@@ -418,7 +418,7 @@ const defaultPostProcessingOptions: PostProcessingOptionConfig[] = [
     id: "punchHole", name: "冲孔", enabled: true, category: "additionalProcess", pricingType: "free", description: "",
   },
   {
-    id: "laserTear", name: "激光易撕线", enabled: true, category: "surfaceTreatment", pricingType: "perMeterWidth",
+    id: "laserTear", name: "激光易撕线", enabled: true, category: "additionalProcess", pricingType: "perMeterWidth",
     pricePerMeter: 0.2, description: "",
   },
   {
