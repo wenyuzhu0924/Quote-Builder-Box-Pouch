@@ -231,6 +231,7 @@ const defaultCustomBagTypes: CustomBagType[] = [
   { id: "flatBottom", name: "平底袋", formula: "{(袋宽 + 侧面展开) × 2 + 0.03} × (袋高 + 侧面展开/2 + 0.015)", requiredDimensions: ["width", "height", "sideExpansion"], wasteCoefficient: 1.12, makingCostFormula: "0.25 × 袋高", isBuiltIn: false, enabled: true },
   { id: "threeSideShape", name: "三边封异形袋", formula: "{袋宽 × 2 + 0.01} × (袋高 + 0.005)", requiredDimensions: ["width", "height"], wasteCoefficient: 1.15, makingCostFormula: "0.03 × min(袋宽,袋高) + 0.009", isBuiltIn: false, enabled: true },
   { id: "taperShape", name: "自立异形袋", formula: "{(袋高 + 底插入) × 2 + 0.03} × (袋宽 + 0.005)", requiredDimensions: ["width", "height", "bottomInsert"], wasteCoefficient: 1.15, makingCostFormula: "0.09 × 袋宽 + 0.018", isBuiltIn: false, enabled: true },
+  { id: "eightSide", name: "八边封", formula: "{(袋宽 + 侧面展开) × 2 + 0.03} × (袋高 + 侧面展开/2 + 0.015)", requiredDimensions: ["width", "height", "sideExpansion"], wasteCoefficient: 1.12, makingCostFormula: "0.25 × 袋高", isBuiltIn: false, enabled: true },
 ];
 
 const defaultDigitalBagTypes: CustomBagType[] = [
