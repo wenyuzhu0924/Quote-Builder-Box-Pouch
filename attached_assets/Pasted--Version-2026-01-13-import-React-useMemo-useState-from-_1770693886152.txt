@@ -1,0 +1,2499 @@
+// Version 2026.01.13
+
+import React, { useMemo, useState } from "react";
+
+// --- Types ---
+
+type BagType =
+  | "standup"
+  | "threeSide"
+  | "centerSeal"
+  | "gusset"
+  | "eightSide"
+  | "taperBottom"
+  | "flatBottom"
+  | "taperShape"
+  | "threeSideShape"
+  | "rollFilm"; // 新增：卷膜
+
+type MaterialKey =
+  | "PET"
+  | "VMPET"
+  | "BOPP"
+  | "MOPP"
+  | "MPET"
+  | "CPP"
+  | "VMCPP"
+  | "PE"
+  | "BOPA"
+  | "Kraft"
+  | "WhiteKraft"
+  | "CottonPaper"
+  | "AL"
+  | "GoldSandFilm" // 新增 金砂膜/拉丝膜
+  | "TouchOPP"     // ✅ 新增：触感膜OPP
+  | "PLA"          // ✅ 新增：PLA可降解材料
+  | "KPA"
+  | "AluminaPETComposite"  // 氧化铝PET(复合级)
+  | "AluminaPETPrint"      // 氧化铝PET(印刷级)
+  | "KPET"
+  | "KOP"
+  | "LaserPETAl"          // 镭射PET铝
+  | "Custom";
+
+type Layer = {
+  id: string;
+  material: MaterialKey;
+  thicknessUm: number | "";   // ✅ 允许清空
+  density: number | "";       // ✅ 允许清空
+  pricePerKg: number | "";    // ✅ 允许清空
+  splice?: {
+    enabled: boolean;
+    windowWidthMm: number | "";  // ✅ 允许清空
+    windowMaterial: MaterialKey;
+    windowThicknessUm: number | ""; // 新增：窗口膜厚度（um）
+  };
+};
+
+type LaminationStep = {
+  id: string;
+  process: "dry" | "dry_retort" | "solventless";
+};
+
+// --- Reference tables from spec ---
+const MATERIAL_PRESETS: Record<
+  MaterialKey,
+  { density?: number; defaultThickness?: number; pricePerKg?: number; label: string }
+> = {
+  PET: { density: 1.4, defaultThickness: 12, pricePerKg: 8, label: "PET" },
+  VMPET: { density: 1.4, defaultThickness: 12, pricePerKg: 9, label: "VMPET" },
+  BOPP: { density: 0.91, defaultThickness: 23, pricePerKg: 8.8, label: "BOPP" },
+  MOPP: { density: 0.86, defaultThickness: 19, pricePerKg: 9, label: "哑光OPP" },
+  MPET: { density: 1.4, defaultThickness: 15, pricePerKg: 12.5, label: "哑光PET" },
+  CPP: { density: 0.91, defaultThickness: 40, pricePerKg: 9, label: "CPP" },
+  VMCPP: { density: 0.91, defaultThickness: 25, pricePerKg: 11, label: "VMCPP" },
+  PE: { density: 0.92, defaultThickness: 70, pricePerKg: 9.5, label: "PE (LDPE)" },
+  BOPA: { density: 1.16, defaultThickness: 15, pricePerKg: 17, label: "BOPA" },
+  Kraft: { density: 0, defaultThickness: 70, pricePerKg: 7, label: "牛皮纸 (gsm)" },
+  WhiteKraft: { density: 0, defaultThickness: 70, pricePerKg: 8, label: "白牛皮纸 (gsm)" },
+  CottonPaper: { density: 0, defaultThickness: 19, pricePerKg: 11, label: "棉纸 (gsm)" },
+  AL: { density: 2.7, defaultThickness: 7, pricePerKg: 26, label: "AL (纯铝箔)" },
+  GoldSandFilm: { density: 0.56, defaultThickness: 55, pricePerKg: 11.5, label: "金砂膜/拉丝膜" },
+  // ✅ 新增：触感膜OPP 【1.8丝=18μm、密度0.81、42元/kg】
+  TouchOPP: { density: 0.81, defaultThickness: 18, pricePerKg: 42, label: "触感膜OPP" },
+  // ✅ 新增：PLA材料 【默认2.5丝=25μm，可手动改1.5丝=15μm、密度1.26、48元/kg】
+  PLA: { density: 1.26, defaultThickness: 25, pricePerKg: 48, label: "PLA可降解材料" },
+  KPA: { density: 1.2, defaultThickness: 1.7, pricePerKg: 21, label: "KPA" },
+  AluminaPETComposite: { density: 1.4, defaultThickness: 1.2, pricePerKg: 12, label: "氧化铝PET(复合级)" },
+  AluminaPETPrint: { density: 1.4, defaultThickness: 1.2, pricePerKg: 20, label: "氧化铝PET(印刷级)" },
+  KPET: { density: 1.4, defaultThickness: 1.4, pricePerKg: 13, label: "KPET" },
+  KOP: { density: 0.99, defaultThickness: 2.1, pricePerKg: 14.5, label: "KOP" },
+  LaserPETAl: { density: 1.4, defaultThickness: 1.2, pricePerKg: 23, label: "镭射PET铝" },
+  Custom: { density: 1.0, defaultThickness: 50, pricePerKg: 10, label: "自定义" },
+} as const;
+
+const PRINT_COVERAGE_OPTIONS = [
+  { pct: 0, price: 0.0 },
+  { pct: 25, price: 0.11 },
+  { pct: 50, price: 0.13 },
+  { pct: 100, price: 0.16 },
+  { pct: 150, price: 0.21 },
+  { pct: 200, price: 0.26 },
+  { pct: 300, price: 0.36 }, // 含哑油
+] as const;
+
+const LAMINATION_PRICE: Record<LaminationStep["process"], number> = {
+  dry: 0.13,
+  dry_retort: 0.18,
+  solventless: 0.065,
+};
+
+// 新增：卷膜分切费 元/㎡
+const SLITTING_PRICE = 0.05;
+
+
+// 吸嘴单价（已含“吸嘴价格+压的工钱”）
+const SPOUT_PRICE = {
+  "8.2mm": 0.04,
+  "8.6mm": 0.056,
+  "9.6mm": 0.10,
+  "10mm": 0.08,
+  "13mm": 0.12,
+  "15mm": 0.125,
+  "16mm_单卡": 0.145,
+  "16mm_双卡": 0.16,
+  "20mm": 0.24,
+  "22mm": 0.24,
+  "26mm": 0.29,
+  "33mm": 0.34,
+  "40mm": 0.80,
+} as const;
+
+const SPOUT_LABEL_MAP: Record<keyof typeof SPOUT_PRICE, string> = {
+  "8.2mm": "8.2mm",
+  "8.6mm": "8.6mm",
+  "9.6mm": "9.6mm",
+  "10mm": "10mm",
+  "13mm": "13mm",
+  "15mm": "15mm",
+  "16mm_单卡": "16mm（单卡）",
+  "16mm_双卡": "16mm（双卡）",
+  "20mm": "20mm",
+  "22mm": "22mm",
+  "26mm": "26mm",
+  "33mm": "33mm",
+  "40mm": "40mm",
+};
+
+// 统一 calc 入参（老项目可忽略未用字段）
+type CalcArgs = {
+  areaM2: number;
+  widthMm: number;
+  bagType: BagType;
+  spoutKey?: keyof typeof SPOUT_PRICE | "";
+};
+
+// --- 附加工艺定义 ---
+type PostProcessKey =
+  | "zipper"
+  | "ecoZipper"
+  | "easyTearZipper"
+  | "punchHole"
+  | "laserTear"
+  | "hotStamp"
+  | "wire"
+  | "handle"
+  | "airValve"
+  | "emboss"
+  | "windowCut"
+  | "spout"
+  | "matteOil"; // ✅ 新增：哑油工艺; 
+
+const POST_PROCESS_PRICING: Record<
+  PostProcessKey,
+  { label: string; desc: string; calc: (args: CalcArgs) => number }
+> = {
+  zipper: {
+    label: "普通拉链",
+    desc: "仅适用于自立袋/八边封袋；自立袋：0.10 元/米×袋宽；八边封袋：0.22 元/米×袋宽",
+    calc: ({ widthMm, bagType }) => {
+      const widthM = widthMm / 1000;
+      if (bagType === "standup") return 0.10 * widthM;
+      if (bagType === "eightSide") return 0.22 * widthM;
+      return 0;
+    },
+  },
+
+  easyTearZipper: {
+    label: "易撕拉链",
+    desc: "仅适用于自立袋/八边封袋；自立袋：0.20 元/米×袋宽；八边封袋：0.47 元/米×袋宽",
+    calc: ({ widthMm, bagType }) => {
+      const widthM = widthMm / 1000;
+      if (bagType === "standup") return 0.20 * widthM;
+      if (bagType === "eightSide") return 0.47 * widthM;
+      return 0;
+    },
+  },
+
+  ecoZipper: {
+    label: "可降解拉链",
+    desc: "仅适用于自立袋；自立袋：0.50 元/米×袋宽",
+    calc: ({ widthMm, bagType }) => {
+      const widthM = widthMm / 1000;
+      if (bagType === "standup") return 0.50 * widthM;
+      return 0;
+    },
+  },
+
+  punchHole: {
+    label: "冲孔",
+    desc: "包含易撕口与挂孔，0元/个（标配免费）",
+    calc: () => 0,
+  },
+
+  laserTear: {
+    label: "激光易撕线",
+    desc: "0.2元/米 × 袋宽",
+    calc: ({ widthMm }) => 0.2 * (widthMm / 1000),
+  },
+
+  hotStamp: {
+    label: "烫金",
+    desc: "烫金面积×1.2元/㎡ + 0.02元/次",
+    calc: ({ areaM2 }) => areaM2 * 1.2 + 0.02,
+  },
+
+  wire: {
+    label: "加铁丝",
+    desc: "铁丝成本=(袋宽+40mm)×0.00013元/mm；贴铁丝人工费：≤140mm=0.024元/个，>140mm=0.026元/个",
+    calc: ({ widthMm }) => {
+      const wireMaterialCost = (widthMm + 40) * 0.00013; // 元/个
+
+      const laborCost = widthMm <= 140 ? 0.024 : 0.026;
+
+      return wireMaterialCost + laborCost;
+    },
+  },
+
+  handle: {
+    label: "手提",
+    desc: "+0.15元/个",
+    calc: () => 0.15,
+  },
+
+  airValve: {
+    label: "透气阀",
+    desc: "+0.11元/个",
+    calc: () => 0.11,
+  },
+
+  emboss: {
+    label: "激凸",
+    desc: "0.2元/次",
+    calc: () => 0.2,
+  },
+
+
+  windowCut: {
+    label: "定点开窗",
+    desc: "工钱：0.03元/个",
+    calc: () => 0.03,
+  },
+
+  // ✅ 新增：吸嘴（含吸嘴+压费）
+  spout: {
+    label: "吸嘴（含吸嘴+压费）",
+    desc: "勾选后请选择规格；不同规格单价不同（元/个）",
+    calc: ({ spoutKey }) => {
+      if (!spoutKey) return 0;                 // 未选规格不计价
+      return SPOUT_PRICE[spoutKey] ?? 0;       // 依据规格取价
+    },
+  },
+
+  // ✅ 新增：哑油工艺（0.15元/㎡ × 展开面积）
+  matteOil: {
+    label: "哑油工艺",
+    desc: "表面哑油处理，按展开面积计价：0.15 元/㎡",
+    calc: ({ areaM2 }) => {
+      return areaM2 * 0.15;
+    },
+  },
+};
+
+// --- Helpers ---
+function mmToM(mm: number) { return mm / 1000; }
+function round2(n: number) { return Math.round(n * 100) / 100; }
+function round4(n: number) { return Math.round(n * 10000) / 10000; }
+
+function expandWidthMmForSplice(
+  bagType: BagType,
+  p: { W: number; H: number; BI: number; S: number; BS: number }
+): number {
+  const { W, H, BI, S, BS } = p;
+  switch (bagType) {
+    case "taperShape":   return (H + BI) * 2 + 30;      // 自立异形：+0.03m
+    case "taperBottom":  return (W + S) * 2 + 20;      // 尖底：+0.02m
+    case "flatBottom":   return (W + S) * 2 + 30;      // 方底：+0.03m
+    case "standup":      return (H + BI) * 2;          // 自立
+    case "eightSide":    return H * 2 + S + 30;        // 八边封：+0.03m
+    case "centerSeal":   return (W + S + BS) * 2;      // 中封
+    default:             return W * 2;                 // 其他：保守用 W×2
+  }
+}
+
+// 八边封展开面积拆分：正背底面 + 两个侧面（独立面积）
+function eightSideAreaSplit(
+  widthMm: number,
+  heightMm: number,
+  sideExpandMm: number
+) {
+  const W = mmToM(widthMm); // 袋宽
+  const H = mmToM(heightMm); // 袋高
+  const S = mmToM(sideExpandMm); // 侧面/底部展开
+
+  // 正背底面面积 = (袋高 + 袋高 + 侧面展开 + 0.03m) × (袋宽 + 0.006m)
+  const frontBackBottomArea = (H + H + S + 0.03) * (W + 0.006);
+  
+  // 两个侧面面积 = (侧面展开 + 0.006m) × 2 × (袋高 + 0.01m)
+  const twoSideArea = (S + 0.006) * 2 * (H + 0.01);
+
+  return { 
+    frontBackBottomArea, // 正背底面面积
+    twoSideArea,         // 两个侧面面积
+    totalArea: frontBackBottomArea + twoSideArea // 总面积（兼容原有逻辑）
+  };
+}
+
+// 放在 helpers 附近
+function lossFactorByBag(bagType: BagType): number {
+  // 三边封、中封、风琴 => 10%
+  if (bagType === "threeSide" || bagType === "centerSeal" || bagType === "gusset") return 1.10;
+  // 站立/自立拉链、方底、尖底 => 12%
+  if (bagType === "standup" || bagType === "flatBottom" || bagType === "taperBottom") return 1.12;
+  // 八边封、三边封异形、自立异形 => 15%
+  if (bagType === "eightSide" || bagType === "threeSideShape" || bagType === "taperShape") return 1.15;
+  return 1.10; // 兜底
+}
+
+// 新增：卷膜核心计算逻辑
+interface RollFilmCalcResult {
+  perSqmTotalG: number; // 每平方米总克重
+  perKgSqm: number; // 每公斤平方数
+  layerRatio: Array<{
+    label: string;
+    ratio: number; // 占比
+    weightPerKg: number; // 每公斤该层克重
+    cost: number; // 该层成本
+  }>;
+  materialCostPerKg: number; // 每公斤材料总成本
+  processCostPerKg: number; // 每公斤加工成本（印刷+复合+分切）
+  totalCostPerKg: number; // 每公斤卷膜总成本
+}
+
+function calcRollFilm(
+  layers: Layer[],
+  printPricePerM2: number,
+  laminationPricePerM2: number
+): RollFilmCalcResult {
+  // 1. 计算每层每平方米克重 & 总成本重
+  const layerData = layers.map(layer => {
+    const thickness = Number(layer.thicknessUm) || 0;
+    const density = Number(layer.density) || 0;
+    const price = Number(layer.pricePerKg) || 0;
+    const perSqmG = thickness * density; // 厚度(μm) * 密度(g/cm³) = 每平方米克重(g)
+    return {
+      label: MATERIAL_PRESETS[layer.material].label,
+      perSqmG,
+      price,
+    };
+  });
+
+  const perSqmTotalG = layerData.reduce((sum, item) => sum + item.perSqmG, 0);
+  // 2. 每公斤平方数 = 1000g / 每平方米总克重
+  const perKgSqm = perSqmTotalG > 0.001 ? 1000 / perSqmTotalG : 0;
+
+  // 3. 计算每层占比、每公斤重量、成本
+  const layerRatio = layerData.map(item => {
+    const ratio = perSqmTotalG > 0 ? item.perSqmG / perSqmTotalG : 0;
+    const weightPerKg = ratio * 1000; // 每公斤该层克重
+    const cost = (weightPerKg * item.price) / 1000; // 该层成本
+    return {
+      label: item.label,
+      ratio: Number((ratio * 100).toFixed(1)), // 百分比保留1位小数
+      weightPerKg: Number(weightPerKg.toFixed(1)),
+      cost: Number(cost.toFixed(4)),
+    };
+  });
+
+  // 4. 每公斤材料总成本
+  const materialCostPerKg = layerRatio.reduce((sum, item) => sum + item.cost, 0);
+
+  // 5. 每公斤加工成本 = (印刷+复合+分切) 元/㎡ * 每公斤平方数
+  const processCostPerKg = (printPricePerM2 + laminationPricePerM2 + SLITTING_PRICE) * perKgSqm;
+
+  // 6. 每公斤卷膜总成本
+  const totalCostPerKg = materialCostPerKg + processCostPerKg;
+
+  return {
+    perSqmTotalG: Number(perSqmTotalG.toFixed(1)),
+    perKgSqm: Number(perKgSqm.toFixed(2)),
+    layerRatio,
+    materialCostPerKg: Number(materialCostPerKg.toFixed(4)),
+    processCostPerKg: Number(processCostPerKg.toFixed(4)),
+    totalCostPerKg: Number(totalCostPerKg.toFixed(4)),
+  };
+}
+
+function quantityFactor(qty: number, bagType?: BagType): number {
+  // 卷膜按公斤计价，数量逻辑可单独调整
+  if (bagType === "rollFilm") {
+    if (qty >= 1000) return 0.95;
+    if (qty >= 500) return 0.98;
+    return 1.0;
+  }
+  // 原有袋子数量逻辑
+  if (qty >= 100000) return 0.96;
+  if (qty >= 50000) return 0.98;
+  if (qty >= 30000) return 1.0;
+  if (qty >= 20000) return 1.15;
+  if (qty >= 10000) return 1.3;
+  return 1.0;
+}
+
+// 材料成本（纸类按面积质量法；薄膜按体积密度法）
+function materialUnitCostPerBag(
+  areaM2: number,
+  layer: Layer,
+  bagType: BagType,
+  widthMm: number,
+  heightMm: number,
+  bottomInsertMm: number,
+  sideExpandMm: number,
+  backSealMm: number,
+): number {
+  const thickness = Number(layer.thicknessUm) || 0;
+  const density = Number(layer.density) || 0;
+  const price = Number(layer.pricePerKg) || 0;
+
+  // 如果没有拼接，直接用原逻辑
+  if (!layer.splice?.enabled) {
+    const key = layer.material;
+    if (key === "Kraft" || key === "WhiteKraft" || key === "CottonPaper") {
+      const kgPerBag = areaM2 * (thickness / 1000);
+      return kgPerBag * price;
+    }
+    return (areaM2 * thickness * density * price) / 1000;
+  }
+
+  // ✅ 新拼接开窗逻辑（区分纸类/薄膜类）
+  // 1. 计算本层展开总宽（m）
+  const totalWidthMm = expandWidthMmForSplice(bagType, {
+    W: widthMm, H: heightMm, BI: bottomInsertMm, S: sideExpandMm, BS: backSealMm
+  });
+  const totalWidthM = totalWidthMm / 1000;
+
+  // 2. 窗口宽度（m，做边界保护）
+  const rawWindowMm = Number(layer.splice.windowWidthMm) || 0;
+  const windowWidthMm = Math.max(0, Math.min(rawWindowMm, totalWidthMm));
+  const windowWidthM = windowWidthMm / 1000;
+  const mainWidthM = totalWidthM - windowWidthM;
+
+  // 3. 主材（原层材料）的计算
+  const mainKey = layer.material;
+  const mainIsPaper = ["Kraft", "WhiteKraft", "CottonPaper"].includes(mainKey);
+  const mainThickness = Number(thickness) || (MATERIAL_PRESETS[mainKey].defaultThickness ?? 50);
+  const mainPrice = Number(price) || (MATERIAL_PRESETS[mainKey].pricePerKg ?? 10);
+  let mainCost = 0;
+  if (mainIsPaper) {
+    // 纸类公式：宽度(m) × 袋宽(m) × 克重(g) × 单价(元/kg) ÷ 1000
+    mainCost = mainWidthM * (widthMm / 1000) * mainThickness * mainPrice / 1000;
+  } else {
+    // 薄膜公式：宽度(m) × 袋宽(m) × 厚度(um) × 密度(g/cm³) × 单价(元/kg) ÷ 1000
+    const mainDensity = Number(density) || (MATERIAL_PRESETS[mainKey].density ?? 1);
+    mainCost = mainWidthM * (widthMm / 1000) * mainThickness * mainDensity * mainPrice / 1000;
+  }
+
+  // 4. 窗口膜的计算
+  const windowKey = layer.splice.windowMaterial;
+  const windowIsPaper = ["Kraft", "WhiteKraft", "CottonPaper"].includes(windowKey);
+  const windowThickness = Number(layer.splice.windowThicknessUm) || (MATERIAL_PRESETS[windowKey].defaultThickness ?? 50);
+  const windowPrice = MATERIAL_PRESETS[windowKey].pricePerKg ?? 10;
+  const windowDensity = MATERIAL_PRESETS[windowKey].density ?? 1;
+  let windowCost = 0;
+  if (windowIsPaper) {
+    windowCost = windowWidthM * (widthMm / 1000) * windowThickness * windowPrice / 1000;
+  } else {
+    windowCost = windowWidthM * (widthMm / 1000) * windowThickness * windowDensity * windowPrice / 1000;
+  }
+
+  // 5. 总材料成本 = 主材成本 + 窗口膜成本
+  return mainCost + windowCost;
+}
+
+
+function getDefaultLayer(material: MaterialKey): Layer {
+  const p = MATERIAL_PRESETS[material];
+  return {
+    id: Math.random().toString(36).slice(2),
+    material,
+    thicknessUm: p.defaultThickness ?? 50,
+    density: p.density ?? 1.0,
+    pricePerKg: p.pricePerKg ?? 10,
+  };
+}
+
+// --- Main Component ---
+export default function BagQuoteCalculator() {
+  const [bagType, setBagType] = useState<BagType>("standup");
+
+  // 尺寸（mm）
+  const [width, setWidth] = useState<number | "">(190); // 成品袋宽
+  const [height, setHeight] = useState<number | "">(300); // 成品袋高
+  const [bottomInsert, setBottomInsert] = useState<number | "">(40); // 底部插入
+  const [sideExpand, setSideExpand] = useState<number | "">(0); // 风琴等
+  const [backSeal, setBackSeal] = useState<number | "">(10); // 中封背封边mm (用于中封/风琴)
+
+  // 新增：卷膜专属状态（宽度mm、长度m，可选）
+  const [rollFilmWidth, setRollFilmWidth] = useState<number | "">(190); // 卷膜宽度（mm）
+  const [rollFilmLength, setRollFilmLength] = useState<number | "">(1000); // 卷膜总长度（m）
+
+  const [quantity, setQuantity] = useState<number | "">(30000);
+  const [rowCountThreeSide, setRowCountThreeSide] = useState(2);
+  const [rowCountShape, setRowCountShape] = useState(2);
+
+
+  const [layers, setLayers] = useState<Layer[]>([
+    getDefaultLayer("PET"),
+    getDefaultLayer("VMPET"),
+    { ...getDefaultLayer("PE"), thicknessUm: 90 },
+  ]);
+
+  // 八边封袋材质模式（same = 同材质，diff = 侧边不同）
+  const [eightSideMode, setEightSideMode] = useState<"same" | "diff">("same");
+
+  // 八边封袋的侧边层（仅在“diff”模式下启用，多层）
+  const [sideLayers, setSideLayers] = useState<Layer[]>([
+    {
+      id: "side-0",
+      material: "PET",
+      thicknessUm: 12,
+      density: 1.4,
+      pricePerKg: 8,
+      splice: { 
+        enabled: false, 
+        windowWidthMm: "", 
+        windowMaterial: "PET" as MaterialKey, 
+        windowThicknessUm: "" 
+      },
+    },
+  ]);
+
+  // 八边封侧面独立印刷/复合配置（新增）
+  const [sidePrintCoveragePct, setSidePrintCoveragePct] = useState(0);
+  const [sideLaminations, setSideLaminations] = useState<LaminationStep[]>([
+    { id: "Side-L1", process: "solventless" },
+  ]);
+
+  const widthNum = Number(width) || 0;
+  const heightNum = Number(height) || 0;
+  const bottomInsertNum = Number(bottomInsert) || 0;
+  const sideExpandNum = Number(sideExpand) || 0;
+  const backSealNum = Number(backSeal) || 0;
+  const quantityNum = Number(quantity) || 0;
+  
+
+  // 复合：默认n-1步，每步可选工艺
+  const [laminations, setLaminations] = useState<LaminationStep[]>([
+    { id: "L1", process: "dry" },
+    { id: "L2", process: "solventless" },
+  ]);
+
+  // 在组件状态中新增：
+  const [eightSideAreas, setEightSideAreas] = useState({
+    frontBackBottomArea: 0,
+    twoSideArea: 0
+  });
+
+  // 展开面积计算
+  const areaM2 = useMemo(() => {
+    const W = mmToM(widthNum);
+    const H = mmToM(heightNum);
+    const BI = mmToM(bottomInsertNum);
+    const S = mmToM(sideExpandNum);
+    const BS = mmToM(backSealNum);
+
+    switch (bagType) {
+      case "standup":
+        return W * (H + BI) * 2; // 站立袋：宽 × (高 + 底插入) × 2
+      case "threeSide":
+        return W * H * 2; // 三边封：宽×高×2
+      case "centerSeal":
+        return (W + BS) * 2 * H; // 中封：(宽 + 背封边) × 2 × 高
+      case "gusset":
+        return (W + S + BS) * 2 * H; // 风琴
+      case "eightSide": {
+        const { frontBackBottomArea, twoSideArea, totalArea } = eightSideAreaSplit(widthNum, heightNum, sideExpandNum);
+        // 存储八边封的独立面积
+        setEightSideAreas({ frontBackBottomArea, twoSideArea });
+        return totalArea; // 总面积
+      }
+      case "taperBottom": // ｛（袋宽+侧面展开）x2+0.02m｝x（袋高+0.01m）
+        return ((W + S) * 2 + 0.02) * (H + 0.01);
+      case "flatBottom": // ｛（袋宽+侧面展开）x2+0.03m｝x（袋高+侧面展开/2+0.015m）
+        return ((W + S) * 2 + 0.03) * (H + S / 2 + 0.015);
+      case "threeSideShape": // 三边封异形袋 = {(袋宽×2+0.01m)} × (袋高+0.005m)
+        return (W * 2 + 0.01) * (H + 0.005);
+      case "taperShape": // 自立（拉链）异形袋 = {(袋高+底部插入)×2+0.03m} × (袋宽+0.005m)
+        return ((H + BI) * 2 + 0.03) * (W + 0.005);
+      default:
+        return 0;
+    }
+  }, [bagType, width, height, bottomInsert, sideExpand, backSeal]);
+
+  // 附加工艺
+  const [spoutOption, setSpoutOption] = useState<keyof typeof SPOUT_PRICE | "">("");
+  const [selectedPost, setSelectedPost] = useState<PostProcessKey[]>([]);
+  const postProcessCostPerBag = useMemo(() => {
+    return selectedPost.reduce(
+      (sum, k) =>
+        sum +
+        POST_PROCESS_PRICING[k].calc({
+          areaM2,
+          widthMm: widthNum,
+          bagType,
+          spoutKey: spoutOption, // ✅ 传入吸嘴规格
+        }),
+      0
+    );
+  }, [selectedPost, areaM2, widthNum, bagType, spoutOption]);
+
+
+  function togglePost(key: PostProcessKey) {
+    setSelectedPost(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+  }
+
+
+
+  // 印刷（覆盖率映射到元/㎡）
+  const [printCoveragePct, setPrintCoveragePct] = useState(300);
+  const printPricePerM2 = useMemo(() => {
+    const found = PRINT_COVERAGE_OPTIONS.find(o => o.pct === printCoveragePct);
+    return found ? found.price : 0;
+  }, [printCoveragePct]);
+
+  // 版费：长度×版周×色数×单价（元/cm²）
+  const [plateLenCm, setPlateLenCm] = useState<number | "">(86);
+  const [plateCircumferenceCm, setPlateCircumferenceCm] = useState<number | "">(19);
+  const [numColors, setNumColors] = useState<number | "">(3);
+  const [plateUnitYuanPerCm2, setPlateUnitYuanPerCm2] = useState<number | "">(0.11);
+
+  const plateLenCmNum = Number(plateLenCm) || 0;
+  const plateCircumferenceCmNum = Number(plateCircumferenceCm) || 0;
+  const numColorsNum = Number(numColors) || 0;
+  const plateUnitYuanPerCm2Num = Number(plateUnitYuanPerCm2) || 0;
+
+  // 利润率输入状态（默认 10%）
+  const [profitRatePct, setProfitRatePct] = useState<number | "">(10);
+
+  // 汇率：美元 → 人民币（默认 7.2）
+  const [exchangeRate, setExchangeRate] = useState<number | "">(7.2);
+  const exchangeRateNum = Number(exchangeRate) || 0;
+
+  // 报价生成相关状态
+  const [showQuoteResult, setShowQuoteResult] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 监听输入变化，自动隐藏报价结果
+  React.useEffect(() => {
+    setShowQuoteResult(false);
+  }, [
+    bagType, width, height, bottomInsert, sideExpand, backSeal,
+    rollFilmWidth, rollFilmLength, quantity, rowCountThreeSide, rowCountShape,
+    layers, eightSideMode, sideLayers, laminations, spoutOption, selectedPost,
+    printCoveragePct, plateLenCm, plateCircumferenceCm, numColors,
+    plateUnitYuanPerCm2, profitRatePct, exchangeRate, eightSideAreas
+  ]);
+
+  // 成本明细
+  const materialCostPerBag = useMemo(() => {
+    // ✅ 八边封 & 侧面不同材质：正背底用主层 + 正背底面积；侧面用侧边层 + 侧面面积
+    if (bagType === "eightSide" && eightSideMode === "diff") {
+      // 正背底面成本：主层材料 × 正背底面面积
+      const frontBackBottomCost = layers.reduce(
+        (sum, layer) =>
+          sum +
+          materialUnitCostPerBag(
+            eightSideAreas.frontBackBottomArea, // 用正背底面面积
+            layer,
+            bagType,
+            widthNum,
+            heightNum,
+            bottomInsertNum,
+            sideExpandNum,
+            backSealNum
+          ),
+        0
+      );
+
+      // 侧面成本：侧边层材料 × 侧面面积
+      const sideCost = sideLayers.reduce(
+        (sum, layer) =>
+          sum +
+          materialUnitCostPerBag(
+            eightSideAreas.twoSideArea, // 用侧面面积
+            layer,
+            bagType,
+            widthNum,
+            heightNum,
+            bottomInsertNum,
+            sideExpandNum,
+            backSealNum
+          ),
+        0
+      );
+
+      return frontBackBottomCost + sideCost;
+    }
+
+    // ✅ 其他袋型 / 八边封同材质：直接用总展开面积 areaM2
+    return layers.reduce(
+      (sum, layer) =>
+        sum +
+        materialUnitCostPerBag(
+          areaM2,
+          layer,
+          bagType,
+          widthNum,
+          heightNum,
+          bottomInsertNum,
+          sideExpandNum,
+          backSealNum
+        ),
+      0
+    );
+  }, [
+    layers,
+    sideLayers,
+    areaM2,
+    eightSideAreas, // 新增依赖：八边封独立面积
+    bagType,
+    eightSideMode,
+    widthNum,
+    heightNum,
+    bottomInsertNum,
+    sideExpandNum,
+    backSealNum,
+  ]);
+
+  const printingCostPerBag = useMemo(() => {
+    if (bagType === "eightSide") {
+      // 八边封：正背底印刷 + 侧面印刷 分开计算
+      const frontBackPrint = eightSideAreas.frontBackBottomArea * printPricePerM2;
+      const sidePrint = eightSideAreas.twoSideArea * (() => {
+        const found = PRINT_COVERAGE_OPTIONS.find(o => o.pct === sidePrintCoveragePct);
+        return found ? found.price : 0;
+      })();
+      return frontBackPrint + sidePrint;
+    }
+    // 其他袋型：总面积 × 印刷单价
+    return areaM2 * printPricePerM2;
+  }, [bagType, areaM2, printPricePerM2, eightSideAreas, sidePrintCoveragePct]);
+
+  const laminationCostPerBag = useMemo(() => {
+    if (bagType === "eightSide") {
+      // 八边封：正背底复合 + 侧面复合 分开计算
+      const mainLaminationSum = laminations.reduce((s, st) => s + LAMINATION_PRICE[st.process], 0);
+      const sideLaminationSum = sideLaminations.reduce((s, st) => s + LAMINATION_PRICE[st.process], 0);
+      const frontBackLamination = eightSideAreas.frontBackBottomArea * mainLaminationSum;
+      const sideLamination = eightSideAreas.twoSideArea * sideLaminationSum;
+      return frontBackLamination + sideLamination;
+    }
+    // 其他袋型：总面积 × 复合单价之和
+    return areaM2 * laminations.reduce((s, st) => s + LAMINATION_PRICE[st.process], 0);
+  }, [bagType, areaM2, laminations, eightSideAreas, sideLaminations]);
+
+  // 新增：卷膜复合单价（元/㎡）
+  const laminationPricePerM2 = useMemo(() => {
+    return laminations.reduce((s, st) => s + LAMINATION_PRICE[st.process], 0);
+  }, [laminations]);
+
+  // 新增：卷膜计算结果
+  const rollFilmResult = useMemo(() => {
+    if (bagType !== "rollFilm") return null;
+    return calcRollFilm(layers, printPricePerM2, laminationPricePerM2);
+  }, [bagType, layers, printPricePerM2, laminationPricePerM2]);
+
+  const makingCostPerBag = useMemo(() => {
+    // 站立袋：固定为 0.09 × 袋宽
+    if (bagType === "standup") {
+      return 0.09 * mmToM(widthNum);
+    }
+    // 三边封袋
+    if (bagType === "threeSide") {
+      const shortSideM = mmToM(Math.min(widthNum, heightNum));
+      let costPerBag = 0;
+      if (rowCountThreeSide === 1) costPerBag = 0.045 * shortSideM;
+      else if (rowCountThreeSide === 2) costPerBag = 0.03 * shortSideM;
+      else if (rowCountThreeSide === 3) costPerBag = 0.0225 * shortSideM;
+      return costPerBag;
+    }
+    // 中封/风琴袋
+    if (bagType === "centerSeal" || bagType === "gusset") {
+      return 0.04 * mmToM(heightNum);
+    }
+    // 八边封袋
+    if (bagType === "eightSide") {
+      return 0.28 * mmToM(widthNum);
+    }
+    // 尖底袋
+    if (bagType === "taperBottom") {
+      return 0.22 * mmToM(heightNum);
+    }
+    // 方底袋
+    if (bagType === "flatBottom") {
+      return 0.25 * mmToM(heightNum);
+    }
+    // 三边封异形袋
+    if (bagType === "threeSideShape") {
+      const shortSideM = mmToM(Math.min(widthNum, heightNum));
+      let base = 0;
+      if (rowCountShape === 1) base = 0.045 * shortSideM;
+      else if (rowCountShape === 2) base = 0.03 * shortSideM;
+      else if (rowCountShape === 3) base = 0.0225 * shortSideM;
+      const dieCutFee =
+        rowCountShape === 1 ? 0.018 : rowCountShape === 2 ? 0.009 : 0.006;
+      return base + dieCutFee;
+    }
+    // 自立异形袋
+    if (bagType === "taperShape") {
+      const base = 0.09 * mmToM(widthNum);
+      return base + 0.018; // 模切费
+    }
+    return 0;
+  }, [bagType, widthNum, heightNum, rowCountThreeSide, rowCountShape]);
+
+  const sumPerBagBeforeQty =
+    materialCostPerBag +
+    printingCostPerBag +
+    laminationCostPerBag +
+    makingCostPerBag +
+    postProcessCostPerBag;
+
+  const qtyFactor = quantityFactor(quantityNum);
+  const unitPrice = sumPerBagBeforeQty * qtyFactor; // 袋子单价（不含版费/上机费）
+
+  // 不含损耗/利润的单价与总价
+  const unitPriceNoWaste = unitPrice;
+  const totalNoWaste = unitPriceNoWaste * quantityNum;
+
+  // 损耗系数 & 含损耗单价/总价
+  const lossFactor = useMemo(() => lossFactorByBag(bagType), [bagType]);
+  const unitPriceWithWaste = unitPriceNoWaste * lossFactor;
+  const totalWithWaste = unitPriceWithWaste * quantityNum;
+
+  // 利润系数 & 报价（含损耗+利润）
+  const profitFactor = 1 + ((Number(profitRatePct) || 0) / 100);
+  const quotedUnitPrice = unitPriceWithWaste * profitFactor;
+  const quotedTotal = quotedUnitPrice * quantityNum;
+
+  const plateFee = useMemo(() => {
+    const areaCm2 = plateLenCmNum * plateCircumferenceCmNum;
+    return areaCm2 * plateUnitYuanPerCm2Num * numColorsNum;
+  }, [plateLenCmNum, plateCircumferenceCmNum, numColorsNum, plateUnitYuanPerCm2Num]);
+
+
+  // 上机费逻辑：仅当数量 < 10,000 时启用
+  const setupFee = quantityNum < 10000 ? Math.min(200 * numColorsNum, 1800) : 0;
+
+  // 三套“含版费”总计
+  const grandTotalNoWaste = totalNoWaste + plateFee + setupFee;
+  const grandTotalWithWaste = totalWithWaste + plateFee + setupFee;
+  const grandTotalQuoted = quotedTotal + plateFee + setupFee;
+
+  // --- UI helpers ---
+  function updateLayer(idx: number, patch: Partial<Layer>) {
+    setLayers(ls => ls.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+  }
+  function addLayer(material: MaterialKey = "Custom") {
+    setLayers(ls => {
+      const next = [...ls, getDefaultLayer(material)];
+      // 自动调整复合步数 = 层数 - 1
+      const needed = Math.max(next.length - 1, 0);
+      setLaminations(prev => {
+        const copy = [...prev];
+        while (copy.length < needed) copy.push({ id: Math.random().toString(36).slice(2), process: "dry" });
+        while (copy.length > needed) copy.pop();
+        return copy;
+      });
+      return next;
+    });
+  }
+  function removeLayer(idx: number) {
+    setLayers(ls => {
+      const next = ls.filter((_, i) => i !== idx);
+      const needed = Math.max(next.length - 1, 0);
+      setLaminations(prev => prev.slice(0, needed));
+      return next;
+    });
+  }
+
+  function updateSideLayer(idx: number, patch: Partial<Layer>) {
+  setSideLayers(ls => ls.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+}
+
+  // 新增：添加侧边层时自动调整侧边复合步数
+  function addSideLayer(material: MaterialKey = "PET") {
+    setSideLayers(ls => {
+      const next = [
+        ...ls,
+        {
+          ...getDefaultLayer(material),
+          id: `side-${Math.random().toString(36).slice(2)}`,
+          splice: { enabled: false, windowWidthMm: 0, windowThicknessUm: 0, windowMaterial: "PET" as MaterialKey },
+        },
+      ];
+      // 自动调整侧边复合步数 = 侧边层数 - 1
+      const needed = Math.max(next.length - 1, 1); // 至少保留1步
+      setSideLaminations(prev => {
+        const copy = [...prev];
+        while (copy.length < needed) copy.push({ id: Math.random().toString(36).slice(2), process: "solventless" });
+        while (copy.length > needed) copy.pop();
+        return copy;
+      });
+      return next as Layer[];
+    });
+  }
+
+  // 新增：删除侧边层时调整复合步数
+  function removeSideLayer(idx: number) {
+    setSideLayers(ls => {
+      const next = ls.filter((_, i) => i !== idx);
+      const needed = Math.max(next.length - 1, 1); // 至少保留1步
+      setSideLaminations(prev => prev.slice(0, needed));
+      return next;
+    });
+  }
+
+  // 八边封侧面复合工艺调整（新增）
+  const updateSideLamination = (idx: number, process: LaminationStep["process"]) => {
+    setSideLaminations(prev => 
+      prev.map((step, i) => i === idx ? { ...step, process } : step)
+    );
+  };
+
+  const addSideLamination = () => {
+    setSideLaminations(prev => [
+      ...prev,
+      { id: Math.random().toString(36).slice(2), process: "solventless" }
+    ]);
+  };
+
+  const removeSideLamination = (idx: number) => {
+    if (sideLaminations.length <= 1) return;
+    setSideLaminations(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  // --- 公式字符串（用于“计算明细”展示） ---
+  const f4 = (n: number) => round4(n).toFixed(4);
+  const f2 = (n: number) => round2(n).toFixed(2);
+
+  const perLayerBreakdown = layers.map(layer => {
+    const key = layer.material;
+    if (key === "Kraft" || key === "WhiteKraft" || key === "CottonPaper") {
+      // 纸类：成本 = 面积 × (gsm/1000) × 单价
+      const cost = materialUnitCostPerBag(areaM2, layer, bagType, widthNum, heightNum, bottomInsertNum, sideExpandNum, backSealNum);
+      return {
+        label: MATERIAL_PRESETS[key].label,
+        formula: `面积 ${f4(areaM2)} × (克重 ${layer.thicknessUm}/1000) × 单价 ${layer.pricePerKg} = ${f4(cost)} 元/个`,
+        cost,
+      };
+    }
+    const cost = materialUnitCostPerBag(areaM2, layer, bagType, widthNum, heightNum, bottomInsertNum, sideExpandNum, backSealNum);
+    return {
+      label: MATERIAL_PRESETS[key].label,
+      formula: `面积 ${f4(areaM2)} × 厚度 ${layer.thicknessUm}μm × 密度 ${layer.density} × 单价 ${layer.pricePerKg} ÷1000 = ${f4(cost)} 元/个`,
+      cost,
+    };
+  });
+
+  const laminationSumUnit = laminations.reduce((s, st) => s + LAMINATION_PRICE[st.process], 0); // 元/㎡
+
+  // 生成报价并保存到后端
+  const handleGenerateQuote = async () => {
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        quoterType: 'shunfa',
+        timestamp: new Date().toISOString(),
+        inputs: {
+          bagType,
+          width,
+          height,
+          bottomInsert,
+          sideExpand,
+          backSeal,
+          rollFilmWidth,
+          rollFilmLength,
+          quantity,
+          rowCountThreeSide,
+          rowCountShape,
+          layers,
+          eightSideMode,
+          sideLayers,
+          laminations,
+          spoutOption,
+          selectedPost,
+          printCoveragePct,
+          plateLenCm,
+          plateCircumferenceCm,
+          numColors,
+          plateUnitYuanPerCm2,
+          profitRatePct,
+          exchangeRate,
+        },
+        result: {
+          areaM2,
+          materialCostPerBag,
+          printingCostPerBag,
+          laminationCostPerBag,
+          makingCostPerBag,
+          postProcessCostPerBag,
+          unitPrice,
+          unitPriceWithWaste,
+          quotedUnitPrice,
+          quotedTotal,
+          plateFee,
+          grandTotalQuoted,
+        },
+      };
+
+      await fetch('http://54.84.216.44:3973/api/v1/dylign/quote-inputs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      console.error('保存报价失败:', error);
+    } finally {
+      setIsSubmitting(false);
+      setShowQuoteResult(true);
+    }
+  };
+
+  return (
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <h1 className="text-2xl font-bold">包装袋自动报价器</h1>
+
+      {/* Bag type & size */}
+      <div className="grid md:grid-cols-2 gap-4 p-4 rounded-2xl shadow bg-white">
+        <div className="space-y-2">
+          <label className="font-medium">袋型</label>
+          <select className="w-full border rounded p-2" value={bagType} onChange={e => setBagType(e.target.value as BagType)}>
+            <option value="standup">站立袋/自立拉链袋</option>
+            <option value="threeSide">三边封袋</option>
+            <option value="centerSeal">中封袋</option>
+            <option value="gusset">风琴袋</option>
+            <option value="eightSide">八边封袋</option>
+            <option value="taperBottom">尖底袋</option>
+            <option value="flatBottom">方底袋</option>
+            <option value="threeSideShape">三边封异形袋</option>
+            <option value="taperShape">自立（拉链）异形袋</option>
+            <option value="rollFilm">卷膜</option> {/* 新增卷膜选项 */}
+          </select>
+          {/* 八边封袋模式切换 */}
+          {bagType === "eightSide" && (
+            <div className="mt-2">
+              <label className="text-sm font-medium">八边封模式：</label>
+              <select
+                className="ml-2 border rounded p-2"
+                value={eightSideMode}
+                onChange={e => setEightSideMode(e.target.value as "same" | "diff")}
+              >
+                <option value="same">正反面+底部+侧边相同材质</option>
+                <option value="diff">侧边不同材质（额外输入）</option>
+              </select>
+            </div>
+          )}
+        </div>
+      
+      {/* 右侧：尺寸输入区 */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* 卷膜专属尺寸输入（单独片段） */}
+        {bagType === "rollFilm" && (
+          <>
+            <div>
+              <label className="text-sm">卷膜宽度 (mm)</label>
+              <input
+                className="w-full border rounded p-2"
+                type="number"
+                value={rollFilmWidth}
+                onChange={e => {
+                  const val = e.target.value;
+                  setRollFilmWidth(val === "" ? "" : Number(val));
+                }}
+              />
+            </div>
+            <div>
+              <label className="text-sm">卷膜总长度 (m)</label>
+              <input
+                className="w-full border rounded p-2"
+                type="number"
+                value={rollFilmLength}
+                onChange={e => {
+                  const val = e.target.value;
+                  setRollFilmLength(val === "" ? "" : Number(val));
+                }}
+              />
+            </div>
+          </>
+        )}
+
+        {bagType !== "rollFilm" && (
+          <div>
+        {/* 袋宽 */}
+          <label className="text-sm">袋宽 (mm)</label>
+          <input
+            className="w-full border rounded p-2"
+            type="number"
+            value={width}
+            onChange={e => {const val = e.target.value; setWidth(val === "" ? "" : Number(val)); }}
+          />
+        </div>
+      )}
+
+        {bagType !== "rollFilm" && (
+          <div>
+        {/* 袋高 */}
+          <label className="text-sm">袋高 (mm)</label>
+          <input
+            className="w-full border rounded p-2"
+            type="number"
+            value={height}
+            onChange={e => {const val = e.target.value; setHeight(val === "" ? "" : Number(val)); }}
+          />
+        </div>
+      )}
+
+        {/* 底部插入：仅限站立袋、异形站立袋 */}
+        {(bagType === "standup" || bagType === "taperShape") && (
+          <div>
+            <label className="text-sm">底部插入 (mm)</label>
+            <input
+              className="w-full border rounded p-2"
+              type="number"
+              value={bottomInsert}
+              onChange={e => {
+                const val = e.target.value;
+                setBottomInsert(val === "" ? "" : Number(val));
+              }}
+            />
+          </div>
+        )}
+
+        {/* 背封边：仅中封袋、风琴袋 */}
+        {(bagType === "centerSeal" || bagType === "gusset") && (
+          <div>
+            <label className="text-sm">背封边 (mm)</label>
+            <input
+              className="w-full border rounded p-2"
+              type="number"
+              value={backSeal}
+              onChange={e => {const val = e.target.value; setBackSeal(val === "" ? "" : Number(val)); }}
+            />
+          </div>
+        )}
+
+        {/* 风琴袋：风琴展开 */}
+        {bagType === "gusset" && (
+          <div>
+            <label className="text-sm">风琴展开 (mm)</label>
+            <input
+              className="w-full border rounded p-2"
+              type="number"
+              value={sideExpand}
+              onChange={e => {const val = e.target.value; setSideExpand(val === "" ? "" : Number(val)); }}
+            />
+          </div>
+        )}  
+
+        {/* 八边封袋：仅侧面/底部展开 */}
+        {bagType === "eightSide" && (
+          <div>
+            <label className="text-sm">侧面 / 底部展开 (mm)</label>
+            <input
+              className="w-full border rounded p-2"
+              type="number"
+              value={sideExpand}
+              onChange={e => {const val = e.target.value; setSideExpand(val === "" ? "" : Number(val)); }}
+            />
+          </div>
+        )}
+
+        {/* 尖底 / 方底：需要侧面展开 */}
+        {(bagType === "taperBottom" || bagType === "flatBottom") && (
+          <div>
+            <label className="text-sm">侧面展开 (mm)</label>
+            <input
+              className="w-full border rounded p-2"
+              type="number"
+              value={sideExpand}
+              onChange={e => {const val = e.target.value; setSideExpand(val === "" ? "" : Number(val)); }}
+            />
+          </div>
+        )}
+
+        {/* 数量 */}
+        <div>
+          <label className="text-sm">{bagType === "rollFilm" ? "数量 (公斤)" : "数量 (个)"}</label>
+          <input
+            className="w-full border rounded p-2"
+            type="number"
+            value={quantity}
+            onChange={e => {const val = e.target.value; setQuantity(val === "" ? "" : Number(val)); }}
+          />
+        </div>
+        {/* 普通三边封袋专属：排数 */}
+        {bagType === "threeSide" && (
+          <div>
+            <label className="text-sm">制袋排数</label>
+            <select
+              className="w-full border rounded p-2"
+              value={rowCountThreeSide}
+              onChange={e => setRowCountThreeSide(+e.target.value)}
+            >
+              <option value={1}>单排</option>
+              <option value={2}>双排</option>
+              <option value={3}>三排</option>
+            </select>
+          </div>
+        )}
+        {/* 三边封异形袋专属：模切排数 */}
+        {bagType === "threeSideShape" && (
+          <div>
+            <label className="text-sm">模切排数</label>
+            <select
+              className="w-full border rounded p-2"
+              value={rowCountShape}
+              onChange={e => setRowCountShape(+e.target.value)}
+            >
+              <option value={1}>单排</option>
+              <option value={2}>双排</option>
+              <option value={3}>三排</option>
+            </select>
+          </div>
+        )}
+        
+          {/* 动态说明提示 */}
+          {(bagType === "gusset" || bagType === "eightSide") && (
+            <div className="col-span-2 text-xs text-slate-500 mt-1 p-2 rounded bg-slate-50 border border-slate-200">
+              * 风琴展开指袋子两侧折边宽度；八边封的侧面/底部展开表示侧面与底部一致的展开尺寸。
+            </div>
+          )}
+        </div>
+      </div> {/* ✅ 必须闭合 */}
+  
+        {/* Layers */}
+        <div className="p-4 rounded-2xl shadow bg-white space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold">材料层结构</h2>
+            <div className="flex gap-2">
+              <button className="px-3 py-1 rounded bg-black text-white" onClick={() => addLayer("PET")}>+ PET</button>
+              <button className="px-3 py-1 rounded bg-black text-white" onClick={() => addLayer("VMPET")}>+ VMPET</button>
+              <button className="px-3 py-1 rounded bg-black text-white" onClick={() => addLayer("PE")}>+ PE</button>
+              <button className="px-3 py-1 rounded bg-slate-700 text-white" onClick={() => addLayer("Custom")}>+ 自定义</button>
+            </div>
+          </div>
+          <div className="space-y-3">
+            {layers.map((layer, idx) => (
+              <div key={layer.id} className="grid grid-cols-12 gap-2 items-end">
+                {/* 材料 */}
+                <div className="col-span-3">
+                  <label className="text-sm">材料</label>
+                  <select
+                    className="w-full border rounded p-2"
+                    value={layer.material}
+                    onChange={e => {
+                      const m = e.target.value as MaterialKey;
+                      const preset = MATERIAL_PRESETS[m];
+                      updateLayer(idx, {
+                        material: m,
+                        density: preset.density ?? layer.density ?? "",
+                        thicknessUm: preset.defaultThickness ?? layer.thicknessUm ?? "",
+                        pricePerKg: preset.pricePerKg ?? layer.pricePerKg ?? "",
+                      });
+                    }}
+                  >
+                    {Object.keys(MATERIAL_PRESETS).map(k => (
+                      <option key={k} value={k}>
+                        {MATERIAL_PRESETS[k as MaterialKey].label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+            
+                {/* 厚度 */}
+                <div className="col-span-2">
+                  <label className="text-sm">厚度/克重</label>
+                  <input
+                    type="number"
+                    className="w-full border rounded p-2"
+                    value={layer.thicknessUm}
+                    onChange={e => {
+                      const val = e.target.value;
+                      updateLayer(idx, { thicknessUm: val === "" ? "" : Number(val) });
+                    }}
+                  />
+                </div>
+
+            
+                {/* 密度 */}
+                <div className="col-span-2">
+                  <label className="text-sm">密度 g/cm³</label>
+                  <input
+                    type="number"
+                    className="w-full border rounded p-2"
+                    value={layer.density}
+                    onChange={e => {
+                      const val = e.target.value;
+                      updateLayer(idx, { density: val === "" ? "" : Number(val) });
+                    }}
+                  />
+                </div>
+            
+                {/* 单价 */}
+                <div className="col-span-2">
+                  <label className="text-sm">单价 元/kg</label>
+                  <input
+                    type="number"
+                    className="w-full border rounded p-2"
+                    value={layer.pricePerKg}
+                    onChange={e => {
+                      const val = e.target.value;
+                      updateLayer(idx, { pricePerKg: val === "" ? "" : Number(val) });
+                    }}
+                  />
+                </div>
+            
+                {/* 材料成本 */}
+                <div className="col-span-2">
+                  <div className="text-xs text-slate-500">材料成本/个</div>
+                  <div className="font-semibold">
+                    {round4(materialUnitCostPerBag(areaM2, layer, bagType, widthNum, heightNum, bottomInsertNum, sideExpandNum, backSealNum)).toFixed(4)} 元
+                  </div>
+                </div>
+            
+                {/* 右侧操作按钮 */}
+                <div className="col-span-1 flex flex-col gap-1 justify-end items-end">
+                  {/* 拼接按钮 */}
+                  <button
+                    className={`px-2 py-1 rounded text-xs ${
+                      layer.splice?.enabled ? "bg-blue-600 text-white" : "bg-slate-200"
+                    }`}
+                    onClick={() =>
+                      updateLayer(idx, {
+                        splice: layer.splice?.enabled
+                          ? { enabled: false, windowWidthMm: 0, windowThicknessUm: 0, windowMaterial: "PET" }
+                          : { enabled: true, windowWidthMm: 0, windowThicknessUm: 0, windowMaterial: "PET" },
+                      })
+                    }
+                  >
+                    {layer.splice?.enabled ? "取消拼接" : "开窗拼接"}
+                  </button>
+                  {/* 删除按钮 */}
+                  <button
+                    className="px-2 py-1 rounded bg-red-500 text-white text-xs"
+                    onClick={() => removeLayer(idx)}
+                  >
+                    删除
+                  </button>
+                </div>
+            
+                {/* 仅在启用拼接时显示展开宽度输入区 */}
+                {layer.splice?.enabled && (
+                  <div className="col-span-12 grid grid-cols-12 gap-2 bg-slate-50 p-2 rounded mt-2">                
+                    {/* 窗口膜宽度 */}
+                    <div className="col-span-4">
+                      <label className="text-sm">窗口膜宽度 (mm)</label>
+                      <input
+                        type="number"
+                        className="w-full border rounded p-2"
+                        value={layer.splice.windowWidthMm}
+                        onChange={e => {
+                          const val = e.target.value;
+                          updateLayer(idx, {
+                            splice: { ...layer.splice!, windowWidthMm: val === "" ? "" : Number(val) },
+                          });
+                        }}
+                      />
+                    </div>
+
+                    {/* 新增：窗口膜厚度 */}
+                    <div className="col-span-3">
+                      <label className="text-sm">窗口膜厚度 (um)</label>
+                      <input
+                        type="number"
+                        className="w-full border rounded p-2"
+                        value={layer.splice.windowThicknessUm}
+                        onChange={e => {
+                          const val = e.target.value;
+                          updateLayer(idx, {
+                            splice: { ...layer.splice!, windowThicknessUm: val === "" ? "" : Number(val) },
+                          });
+                        }}
+                      />
+                    </div>
+                
+                    {/* 窗口膜材料 */}
+                    <div className="col-span-4">
+                      <label className="text-sm">窗口膜材料</label>
+                      <select
+                        className="w-full border rounded p-2"
+                        value={layer.splice.windowMaterial}
+                        onChange={e =>
+                          updateLayer(idx, {
+                            splice: {
+                              ...layer.splice!,
+                              windowMaterial: e.target.value as MaterialKey,
+                            },
+                          })
+                        }
+                      >
+                        {Object.keys(MATERIAL_PRESETS).map(k => (
+                          <option key={k} value={k}>
+                            {MATERIAL_PRESETS[k as MaterialKey].label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+                  {/* 拼接提示信息 */}
+                  {layer.splice?.enabled && (
+                    (() => {
+                      // 1) 计算本层展开总宽（mm）
+                      const totalWidth =
+                        expandWidthMmForSplice(bagType, {
+                          W: widthNum,
+                          H: heightNum,
+                          BI: bottomInsertNum,
+                          S: sideExpandNum,
+                          BS: backSealNum,
+                        }) || 0;
+
+                      // 2) 窗口宽度（做边界保护）
+                      const rawWindow = Number(layer.splice?.windowWidthMm) || 0;
+                      const windowWidth = Math.max(0, Math.min(rawWindow, totalWidth));
+
+                      // 3) 主材宽度
+                      const mainWidth = Math.max(0, totalWidth - windowWidth);
+
+                      return (
+                        <div className="col-span-12 text-xs text-slate-600 mt-1">
+                          当前层拼接：展开宽度 <b>{Math.round(totalWidth)}</b> mm，
+                          窗口膜宽度 <b>{Math.round(windowWidth)}</b> mm，
+                          主材宽度 = <b>{Math.round(mainWidth)}</b> mm
+                          {rawWindow > totalWidth && (
+                            <span className="text-red-600 ml-2">（已按最大展开宽度截断）</span>
+                          )}
+                        </div>
+                      );
+                    })()
+                  )}
+                </div>
+              ))}
+
+              {/* 八边封袋侧边层（仅在 diff 模式时显示，多层） */}
+              {bagType === "eightSide" && eightSideMode === "diff" && (
+                <div className="mt-3 border-t pt-3 bg-slate-50 rounded">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold">侧边材料层结构（仅八边封）</h3>
+                    <button
+                      className="px-2 py-1 rounded bg-slate-700 text-white text-xs"
+                      onClick={() => addSideLayer("PET")}
+                    >
+                      + 侧边材料层
+                    </button>
+                  </div>
+
+                  {bagType === "eightSide" && (
+                    <div className="mt-4 p-4 rounded-lg bg-slate-50 border">
+                      <h3 className="text-sm font-semibold mb-3">八边封侧面独立配置</h3>
+                      {/* 侧面印刷覆盖率 */}
+                      <div className="mb-3">
+                        <label className="text-sm font-medium">侧面印刷覆盖率</label>
+                        <select 
+                          className="w-full border rounded p-2 mt-1"
+                          value={sidePrintCoveragePct}
+                          onChange={e => setSidePrintCoveragePct(+e.target.value)}
+                        >
+                          {PRINT_COVERAGE_OPTIONS.map(o => (
+                            <option key={o.pct} value={o.pct}>{o.pct}% 覆盖率 — {o.price} 元/㎡</option>
+                          ))}
+                        </select>
+                      </div>
+                      {/* 侧面复合工艺 */}
+                      <div className="mb-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-sm font-medium">侧面复合工艺</label>
+                          <button 
+                            className="px-2 py-1 rounded bg-slate-700 text-white text-xs"
+                            onClick={addSideLamination}
+                          >
+                            + 新增复合步骤
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {sideLaminations.map((st, i) => (
+                            <div key={st.id} className="flex items-center gap-2">
+                              <span className="text-xs">第{i + 1}次：</span>
+                              <select 
+                                className="flex-1 border rounded p-2 text-sm"
+                                value={st.process}
+                                onChange={e => updateSideLamination(i, e.target.value as LaminationStep["process"])}
+                              >
+                                <option value="dry">干式复合 (0.13)</option>
+                                <option value="dry_retort">干式复合·蒸煮 (0.18)</option>
+                                <option value="solventless">无溶剂复合 (0.065)</option>
+                              </select>
+                              <button 
+                                className="px-2 py-1 rounded bg-red-500 text-white text-xs"
+                                onClick={() => removeSideLamination(i)}
+                                disabled={sideLaminations.length <= 1}
+                              >
+                                删
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    {sideLayers.map((layer, idx) => (
+                      <div
+                        key={layer.id}
+                        className="grid grid-cols-12 gap-2 items-end bg-white p-2 rounded-lg"
+                      >
+                        {/* 材料 */}
+                        <div className="col-span-3">
+                          <label className="text-xs">侧边第 {idx + 1} 层材料</label>
+                          <select
+                            className="w-full border rounded p-2 text-sm"
+                            value={layer.material}
+                            onChange={(e) => {
+                              const m = e.target.value as MaterialKey;
+                              const preset = MATERIAL_PRESETS[m];
+                              updateSideLayer(idx, {
+                                material: m,
+                                density: preset.density ?? layer.density ?? "",
+                                thicknessUm:
+                                  preset.defaultThickness ?? layer.thicknessUm ?? "",
+                                pricePerKg:
+                                  preset.pricePerKg ?? layer.pricePerKg ?? "",
+                              });
+                            }}
+                          >
+                            {Object.keys(MATERIAL_PRESETS).map((k) => (
+                              <option key={k} value={k}>
+                                {MATERIAL_PRESETS[k as MaterialKey].label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* 厚度 */}
+                        <div className="col-span-3">
+                          <label className="text-xs">厚度/克重</label>
+                          <input
+                            type="number"
+                            className="w-full border rounded p-2 text-sm"
+                            value={layer.thicknessUm}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              updateSideLayer(idx, {
+                                thicknessUm: val === "" ? "" : Number(val),
+                              });
+                            }}
+                          />
+                        </div>
+
+                        {/* 密度 */}
+                        <div className="col-span-3">
+                          <label className="text-xs">密度 g/cm³</label>
+                          <input
+                            type="number"
+                            className="w-full border rounded p-2 text-sm"
+                            value={layer.density}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              updateSideLayer(idx, {
+                                density: val === "" ? "" : Number(val),
+                              });
+                            }}
+                          />
+                        </div>
+
+                        {/* 单价 */}
+                        <div className="col-span-2">
+                          <label className="text-xs">单价 元/kg</label>
+                          <input
+                            type="number"
+                            className="w-full border rounded p-2 text-sm"
+                            value={layer.pricePerKg}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              updateSideLayer(idx, {
+                                pricePerKg: val === "" ? "" : Number(val),
+                              });
+                            }}
+                          />
+                        </div>
+
+                        {/* 删除按钮 */}
+                        <div className="col-span-1 flex justify-end">
+                          <button
+                            className="px-2 py-1 rounded bg-red-500 text-white text-xs"
+                            onClick={() => removeSideLayer(idx)}
+                            disabled={sideLayers.length === 1}
+                          >
+                            删
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-1 text-xs text-slate-500">
+                    说明：八边封选择“侧面不同材质”时，侧面也按多层结构计成本（每层按同一展开面积计入侧边部分）。
+                  </div>
+                </div>
+              )}
+
+
+              <div className="text-xs text-slate-500">
+                复合步数自动 = 层数-1。可在下方调整每一步工艺。
+              </div>
+          </div>
+          </div> {/* ✅ 关闭最外层的材料层容器 p-4 rounded-2xl shadow bg-white space-y-4 */}
+    
+          {/* Lamination */}
+          <div className="p-4 rounded-2xl shadow bg-white space-y-3">
+            <h2 className="font-semibold">复合工艺（每一步按展开面积计价）</h2>
+            <div className="space-y-2">
+              {laminations.map((st, i) => (
+                <div key={st.id} className="flex items-center gap-2">
+                  <span>第{i + 1}次：</span>
+                  <select className="border rounded p-2" value={st.process} onChange={e => setLaminations(list => list.map((x, idx) => idx === i ? { ...x, process: e.target.value as LaminationStep["process"] } : x))}>
+                    <option value="dry">干式复合 (0.13)</option>
+                    <option value="dry_retort">干式复合·蒸煮 (0.18)</option>
+                    <option value="solventless">无溶剂复合 (0.065)</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+          </div>
+    
+          {/* Post-Processing */}
+          <div className="p-4 rounded-2xl shadow bg-white space-y-3">
+            <h2 className="font-semibold">附加工艺（可多选）</h2>
+            <div className="grid md:grid-cols-3 gap-3">
+              {Object.entries(POST_PROCESS_PRICING).map(([key, val]) => {
+                const k = key as PostProcessKey; // ✅ 定义 k
+                const active = selectedPost.includes(k);
+                const cost = val.calc({
+                  areaM2,
+                  widthMm: widthNum,
+                  bagType,
+                  spoutKey: spoutOption, // ✅ 传入吸嘴规格
+                });
+
+                return (
+                  <label
+                    key={key}
+                    className={`border rounded-lg p-3 flex flex-col cursor-pointer hover:bg-slate-50 ${
+                      active ? "border-blue-500 bg-blue-50" : "border-slate-200"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{val.label}</span>
+                      <input
+                        type="checkbox"
+                        checked={active}
+                        onChange={() => togglePost(k)}
+                        className="accent-blue-600"
+                      />
+                    </div>
+
+                    <div className="text-xs text-slate-500 mt-1">{val.desc}</div>
+
+                    {/* ✅ 吸嘴专属：勾选后显示下拉规格 */}
+                    {k === "spout" && active && (
+                      <div className="mt-2">
+                        <select
+                          className="w-full border rounded p-2 text-sm"
+                          value={spoutOption}
+                          onChange={(e) =>
+                            setSpoutOption(
+                              (e.target.value || "") as keyof typeof SPOUT_PRICE | ""
+                            )
+                          }
+                        >
+                          <option value="">请选择吸嘴规格</option>
+                          {Object.keys(SPOUT_PRICE).map((opt) => (
+                            <option key={opt} value={opt}>
+                              {SPOUT_LABEL_MAP[opt as keyof typeof SPOUT_PRICE]} —{" "}
+                              {SPOUT_PRICE[opt as keyof typeof SPOUT_PRICE]} 元/个
+                            </option>
+                          ))}
+                        </select>
+                        {!spoutOption && (
+                          <div className="text-xs text-red-600 mt-1">
+                            已勾选吸嘴，请选择具体规格
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="text-xs text-slate-600 mt-1">
+                      当前成本：{f4(cost)} 元/个
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+            <div className="text-sm text-slate-600 pt-2">
+              已选工艺：
+              {selectedPost.length
+                ? selectedPost
+                    .map((k) => {
+                      if (k === "spout") {
+                        return spoutOption
+                          ? `吸嘴：${SPOUT_LABEL_MAP[spoutOption]}`
+                          : "吸嘴（未选择规格）";
+                      }
+                      return POST_PROCESS_PRICING[k].label;
+                    })
+                    .join("，")
+                : "无"}
+            </div>
+          </div>
+    
+          {/* Printing & Plate */}
+          <div className="p-4 rounded-2xl shadow bg-white grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <h2 className="font-semibold">印刷（按覆盖率选择）</h2>
+              <select className="w-full border rounded p-2" value={printCoveragePct} onChange={e => setPrintCoveragePct(+e.target.value)}>
+                {PRINT_COVERAGE_OPTIONS.map(o => (
+                  <option key={o.pct} value={o.pct}>{o.pct}% 覆盖率 — {o.price} 元/㎡</option>
+                ))}
+              </select>
+            </div>
+    
+            <div className="space-y-2">
+              <h2 className="font-semibold">版费（与袋子单价分开结算）</h2>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-sm">版长 (cm)
+                  <input className="w-full border rounded p-2" type="number" value={plateLenCm} onChange={e => { const val = e.target.value; setPlateLenCm(val === "" ? "" : Number(val));}} />
+                </label>
+                <label className="text-sm">版周 (cm)
+                  <input className="w-full border rounded p-2" type="number" value={plateCircumferenceCm} onChange={e => { const val = e.target.value; setPlateCircumferenceCm(val === "" ? "" : Number(val));}} />
+                </label>
+                <label className="text-sm">色数 (支)
+                  <input className="w-full border rounded p-2" type="number" value={numColors} onChange={e => { const val = e.target.value; setNumColors(val === "" ? "" : Number(val));}} />
+                </label>
+                <label className="text-sm">单价 (元/cm²)
+                  <input className="w-full border rounded p-2" type="number" step="0.01" value={plateUnitYuanPerCm2} onChange={e => { const val = e.target.value; setPlateUnitYuanPerCm2(val === "" ? "" : Number(val));}} />
+                </label>
+              </div>
+              <div className="text-sm">版费合计：<span className="font-semibold">{f2(plateFee)} 元</span></div>
+            </div>
+          </div>
+
+          {/* Profit (after plate fee section) */}
+          <div className="p-4 rounded-2xl shadow bg-white space-y-2">
+            <h2 className="font-semibold">利润率 & 汇率</h2>
+            <div className="grid grid-cols-3 gap-2">
+              <label className="text-sm">
+                利润率（%）
+                <input
+                  className="w-full border rounded p-2"
+                  type="number"
+                  value={profitRatePct}
+                  onChange={e => {
+                    const v = e.target.value;
+                    setProfitRatePct(v === "" ? "" : Number(v));
+                  }}
+                />
+              </label>
+
+              {/* 新增：汇率输入 */}
+              <label className="text-sm">
+                汇率（美元 → 人民币）
+                <input
+                  className="w-full border rounded p-2"
+                  type="number"
+                  step="0.01"
+                  value={exchangeRate}
+                  onChange={e => {
+                    const v = e.target.value;
+                    setExchangeRate(v === "" ? "" : Number(v));
+                  }}
+                />
+              </label>
+
+              <div className="text-sm self-end">
+                当前利润系数：<b>{profitFactor.toFixed(2)}</b>
+                <br />
+                当前汇率：<b>{exchangeRateNum > 0 ? exchangeRateNum.toFixed(2) : "-"}</b> 元 / 美元
+              </div>
+            </div>
+            <div className="text-xs text-slate-500">
+              报价 = 成本价 × 损耗率 × 利润率（示例：10% 损耗→×1.10，10% 利润→×1.10）
+            </div>
+          </div>
+
+          {/* 生成报价按钮 */}
+          <div className="p-4 rounded-2xl shadow bg-white">
+            <button
+              onClick={handleGenerateQuote}
+              disabled={isSubmitting}
+              className="w-full py-3 px-6 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-lg shadow transition-colors"
+            >
+              {isSubmitting ? "生成中..." : "生成报价"}
+            </button>
+          </div>
+
+          {/* Summary */}
+          {showQuoteResult && (
+            <div className="p-4 rounded-2xl shadow bg-white space-y-3">
+              <h2 className="font-semibold">报价汇总</h2>
+
+              {/* 卷膜计算结果展示（单独片段） */}
+              {bagType === "rollFilm" && rollFilmResult && (
+                <div className="mb-4 p-4 rounded-lg bg-blue-50 border border-blue-200">
+                  <h3 className="font-bold text-blue-800 mb-2">卷膜计算结果</h3>
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div>
+                      每平方米总克重：<span className="font-semibold">{rollFilmResult.perSqmTotalG} g/㎡</span>
+                      <div className="text-xs text-slate-600 mt-1 pl-4">
+                        计算：各层克重相加 = {rollFilmResult.layerRatio.map(l => l.weightPerKg).join(" + ")} = {rollFilmResult.perSqmTotalG}g/㎡
+                      </div>
+                    </div>
+                    <div>
+                      每公斤平方数：<span className="font-semibold">{rollFilmResult.perKgSqm} ㎡/kg</span>
+                      <div className="text-xs text-slate-600 mt-1 pl-4">
+                        计算：1000g ÷ {rollFilmResult.perSqmTotalG}g/㎡ = {rollFilmResult.perKgSqm}㎡/kg
+                      </div>
+                    </div>
+                    <div>
+                      每公斤材料成本：<span className="font-semibold">{rollFilmResult.materialCostPerKg} 元/kg</span>
+                    </div>
+                    <div>
+                      每公斤加工成本：<span className="font-semibold">{rollFilmResult.processCostPerKg} 元/kg</span>
+                      <div className="text-xs text-slate-600 mt-1 pl-4">
+                        计算：{rollFilmResult.perKgSqm}㎡/kg × （<br/>
+                        &nbsp;&nbsp;&nbsp;&nbsp;印刷：{printPricePerM2}元/㎡<br/>
+                        &nbsp;&nbsp;&nbsp;&nbsp;+ 复合：{laminationPricePerM2}元/㎡<br/>
+                        &nbsp;&nbsp;&nbsp;&nbsp;+ 分切：{SLITTING_PRICE}元/㎡<br/>
+                        &nbsp;&nbsp;&nbsp;&nbsp;）= {rollFilmResult.processCostPerKg}元/kg
+                      </div>
+                    </div>
+                    <div className="col-span-2 text-lg font-bold text-red-600">
+                      每公斤卷膜总成本：<span className="font-semibold">{rollFilmResult.totalCostPerKg} 元/kg</span>
+                      <div className="text-xs text-slate-600 mt-1 pl-4">
+                        计算：材料成本 {rollFilmResult.materialCostPerKg}元/kg + 加工成本 {rollFilmResult.processCostPerKg}元/kg
+                      </div>
+                    </div>
+                  </div>
+
+                  <h4 className="font-semibold mt-3 mb-1">各层材料明细（每公斤）</h4>
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100">
+                        <th className="border p-1">材料名称</th>
+                        <th className="border p-1">每平方米克重占比</th>
+                        <th className="border p-1">每公斤重量</th>
+                        <th className="border p-1">材料单价</th>
+                        <th className="border p-1">成本（元）</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rollFilmResult.layerRatio.map((layer, idx) => (
+                        <tr key={idx}>
+                          <td className="border p-1 text-center">{layer.label}</td>
+                          <td className="border p-1 text-center">{layer.ratio}%</td>
+                          <td className="border p-1 text-center">{layer.weightPerKg} g</td>
+                          <td className="border p-1 text-center">
+                            {layers[idx]?.pricePerKg || 0}元/kg
+                          </td>
+                          <td className="border p-1 text-center">
+                            {layer.cost}
+                            <div className="text-xs text-slate-500">
+                              （{layer.weightPerKg}g × {layers[idx]?.pricePerKg || 0}元/kg ÷ 1000）
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="font-bold bg-slate-50">
+                        <td className="border p-1 text-center" colSpan={4}>合计</td>
+                        <td className="border p-1 text-center">{rollFilmResult.materialCostPerKg}元/kg</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {bagType !== "rollFilm" && (
+                <>
+                  {/* 顶部关键数字 */}
+                  {(() => {
+                    const q = Number(quantityNum) || 0;
+                    const safeUnit = (total: number) => (q > 0 ? total / q : 0);
+                    const usd = (x: number) =>
+                      exchangeRateNum > 0 ? x / exchangeRateNum : 0;
+
+                    // 出厂价（不含版费，含损耗，含利润）
+                    const exFactoryTotal = quotedTotal;
+                    const exFactoryUnit = safeUnit(exFactoryTotal);
+
+                    // 含运价（+3% 运费）
+                    const freightFactor = 1.03;
+                    const withFreightTotal = exFactoryTotal * freightFactor;
+                    const withFreightUnit = safeUnit(withFreightTotal);
+
+                    // 含运含税价（在含运价基础上 +9% 税）
+                    const taxFactor = 1.09;
+                    const withFreightTaxTotal = withFreightTotal * taxFactor;
+                    const withFreightTaxUnit = safeUnit(withFreightTaxTotal);
+
+                    // 含版费含运含税价（以 grandTotalQuoted 为基数，再加运费+税）
+                    const withPlateFreightTaxTotal =
+                      grandTotalQuoted * freightFactor * taxFactor;
+                    const withPlateFreightTaxUnit = safeUnit(withPlateFreightTaxTotal);
+
+                    return (
+                      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
+                        {/* 1. 出厂价（不含版费，含损耗，含利润） */}
+                        <div className="p-3 rounded bg-slate-50 border border-slate-300">
+                          <div className="text-xs font-semibold text-slate-700">
+                            出厂价（不含版费，含损耗，含利润）
+                          </div>
+                          <div className="mt-1 text-sm text-slate-600">
+                            单价：
+                            <span className="font-bold text-slate-900">
+                              {f4(exFactoryUnit)} 元/个
+                            </span>
+                            <span className="ml-1 text-xs text-slate-500">
+                              ≈ {f4(usd(exFactoryUnit))} USD/pc
+                            </span>
+                          </div>
+                          <div className="text-sm text-slate-600">
+                            总价：
+                            <span className="font-bold text-slate-900">
+                              {f2(exFactoryTotal)} 元
+                            </span>
+                            <span className="ml-1 text-xs text-slate-500">
+                              ≈ {f2(usd(exFactoryTotal))} USD
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 2. 含运价（不含版费，含损耗，含利润，含运费） */}
+                        <div className="p-3 rounded bg-slate-50 border border-slate-300">
+                          <div className="text-xs font-semibold text-slate-700">
+                            含运价（不含版费，含损耗，含利润，含运费 +3%）
+                          </div>
+                          <div className="mt-1 text-sm text-slate-600">
+                            单价：
+                            <span className="font-bold text-slate-900">
+                              {f4(withFreightUnit)} 元/个
+                            </span>
+                            <span className="ml-1 text-xs text-slate-500">
+                              ≈ {f4(usd(withFreightUnit))} USD/pc
+                            </span>
+                          </div>
+                          <div className="text-sm text-slate-600">
+                            总价：
+                            <span className="font-bold text-slate-900">
+                              {f2(withFreightTotal)} 元
+                            </span>
+                            <span className="ml-1 text-xs text-slate-500">
+                              ≈ {f2(usd(withFreightTotal))} USD
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 3. 含运含税价（不含版费，含损耗，含利润，含运费+含税） */}
+                        <div className="p-3 rounded bg-slate-50 border border-slate-300">
+                          <div className="text-xs font-semibold text-slate-700">
+                            含运含税价（不含版费，含损耗，含利润，含运费 +3%，含税 +9%）
+                          </div>
+                          <div className="mt-1 text-sm text-slate-600">
+                            单价：
+                            <span className="font-bold text-slate-900">
+                              {f4(withFreightTaxUnit)} 元/个
+                            </span>
+                            <span className="ml-1 text-xs text-slate-500">
+                              ≈ {f4(usd(withFreightTaxUnit))} USD/pc
+                            </span>
+                          </div>
+                          <div className="text-sm text-slate-600">
+                            总价：
+                            <span className="font-bold text-slate-900">
+                              {f2(withFreightTaxTotal)} 元
+                            </span>
+                            <span className="ml-1 text-xs text-slate-500">
+                              ≈ {f2(usd(withFreightTaxTotal))} USD
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 4. 含版费含运含税价（含版费，含损耗，含利润，含运费+含税） */}
+                        <div className="p-3 rounded bg-red-50 border border-red-300">
+                          <div className="text-xs font-semibold text-red-700">
+                            含版费含运含税价（含版费，含损耗，含利润，含运费 +3%，含税 +9%）
+                          </div>
+                          <div className="mt-1 text-sm text-red-700">
+                            单价：
+                            <span className="font-bold">
+                              {f4(withPlateFreightTaxUnit)} 元/个
+                            </span>
+                            <span className="ml-1 text-xs text-red-500">
+                              ≈ {f4(usd(withPlateFreightTaxUnit))} USD/pc
+                            </span>
+                          </div>
+                          <div className="text-sm text-red-700">
+                            总价：
+                            <span className="font-bold">
+                              {f2(withPlateFreightTaxTotal)} 元
+                            </span>
+                            <span className="ml-1 text-xs text-red-500">
+                              ≈ {f2(usd(withPlateFreightTaxTotal))} USD
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* 成本构成 */}
+                  <div className="grid md:grid-cols-5 gap-3 mt-2 text-sm">
+                    <div className="p-3 rounded border">
+                      <div className="text-slate-500">材料</div>
+                      <div className="font-semibold">{f4(materialCostPerBag)} 元</div>
+                    </div>
+                    <div className="p-3 rounded border">
+                      <div className="text-slate-500">印刷</div>
+                      <div className="font-semibold">{f4(printingCostPerBag)} 元</div>
+                    </div>
+                    <div className="p-3 rounded border">
+                      <div className="text-slate-500">复合</div>
+                      <div className="font-semibold">{f4(laminationCostPerBag)} 元</div>
+                    </div>
+                    <div className="p-3 rounded border">
+                      <div className="text-slate-500">制袋</div>
+                      <div className="font-semibold">{f4(makingCostPerBag)} 元</div>
+                    </div>
+                    <div className="p-3 rounded border">
+                      <div className="text-slate-500">后加工</div>
+                      <div className="font-semibold">{f4(postProcessCostPerBag)} 元</div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 计算明细（公式 + 代入数字） */}
+              <div className="mt-3 text-xs md:text-sm space-y-2">
+                {/* ===== 材料成本标题（区分八边封diff模式） ===== */}
+                {bagType === "eightSide" && eightSideMode === "diff" ? (
+                  <>
+                    <div className="font-medium">一、材料成本</div>
+                    <div>
+                      正背底面材料成本：<b>{f4(
+                        layers.reduce((sum, layer) => 
+                          sum + materialUnitCostPerBag(eightSideAreas.frontBackBottomArea, layer, bagType, widthNum, heightNum, bottomInsertNum, sideExpandNum, backSealNum),
+                          0
+                        )
+                      )} 元/个</b>
+                      <br />
+                      侧面材料成本：<b>{f4(
+                        sideLayers.reduce((sum, layer) => 
+                          sum + materialUnitCostPerBag(eightSideAreas.twoSideArea, layer, bagType, widthNum, heightNum, bottomInsertNum, sideExpandNum, backSealNum),
+                          0
+                        )
+                      )} 元/个</b>
+                      <br />
+                      合计材料成本：<b>{f4(materialCostPerBag)} 元/个</b>
+                    </div>
+                  </>
+                ) : (
+                  <div className="font-medium">一、材料成本（合计 {f4(materialCostPerBag)} 元/个）</div>
+                )}
+
+                {/* ===== 非八边封diff模式：原有主材料层展示（保留所有逻辑） ===== */}
+                {!(bagType === "eightSide" && eightSideMode === "diff") && (
+                  <ul className="list-disc pl-5 space-y-1">
+                    {layers.map((layer, i) => {
+                      const materialInfo = MATERIAL_PRESETS[layer.material];
+                      const baseLabel = `${i + 1}层 ${materialInfo?.label || '未知材料'}`;
+                      const baseCost = materialUnitCostPerBag(
+                        areaM2,
+                        layer,
+                        bagType,
+                        widthNum,
+                        heightNum,
+                        bottomInsertNum,
+                        sideExpandNum,
+                        backSealNum
+                      );
+
+                      // 若有拼接开窗（保留原有逻辑）
+                      if (layer.splice?.enabled && layer.splice.windowWidthMm !== undefined) {
+                        const totalWidthMm = expandWidthMmForSplice(bagType, {
+                          W: widthNum,
+                          H: heightNum,
+                          BI: bottomInsertNum,
+                          S: sideExpandNum,
+                          BS: backSealNum,
+                        }) || 0;
+                        const rawWindowMm = Number(layer.splice.windowWidthMm) || 0;
+                        const windowWidthMm = Math.max(0, Math.min(rawWindowMm, totalWidthMm));
+                        const mainWidthMm = Math.max(0, totalWidthMm - windowWidthMm);
+
+                        const mainKey = layer.material;
+                        const mainMat = MATERIAL_PRESETS[mainKey];
+                        const mainIsPaper = ["Kraft", "WhiteKraft", "CottonPaper"].includes(mainKey);
+                        const mainThickness = Number(layer.thicknessUm) || mainMat?.defaultThickness || 0;
+                        const mainDensity = Number(layer.density) || mainMat?.density || 1;
+                        const mainPrice = Number(layer.pricePerKg) || mainMat?.pricePerKg || 0;
+
+                        const windowKey = layer.splice.windowMaterial;
+                        const winMat = MATERIAL_PRESETS[windowKey];
+                        const windowIsPaper = ["Kraft", "WhiteKraft", "CottonPaper"].includes(windowKey);
+                        const windowThickness = Number(layer.splice.windowThicknessUm) || winMat?.defaultThickness || 0;
+                        const windowDensity = winMat?.density || 1;
+                        const windowPrice = winMat?.pricePerKg || 0;
+
+                        const mainWidthM = mainWidthMm / 1000;
+                        const windowWidthM = windowWidthMm / 1000;
+                        const bagWidthM = widthNum / 1000;
+
+                        let mainCost = 0;
+                        if (mainIsPaper) {
+                          mainCost = mainWidthM * bagWidthM * mainThickness * mainPrice / 1000;
+                        } else {
+                          mainCost = mainWidthM * bagWidthM * mainThickness * mainDensity * mainPrice / 1000;
+                        }
+
+                        let windowCost = 0;
+                        if (windowIsPaper) {
+                          windowCost = windowWidthM * bagWidthM * windowThickness * windowPrice / 1000;
+                        } else {
+                          windowCost = windowWidthM * bagWidthM * windowThickness * windowDensity * windowPrice / 1000;
+                        }
+
+                        return (
+                          <li key={i}>
+                            <b>{baseLabel}（拼接复合）</b>：
+                            主材({Math.round(mainWidthMm)}mm) + 窗口膜({Math.round(windowWidthMm)}mm)
+                            <br />
+                            主材成本 = {mainIsPaper ? 
+                              `${Math.round(mainWidthMm)}mm × ${widthNum}mm × ${mainThickness}g × ${mainPrice}元/kg ÷ 1000 = ${f4(mainCost)}` : 
+                              `${Math.round(mainWidthMm)}mm × ${widthNum}mm × ${mainThickness}um × ${mainDensity} × ${mainPrice}元/kg ÷ 1000 = ${f4(mainCost)}`
+                            }
+                            <br />
+                            窗口膜成本 = {windowIsPaper ? 
+                              `${Math.round(windowWidthMm)}mm × ${widthNum}mm × ${windowThickness}g × ${windowPrice}元/kg ÷ 1000 = ${f4(windowCost)}` : 
+                              `${Math.round(windowWidthMm)}mm × ${widthNum}mm × ${windowThickness}um × ${windowDensity} × ${windowPrice}元/kg ÷ 1000 = ${f4(windowCost)}`
+                            }
+                            <br />
+                            合计 = <b>{f4(mainCost + windowCost)} 元/个</b>
+                          </li>
+                        );
+                      }
+
+                      // 普通无拼接（保留原有逻辑）
+                      return (
+                        <li key={i}>
+                          {baseLabel}：面积 {f4(areaM2)}㎡ × 厚度 {layer.thicknessUm}μm × 密度{" "}
+                          {layer.density} × 单价 {layer.pricePerKg} ÷1000 =
+                          <b> {f4(baseCost)} 元/个</b>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                {/* ===== 八边封diff模式：定制化展示（正背底面+侧面，包含拼接逻辑） ===== */}
+                {bagType === "eightSide" && eightSideMode === "diff" && (
+                  <>
+                    <div className="mt-2 font-medium">（八边封·正背底面材料层）</div>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {layers.map((layer, i) => {
+                        const materialInfo = MATERIAL_PRESETS[layer.material];
+                        const label = `${i + 1}层 ${materialInfo?.label || '未知材料'}`;
+                        const cost = materialUnitCostPerBag(
+                          eightSideAreas.frontBackBottomArea,
+                          layer,
+                          bagType,
+                          widthNum,
+                          heightNum,
+                          bottomInsertNum,
+                          sideExpandNum,
+                          backSealNum
+                        );
+
+                        // 八边封正背底层也保留拼接复合逻辑
+                        if (layer.splice?.enabled && layer.splice.windowWidthMm !== undefined) {
+                          const totalWidthMm = expandWidthMmForSplice(bagType, {
+                            W: widthNum,
+                            H: heightNum,
+                            BI: bottomInsertNum,
+                            S: sideExpandNum,
+                            BS: backSealNum,
+                          }) || 0;
+                          const rawWindowMm = Number(layer.splice.windowWidthMm) || 0;
+                          const windowWidthMm = Math.max(0, Math.min(rawWindowMm, totalWidthMm));
+                          const mainWidthMm = Math.max(0, totalWidthMm - windowWidthMm);
+
+                          const mainKey = layer.material;
+                          const mainMat = MATERIAL_PRESETS[mainKey];
+                          const mainIsPaper = ["Kraft", "WhiteKraft", "CottonPaper"].includes(mainKey);
+                          const mainThickness = Number(layer.thicknessUm) || mainMat?.defaultThickness || 0;
+                          const mainDensity = Number(layer.density) || mainMat?.density || 1;
+                          const mainPrice = Number(layer.pricePerKg) || mainMat?.pricePerKg || 0;
+
+                          const windowKey = layer.splice.windowMaterial;
+                          const winMat = MATERIAL_PRESETS[windowKey];
+                          const windowIsPaper = ["Kraft", "WhiteKraft", "CottonPaper"].includes(windowKey);
+                          const windowThickness = Number(layer.splice.windowThicknessUm) || winMat?.defaultThickness || 0;
+                          const windowDensity = winMat?.density || 1;
+                          const windowPrice = winMat?.pricePerKg || 0;
+
+                          const mainWidthM = mainWidthMm / 1000;
+                          const windowWidthM = windowWidthMm / 1000;
+                          const bagWidthM = widthNum / 1000;
+
+                          let mainCost = 0;
+                          if (mainIsPaper) {
+                            mainCost = mainWidthM * bagWidthM * mainThickness * mainPrice / 1000;
+                          } else {
+                            mainCost = mainWidthM * bagWidthM * mainThickness * mainDensity * mainPrice / 1000;
+                          }
+
+                          let windowCost = 0;
+                          if (windowIsPaper) {
+                            windowCost = windowWidthM * bagWidthM * windowThickness * windowPrice / 1000;
+                          } else {
+                            windowCost = windowWidthM * bagWidthM * windowThickness * windowDensity * windowPrice / 1000;
+                          }
+
+                          return (
+                            <li key={layer.id || i}>
+                              <b>{label}（拼接复合）</b>：
+                              主材({Math.round(mainWidthMm)}mm) + 窗口膜({Math.round(windowWidthMm)}mm)
+                              <br />
+                              主材成本 = {mainIsPaper ? 
+                                `${Math.round(mainWidthMm)}mm × ${widthNum}mm × ${mainThickness}g × ${mainPrice}元/kg ÷ 1000 = ${f4(mainCost)}` : 
+                                `${Math.round(mainWidthMm)}mm × ${widthNum}mm × ${mainThickness}um × ${mainDensity} × ${mainPrice}元/kg ÷ 1000 = ${f4(mainCost)}`
+                              }
+                              <br />
+                              窗口膜成本 = {windowIsPaper ? 
+                                `${Math.round(windowWidthMm)}mm × ${widthNum}mm × ${windowThickness}g × ${windowPrice}元/kg ÷ 1000 = ${f4(windowCost)}` : 
+                                `${Math.round(windowWidthMm)}mm × ${widthNum}mm × ${windowThickness}um × ${windowDensity} × ${windowPrice}元/kg ÷ 1000 = ${f4(windowCost)}`
+                              }
+                              <br />
+                              合计 = <b>{f4(mainCost + windowCost)} 元/个</b>
+                            </li>
+                          );
+                        }
+
+                        // 八边封正背底层无拼接
+                        return (
+                          <li key={layer.id || i}>
+                            {label}：正背底面积 {f4(eightSideAreas.frontBackBottomArea)}㎡ × 厚度 {layer.thicknessUm}μm × 密度 {layer.density} × 单价 {layer.pricePerKg} ÷1000 =
+                            <b> {f4(cost)} 元/个</b>
+                          </li>
+                        );
+                      })}
+                    </ul>
+
+                    <div className="mt-2 font-medium">（八边封·侧面材料层）</div>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {sideLayers.map((layer, i) => {
+                        const materialInfo = MATERIAL_PRESETS[layer.material];
+                        const label = `侧边第 ${i + 1} 层 ${materialInfo?.label || '未知材料'}`;
+                        const cost = materialUnitCostPerBag(
+                          eightSideAreas.twoSideArea,
+                          layer,
+                          bagType,
+                          widthNum,
+                          heightNum,
+                          bottomInsertNum,
+                          sideExpandNum,
+                          backSealNum
+                        );
+                        return (
+                          <li key={layer.id || i}>
+                            {label}：侧面面积 {f4(eightSideAreas.twoSideArea)}㎡ × 厚度 {layer.thicknessUm}μm × 密度 {layer.density} × 单价 {layer.pricePerKg} ÷1000 =
+                            <b> {f4(cost)} 元/个</b>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
+                )}
+
+                {/* ===== 其他成本项（印刷、复合等）- 保留原有代码 ===== */}
+                <div className="font-medium mt-2">二、印刷成本</div>
+                {bagType === "eightSide" ? (
+                  <div>
+                    正背底面印刷 = {f4(eightSideAreas.frontBackBottomArea)} ㎡ × {printPricePerM2} 元/㎡ = {f4(eightSideAreas.frontBackBottomArea * printPricePerM2)} 元/个
+                    <br/>
+                    侧面印刷 = {f4(eightSideAreas.twoSideArea)} ㎡ × {(() => {
+                      const found = PRINT_COVERAGE_OPTIONS.find(o => o.pct === sidePrintCoveragePct);
+                      return found ? found.price : 0;
+                    })()} 元/㎡ = {f4(eightSideAreas.twoSideArea * (() => {
+                      const found = PRINT_COVERAGE_OPTIONS.find(o => o.pct === sidePrintCoveragePct);
+                      return found ? found.price : 0;
+                    })())} 元/个
+                    <br/>
+                    合计印刷成本 = <b>{f4(printingCostPerBag)}</b> 元/个
+                  </div>
+                ) : (
+                  <div>
+                    公式：印刷 = 展开面积 × 覆盖单价
+                    代入：{f4(areaM2)} ㎡/个 × {printPricePerM2} 元/㎡ = <b>{f4(printingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+
+                <div className="font-medium mt-2">三、复合成本</div>
+                {bagType === "eightSide" ? (
+                  <div>
+                    正背底面复合 = {f4(eightSideAreas.frontBackBottomArea)} ㎡ × ({laminations.map(st => LAMINATION_PRICE[st.process]).join(" + ")} = {laminations.reduce((s, st) => s + LAMINATION_PRICE[st.process], 0)}) = {f4(eightSideAreas.frontBackBottomArea * laminations.reduce((s, st) => s + LAMINATION_PRICE[st.process], 0))} 元/个
+                    <br/>
+                    侧面复合 = {f4(eightSideAreas.twoSideArea)} ㎡ × ({sideLaminations.map(st => LAMINATION_PRICE[st.process]).join(" + ")} = {sideLaminations.reduce((s, st) => s + LAMINATION_PRICE[st.process], 0)}) = {f4(eightSideAreas.twoSideArea * sideLaminations.reduce((s, st) => s + LAMINATION_PRICE[st.process], 0))} 元/个
+                    <br/>
+                    合计复合成本 = <b>{f4(laminationCostPerBag)}</b> 元/个
+                  </div>
+                ) : (
+                  <div>
+                    公式：复合 = 展开面积 × (各步单价之和)
+                    代入：{f4(areaM2)} ㎡/个 × ({laminations.map(st => LAMINATION_PRICE[st.process]).join(" + ")} = {laminationSumUnit}) =
+                    <b> {f4(laminationCostPerBag)}</b> 元/个
+                  </div>
+                )}
+
+                <div className="font-medium mt-2">四、制袋成本</div>
+                {bagType === "standup" && (
+                  <div>
+                    公式：站立袋 = 0.09 × 袋宽(m)
+                    <br />
+                    （拉链费用已计入附加工艺，不含在此项中）
+                    <br />
+                    代入：袋宽 {f4(mmToM(widthNum))} m × 0.09 = <b>{f4(makingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+                {bagType === "threeSide" && (
+                  <div>
+                    公式：三边封袋 = 单价系数 × 短边(m)
+                    <br />
+                    当前排数：
+                    {rowCountThreeSide === 1 ? "单排 (0.045×短边)" : rowCountThreeSide === 2 ? "双排 (0.03×短边)" : "三排 (0.0225×短边)"}
+                    <br />
+                    代入：短边 {f4(mmToM(Math.min(widthNum, heightNum)))} m × 系数 = <b>{f4(makingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+                {bagType === "centerSeal" && (
+                  <div>
+                    公式：中封袋 = 0.04 × 袋高(m)
+                    <br />
+                    代入：袋高 {f4(mmToM(heightNum))} m × 0.04 = <b>{f4(makingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+                {bagType === "gusset" && (
+                  <div>
+                    公式：风琴袋 = 0.04 × 袋高(m)
+                    <br />
+                    代入：袋高 {f4(mmToM(heightNum))} m × 0.04 = <b>{f4(makingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+                {bagType === "eightSide" && (
+                  <div>
+                    公式：八边封袋 = 0.28 × 袋宽(m)
+                    <br />
+                    （拉链费用已计入附加工艺，不含在此项中）
+                    <br />
+                    代入：袋宽 {f4(mmToM(widthNum))} m × 0.28 = <b>{f4(makingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+                {bagType === "taperBottom" && (
+                  <div>
+                    公式：尖底袋 = 0.22 × 袋高(m)
+                    <br />
+                    代入：袋高 {f4(mmToM(heightNum))} m × 0.22 = <b>{f4(makingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+                {bagType === "flatBottom" && (
+                  <div>
+                    公式：方底袋 = 0.25 × 袋高(m)
+                    <br />
+                    代入：袋高 {f4(mmToM(heightNum))} m × 0.25 = <b>{f4(makingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+                {bagType === "threeSideShape" && (
+                  <div>
+                    公式：三边封异形袋 = （单价系数 × 短边） + 模切费
+                    <br />
+                    当前排数：
+                    {rowCountShape === 1
+                      ? "单排 (0.045×短边 + 0.018)"
+                      : rowCountShape === 2
+                      ? "双排 (0.03×短边 + 0.009)"
+                      : "三排 (0.0225×短边 + 0.006)"}
+                    <br />
+                    代入：短边 {f4(mmToM(Math.min(widthNum, heightNum)))} m → <b>{f4(makingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+                {bagType === "taperShape" && (
+                  <div>
+                    公式：自立异形袋 = (0.09 × 袋宽(m)) + 模切费 0.018 元
+                    <br />
+                    （拉链费用已计入附加工艺，不含在此项中）
+                    <br />
+                    代入：袋宽 {f4(mmToM(widthNum))} m × 0.09 + 0.018 = <b>{f4(makingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+
+                <div className="font-medium mt-2">五、附加工艺</div>
+                <div>
+                  公式：附加工艺 = 各项附加之和
+                  代入：
+                  {selectedPost.length
+                    ? selectedPost
+                        .map((k) => {
+                          const v = POST_PROCESS_PRICING[k];
+                          const c = v?.calc({ areaM2, widthMm: widthNum, bagType, spoutKey: spoutOption }) || 0;
+                          if (k === "spout") {
+                            const spec = spoutOption ? SPOUT_LABEL_MAP[spoutOption] : "未选规格";
+                            return `吸嘴(${spec})=${f4(c)}`;
+                          }
+                          return `${v?.label || k}=${f4(c)}`;
+                        })
+                        .join(" + ")
+                    : "无"} {selectedPost.length ? `= ${f4(postProcessCostPerBag)}` : ""} 元/个
+                </div>
+
+                {/* 卷膜模式下隐藏以下报价相关明细 */}
+                {bagType !== "rollFilm" && (
+                  <>
+                    <div className="font-medium mt-2">六、数量折扣</div>
+                    <div>
+                      公式：袋子单价 = (材料 + 印刷 + 复合 + 制袋 + 附加工艺) × 数量折扣系数
+                      代入：({f4(materialCostPerBag)} + {f4(printingCostPerBag)} + {f4(laminationCostPerBag)} + {f4(makingCostPerBag)} + {f4(postProcessCostPerBag)})
+                      × {qtyFactor.toFixed(2)} = <b>{f4(unitPrice)}</b> 元/个
+                    </div>
+
+                    <div className="font-medium mt-2">七、版费</div>
+                    <div>
+                      公式：版费 = 版长 × 版周 × 色数 × 单价（元/cm²）
+                      代入：{plateLenCm} × {plateCircumferenceCm} × {numColors} × {plateUnitYuanPerCm2} = <b>{f2(plateFee)}</b> 元
+                    </div>
+
+                    <div className="font-medium mt-2">八、总价</div>
+                    <div>
+                      公式：袋子总价（不含版费） = 袋子单价 × 数量
+                      代入：{f4(unitPrice)} × {quantity} = <b>{f2(unitPrice * quantityNum)}</b> 元
+                    </div>
+
+                    <div>
+                      公式：袋子总价（不含版费，含损耗） = （袋子单价 × 损耗系数） × 数量
+                      代入：{f4(unitPrice)} × {lossFactor.toFixed(2)} × {quantity} = <b>{f2(totalWithWaste)}</b> 元
+                    </div>
+
+                    <div>
+                      公式：总计（含版费，含损耗，不含利润） = 袋子总价（含损耗，不含版费） + 版费
+                      代入：{f2(totalWithWaste)} + {f2(plateFee)} = <b>{f2(grandTotalWithWaste)}</b> 元
+                    </div>
+
+                    <div>
+                      公式：总计（含版费，含损耗，含利润） = 总计（含版费，含损耗，不含利润） × 利润系数
+                      代入：{f2(grandTotalWithWaste)} × {profitFactor.toFixed(2)} = <b>{f2(grandTotalQuoted)}</b> 元
+                    </div>
+                  </>
+                )}
+
+                <div className="text-xs text-slate-500 mt-2">
+                  注：材料成本公式=面积×厚度(μm)×密度(g/cm³)×单价(元/kg)/1000；纸类用面积×(gsm/1000)×单价。
+                  印刷、复合、制袋等单价按㎡或m计入；数量系数按起订量规则。
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+

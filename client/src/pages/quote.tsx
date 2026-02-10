@@ -184,6 +184,74 @@ export default function QuotePage() {
   const [profitRate, setProfitRate] = useState<number | string>(10);
   const [selectedSpecs, setSelectedSpecs] = useState<Record<string, string>>({});
 
+  const [eightSideMode, setEightSideMode] = useState<"same" | "diff">("same");
+  const [sideMaterialLayers, setSideMaterialLayers] = useState<MaterialLayer[]>(() => {
+    const firstMaterial = config.materialLibrary[0];
+    if (firstMaterial) {
+      return [{
+        materialId: firstMaterial.id,
+        thickness: firstMaterial.thickness,
+        density: firstMaterial.density,
+        price: firstMaterial.price,
+      }];
+    }
+    return [];
+  });
+  const [sideLaminationSteps, setSideLaminationSteps] = useState<LaminationStep[]>([]);
+  const [sidePrintCoverage, setSidePrintCoverage] = useState(
+    config.printingPriceRules[0]?.coverage || 0
+  );
+
+  useEffect(() => {
+    const targetCount = Math.max(0, sideMaterialLayers.length - 1);
+    setSideLaminationSteps(prev => {
+      if (prev.length === targetCount) return prev;
+      const firstRule = config.laminationPriceRules[0];
+      if (!firstRule) return [];
+      if (prev.length < targetCount) {
+        const extra = Array.from({ length: targetCount - prev.length }, (_, i) => ({
+          id: `side_step_${Date.now()}_${prev.length + i}`,
+          laminationId: firstRule.id,
+        }));
+        return [...prev, ...extra];
+      }
+      return prev.slice(0, targetCount);
+    });
+  }, [sideMaterialLayers.length, config.laminationPriceRules]);
+
+  const addSideMaterialLayer = () => {
+    if (sideMaterialLayers.length >= 5) return;
+    const material = config.materialLibrary[0];
+    if (material) {
+      setSideMaterialLayers([
+        ...sideMaterialLayers,
+        {
+          materialId: material.id,
+          thickness: material.thickness,
+          density: material.density,
+          price: material.price,
+        },
+      ]);
+    }
+  };
+
+  const removeSideMaterialLayer = (index: number) => {
+    if (sideMaterialLayers.length <= 1) return;
+    setSideMaterialLayers(sideMaterialLayers.filter((_, i) => i !== index));
+  };
+
+  const updateSideMaterialLayer = (index: number, materialId: string) => {
+    const material = getMaterialById(materialId);
+    if (!material) return;
+    setSideMaterialLayers(
+      sideMaterialLayers.map((layer, i) =>
+        i === index
+          ? { ...layer, materialId, thickness: material.thickness, density: material.density, price: material.price }
+          : layer
+      )
+    );
+  };
+
   if (!state.productType) {
     navigate("/");
     return null;
@@ -192,6 +260,8 @@ export default function QuotePage() {
   const currentBagTypes = isDigital ? digitalConfig.customBagTypes : config.customBagTypes;
   const selectedBagType = currentBagTypes.find((b) => b.id === selectedBagTypeId);
   const requiredDimensions = selectedBagType?.requiredDimensions || [];
+  const isEightSide = selectedBagType?.id === "eightSide";
+  const isEightSideDiff = isEightSide && eightSideMode === "diff";
 
   const dimensionLabels: Record<string, string> = {
     width: "袋宽",
@@ -568,9 +638,9 @@ export default function QuotePage() {
           area = (w + se + bs) * 2 * h;
           break;
         case "eightSide": {
-          const frontBackBottom = (h + h + se + 0.03) * (w + 0.006);
-          const twoSide = (se + 0.006) * 2 * (h + 0.01);
-          area = frontBackBottom + twoSide;
+          const eightFBB = (h + h + se + 0.03) * (w + 0.006);
+          const eightTS = (se + 0.006) * 2 * (h + 0.01);
+          area = eightFBB + eightTS;
           break;
         }
         case "taperBottom":
@@ -590,39 +660,71 @@ export default function QuotePage() {
 
     const { unfoldedWidthMm } = getUnfoldedDimensions(dimensions, selectedBagType);
 
-    let materialCostPerUnit = 0;
-    materialLayers.forEach((layer) => {
-      const calcLayerCost = (a: number, thick: number, dens: number, prc: number) => {
-        if (dens === 0 || dens === undefined) {
-          return a * (thick / 1000) * prc;
-        }
-        return a * thick * dens * prc / 1000;
-      };
+    let frontBackBottomArea = area;
+    let twoSideArea = 0;
+    if (selectedBagType?.id === "eightSide") {
+      frontBackBottomArea = (h + h + se + 0.03) * (w + 0.006);
+      twoSideArea = (se + 0.006) * 2 * (h + 0.01);
+    }
 
+    const calcLayerCost = (a: number, thick: number, dens: number, prc: number) => {
+      if (dens === 0 || dens === undefined) {
+        return a * (thick / 1000) * prc;
+      }
+      return a * thick * dens * prc / 1000;
+    };
+
+    let materialCostPerUnit = 0;
+    const _isEightSideDiff = selectedBagType?.id === "eightSide" && eightSideMode === "diff";
+
+    const mainArea = _isEightSideDiff ? frontBackBottomArea : area;
+    materialLayers.forEach((layer) => {
       if (layer.splice?.enabled && unfoldedWidthMm > 0) {
         const windowMm = Math.max(0, Math.min(layer.splice.windowWidthMm, unfoldedWidthMm));
         const mainMm = unfoldedWidthMm - windowMm;
         const mainRatio = mainMm / unfoldedWidthMm;
         const windowRatio = windowMm / unfoldedWidthMm;
-        const mainArea = area * mainRatio;
-        const windowArea = area * windowRatio;
-        materialCostPerUnit += calcLayerCost(mainArea, layer.thickness, layer.density, layer.price);
-        materialCostPerUnit += calcLayerCost(windowArea, layer.splice.windowThicknessUm, layer.splice.windowDensity, layer.splice.windowPrice);
+        materialCostPerUnit += calcLayerCost(mainArea * mainRatio, layer.thickness, layer.density, layer.price);
+        materialCostPerUnit += calcLayerCost(mainArea * windowRatio, layer.splice.windowThicknessUm, layer.splice.windowDensity, layer.splice.windowPrice);
       } else {
-        materialCostPerUnit += calcLayerCost(area, layer.thickness, layer.density, layer.price);
+        materialCostPerUnit += calcLayerCost(mainArea, layer.thickness, layer.density, layer.price);
       }
     });
+
+    let sideMaterialCostPerUnit = 0;
+    if (_isEightSideDiff) {
+      sideMaterialLayers.forEach((layer) => {
+        sideMaterialCostPerUnit += calcLayerCost(twoSideArea, layer.thickness, layer.density, layer.price);
+      });
+      materialCostPerUnit += sideMaterialCostPerUnit;
+    }
 
     const printRule = config.printingPriceRules.find((r) => r.coverage === selectedPrintCoverage);
-    const printCostPerUnit = printRule ? area * printRule.pricePerSqm : 0;
+    let printCostPerUnit = 0;
+    if (_isEightSideDiff) {
+      printCostPerUnit = printRule ? frontBackBottomArea * printRule.pricePerSqm : 0;
+      const sidePrintRule = config.printingPriceRules.find((r) => r.coverage === sidePrintCoverage);
+      printCostPerUnit += sidePrintRule ? twoSideArea * sidePrintRule.pricePerSqm : 0;
+    } else {
+      printCostPerUnit = printRule ? area * printRule.pricePerSqm : 0;
+    }
 
     let laminationCostPerUnit = 0;
-    laminationSteps.forEach((step) => {
-      const rule = config.laminationPriceRules.find((r) => r.id === step.laminationId);
-      if (rule) {
-        laminationCostPerUnit += area * rule.pricePerSqm;
-      }
-    });
+    if (_isEightSideDiff) {
+      laminationSteps.forEach((step) => {
+        const rule = config.laminationPriceRules.find((r) => r.id === step.laminationId);
+        if (rule) laminationCostPerUnit += frontBackBottomArea * rule.pricePerSqm;
+      });
+      sideLaminationSteps.forEach((step) => {
+        const rule = config.laminationPriceRules.find((r) => r.id === step.laminationId);
+        if (rule) laminationCostPerUnit += twoSideArea * rule.pricePerSqm;
+      });
+    } else {
+      laminationSteps.forEach((step) => {
+        const rule = config.laminationPriceRules.find((r) => r.id === step.laminationId);
+        if (rule) laminationCostPerUnit += area * rule.pricePerSqm;
+      });
+    }
 
     let makingCostPerUnit = 0;
     if (selectedBagType?.makingCostFormula) {
@@ -673,8 +775,11 @@ export default function QuotePage() {
 
     return {
       area,
+      frontBackBottomArea,
+      twoSideArea,
       unfoldedWidthMm,
       materialCostPerUnit,
+      sideMaterialCostPerUnit,
       printCostPerUnit,
       laminationCostPerUnit,
       makingCostPerUnit,
@@ -695,12 +800,16 @@ export default function QuotePage() {
       withFreightTaxTotal,
       withPlateFreightTaxUnit,
       withPlateFreightTaxTotal,
+      isEightSideDiff: _isEightSideDiff,
     };
   }, [
     dimensions,
     materialLayers,
+    sideMaterialLayers,
     selectedPrintCoverage,
+    sidePrintCoverage,
     laminationSteps,
+    sideLaminationSteps,
     selectedPostProcessing,
     plateConfig,
     quantity,
@@ -709,6 +818,7 @@ export default function QuotePage() {
     selectedBagType,
     selectedSpecs,
     exchangeRate,
+    eightSideMode,
   ]);
 
   const handleEditParams = () => {
@@ -1379,13 +1489,34 @@ export default function QuotePage() {
                   />
                 </div>
               </div>
+              {isEightSide && (
+                <div className="mt-4 pt-4 border-t">
+                  <Label className="text-sm text-muted-foreground mb-2 block">八边封侧面材质</Label>
+                  <Select value={eightSideMode} onValueChange={(v) => setEightSideMode(v as "same" | "diff")} data-testid="select-eightside-mode">
+                    <SelectTrigger data-testid="select-eightside-mode">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="same">侧面材质与正背面相同</SelectItem>
+                      <SelectItem value="diff">侧面使用不同材质</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {isEightSideDiff && (
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      正背底面积：{gravureCosts.frontBackBottomArea.toFixed(4)} ㎡ &nbsp;|&nbsp; 两侧面积：{gravureCosts.twoSideArea.toFixed(4)} ㎡ &nbsp;|&nbsp; 总面积：{gravureCosts.area.toFixed(4)} ㎡
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <CardTitle className="text-lg">材料层结构（{materialLayers.length}层，自动{Math.max(0, materialLayers.length - 1)}次复合）</CardTitle>
+                <CardTitle className="text-lg">
+                  {isEightSideDiff ? "正背底面材料层" : "材料层结构"}（{materialLayers.length}层，自动{Math.max(0, materialLayers.length - 1)}次复合）
+                </CardTitle>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={addMaterialLayer} disabled={materialLayers.length >= 5} data-testid="add-material-layer">
                     <Plus className="w-4 h-4" />
@@ -1622,7 +1753,9 @@ export default function QuotePage() {
           {laminationSteps.length > 0 && (
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">复合工艺（自动{laminationSteps.length}次复合）</CardTitle>
+                <CardTitle className="text-lg">
+                  {isEightSideDiff ? "正背底面复合工艺" : "复合工艺"}（自动{laminationSteps.length}次复合）
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -1646,6 +1779,157 @@ export default function QuotePage() {
                       </Select>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {isEightSideDiff && (
+            <Card>
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <CardTitle className="text-lg">八边封侧面材料层（{sideMaterialLayers.length}层）</CardTitle>
+                  <Button variant="outline" size="sm" onClick={addSideMaterialLayer} disabled={sideMaterialLayers.length >= 5} data-testid="add-side-material-layer">
+                    <Plus className="w-4 h-4" />
+                    添加侧面层
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {sideMaterialLayers.map((layer, index) => {
+                    const sideCost = (() => {
+                      const a = gravureCosts.twoSideArea;
+                      if (layer.density === 0 || layer.density === undefined) return a * (layer.thickness / 1000) * layer.price;
+                      return a * layer.thickness * layer.density * layer.price / 1000;
+                    })();
+                    return (
+                      <div key={index} className="p-4 border rounded-lg space-y-3" data-testid={`side-material-layer-${index}`}>
+                        <div className="flex items-end gap-4">
+                          <div className="flex-1">
+                            <Label className="text-sm text-muted-foreground mb-2 block">侧面第{index + 1}层材料</Label>
+                            <Select
+                              value={layer.materialId}
+                              onValueChange={(v) => updateSideMaterialLayer(index, v)}
+                            >
+                              <SelectTrigger data-testid={`select-side-material-${index}`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {config.materialLibrary.map((m) => (
+                                  <SelectItem key={m.id} value={m.id}>
+                                    {m.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="w-24">
+                            <Label className="text-sm text-muted-foreground mb-2 block">厚度(μm)</Label>
+                            <Input
+                              type="number"
+                              value={layer.thickness}
+                              onChange={(e) => {
+                                const updated = [...sideMaterialLayers];
+                                updated[index].thickness = Number(e.target.value);
+                                setSideMaterialLayers(updated);
+                              }}
+                            />
+                          </div>
+                          <div className="w-24">
+                            <Label className="text-sm text-muted-foreground mb-2 block">密度 g/cm³</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={layer.density}
+                              onChange={(e) => {
+                                const updated = [...sideMaterialLayers];
+                                updated[index].density = Number(e.target.value);
+                                setSideMaterialLayers(updated);
+                              }}
+                            />
+                          </div>
+                          <div className="w-24">
+                            <Label className="text-sm text-muted-foreground mb-2 block">单价 元/kg</Label>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              value={layer.price}
+                              onChange={(e) => {
+                                const updated = [...sideMaterialLayers];
+                                updated[index].price = Number(e.target.value);
+                                setSideMaterialLayers(updated);
+                              }}
+                            />
+                          </div>
+                          <div className="w-32 text-right">
+                            <Label className="text-sm text-muted-foreground mb-2 block">材料成本/个</Label>
+                            <div className="font-semibold text-primary">{sideCost.toFixed(4)} 元</div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeSideMaterialLayer(index)}
+                            className="text-destructive"
+                            disabled={sideMaterialLayers.length <= 1}
+                            data-testid={`remove-side-layer-${index}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-4 pt-4 border-t space-y-3">
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-2 block">侧面印刷覆盖率</Label>
+                    <Select value={String(sidePrintCoverage)} onValueChange={(v) => setSidePrintCoverage(Number(v))}>
+                      <SelectTrigger className="w-64" data-testid="select-side-print-coverage">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {config.printingPriceRules.map((rule) => (
+                          <SelectItem key={rule.coverage} value={String(rule.coverage)}>
+                            {rule.coverage}%（{rule.pricePerSqm}¥/㎡）
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {sideLaminationSteps.length > 0 && (
+                    <div>
+                      <Label className="text-sm text-muted-foreground mb-2 block">侧面复合工艺（自动{sideLaminationSteps.length}次复合）</Label>
+                      <div className="space-y-2">
+                        {sideLaminationSteps.map((step, index) => (
+                          <div key={step.id} className="flex items-center gap-4">
+                            <Label className="w-20 shrink-0">第{index + 1}次：</Label>
+                            <Select
+                              value={step.laminationId}
+                              onValueChange={(v) => {
+                                setSideLaminationSteps(
+                                  sideLaminationSteps.map((s, i) => i === index ? { ...s, laminationId: v } : s)
+                                );
+                              }}
+                            >
+                              <SelectTrigger className="w-64" data-testid={`select-side-lamination-${index}`}>
+                                <SelectValue placeholder="选择复合类型" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {config.laminationPriceRules.map((rule) => (
+                                  <SelectItem key={rule.id} value={rule.id}>
+                                    {rule.name} ({rule.pricePerSqm}¥/㎡)
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1768,7 +2052,7 @@ export default function QuotePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">印刷（按覆盖率选择）</CardTitle>
+                <CardTitle className="text-lg">{isEightSideDiff ? "正背底面印刷" : "印刷"}（按覆盖率选择）</CardTitle>
               </CardHeader>
               <CardContent>
                 <Select
@@ -2006,10 +2290,17 @@ export default function QuotePage() {
                     <div className="font-medium text-base mb-3">计算明细</div>
 
                     <div className="font-medium">一、材料成本（合计 {f4(gc.materialCostPerUnit)} 元/个）</div>
+                    {gc.isEightSideDiff && (
+                      <div className="pl-5 text-muted-foreground mb-1">
+                        八边封分区：正背底面积 {f4(gc.frontBackBottomArea)}㎡ + 两侧面积 {f4(gc.twoSideArea)}㎡ = 总 {f4(gc.area)}㎡
+                      </div>
+                    )}
+                    {gc.isEightSideDiff && <div className="pl-5 font-medium text-xs mb-1">正背底面材料：</div>}
                     <ul className="list-disc pl-5 space-y-1">
                       {materialLayers.map((layer, i) => {
                         const material = config.materialLibrary.find(m => m.id === layer.materialId);
                         const materialName = material?.name || "未知材料";
+                        const _area = gc.isEightSideDiff ? gc.frontBackBottomArea : gc.area;
 
                         const calcDetailCost = (a: number, thick: number, dens: number, prc: number) => {
                           if (dens === 0 || dens === undefined) return a * (thick / 1000) * prc;
@@ -2028,37 +2319,77 @@ export default function QuotePage() {
                           const mainMm = gc.unfoldedWidthMm - wMm;
                           const mainR = mainMm / gc.unfoldedWidthMm;
                           const winR = wMm / gc.unfoldedWidthMm;
-                          const mainArea = gc.area * mainR;
-                          const winArea = gc.area * winR;
-                          const mainCost = calcDetailCost(mainArea, layer.thickness, layer.density, layer.price);
+                          const spliceMainArea = _area * mainR;
+                          const winArea = _area * winR;
+                          const mainCost = calcDetailCost(spliceMainArea, layer.thickness, layer.density, layer.price);
                           const winMat = config.materialLibrary.find(m => m.id === layer.splice!.windowMaterialId);
                           const winName = winMat?.name || "窗口膜";
                           const winCost = calcDetailCost(winArea, layer.splice.windowThicknessUm, layer.splice.windowDensity, layer.splice.windowPrice);
                           return (
                             <li key={i}>
                               第{i + 1}层 {materialName}（开窗拼接）：<br />
-                              <span className="ml-4">主材 {materialName}（{Math.round(mainMm)}mm / {Math.round(gc.unfoldedWidthMm)}mm）：{formatFormula(mainArea, layer.thickness, layer.density, layer.price, mainCost)}</span><br />
+                              <span className="ml-4">主材 {materialName}（{Math.round(mainMm)}mm / {Math.round(gc.unfoldedWidthMm)}mm）：{formatFormula(spliceMainArea, layer.thickness, layer.density, layer.price, mainCost)}</span><br />
                               <span className="ml-4">窗口膜 {winName}（{Math.round(wMm)}mm / {Math.round(gc.unfoldedWidthMm)}mm）：{formatFormula(winArea, layer.splice.windowThicknessUm, layer.splice.windowDensity, layer.splice.windowPrice, winCost)}</span><br />
                               <span className="ml-4">合计 = <b>{f4(mainCost + winCost)} 元/个</b></span>
                             </li>
                           );
                         }
 
-                        const cost = calcDetailCost(gc.area, layer.thickness, layer.density, layer.price);
+                        const cost = calcDetailCost(_area, layer.thickness, layer.density, layer.price);
                         const method = (layer.density === 0 || layer.density === undefined) ? "纸类gsm法" : "薄膜法";
                         return (
                           <li key={i}>
-                            第{i + 1}层 {materialName}（{method}）：{formatFormula(gc.area, layer.thickness, layer.density, layer.price, cost)}
+                            第{i + 1}层 {materialName}（{method}）：{formatFormula(_area, layer.thickness, layer.density, layer.price, cost)}
                           </li>
                         );
                       })}
                     </ul>
+                    {gc.isEightSideDiff && (
+                      <>
+                        <div className="pl-5 font-medium text-xs mt-2 mb-1">侧面材料（面积 {f4(gc.twoSideArea)}㎡）：</div>
+                        <ul className="list-disc pl-5 space-y-1">
+                          {sideMaterialLayers.map((layer, i) => {
+                            const material = config.materialLibrary.find(m => m.id === layer.materialId);
+                            const materialName = material?.name || "未知材料";
+                            const calcSideCost = (a: number, thick: number, dens: number, prc: number) => {
+                              if (dens === 0 || dens === undefined) return a * (thick / 1000) * prc;
+                              return a * thick * dens * prc / 1000;
+                            };
+                            const cost = calcSideCost(gc.twoSideArea, layer.thickness, layer.density, layer.price);
+                            const method = (layer.density === 0 || layer.density === undefined) ? "纸类gsm法" : "薄膜法";
+                            return (
+                              <li key={`side-${i}`}>
+                                侧面第{i + 1}层 {materialName}（{method}）：
+                                {layer.density === 0 || layer.density === undefined
+                                  ? <>面积 {f4(gc.twoSideArea)}㎡ × (克重 {layer.thickness} ÷ 1000) × 单价 {layer.price} 元/kg = <b>{f4(cost)} 元</b></>
+                                  : <>面积 {f4(gc.twoSideArea)}㎡ × 厚度 {layer.thickness}μm × 密度 {layer.density} × 单价 {layer.price} ÷ 1000 = <b>{f4(cost)} 元</b></>
+                                }
+                              </li>
+                            );
+                          })}
+                        </ul>
+                        <div className="pl-5 mt-1">侧面材料合计 = <b>{f4(gc.sideMaterialCostPerUnit)} 元/个</b></div>
+                      </>
+                    )}
 
                     <div className="font-medium mt-3">二、印刷成本</div>
                     <div className="pl-5">
                       {(() => {
                         const printRule = config.printingPriceRules.find(r => r.coverage === selectedPrintCoverage);
                         const pricePerSqm = printRule?.pricePerSqm || 0;
+                        if (gc.isEightSideDiff) {
+                          const sidePrintRule = config.printingPriceRules.find(r => r.coverage === sidePrintCoverage);
+                          const sidePricePerSqm = sidePrintRule?.pricePerSqm || 0;
+                          const mainPrint = gc.frontBackBottomArea * pricePerSqm;
+                          const sidePrint = gc.twoSideArea * sidePricePerSqm;
+                          return (
+                            <>
+                              正背底面印刷：{f4(gc.frontBackBottomArea)}㎡ × {pricePerSqm} 元/㎡ = {f4(mainPrint)} 元<br />
+                              侧面印刷：{f4(gc.twoSideArea)}㎡ × {sidePricePerSqm} 元/㎡ = {f4(sidePrint)} 元<br />
+                              合计 = <b>{f4(gc.printCostPerUnit)} 元/个</b>
+                            </>
+                          );
+                        }
                         return (
                           <>
                             公式：印刷 = 展开面积 × 覆盖单价<br />
@@ -2076,6 +2407,22 @@ export default function QuotePage() {
                           return { label: rule?.name || `第${i + 1}步`, price: rule?.pricePerSqm || 0 };
                         });
                         const laminationSum = stepDetails.reduce((s, d) => s + d.price, 0);
+                        if (gc.isEightSideDiff) {
+                          const sideStepDetails = sideLaminationSteps.map((step, i) => {
+                            const rule = config.laminationPriceRules.find(r => r.id === step.laminationId);
+                            return { label: rule?.name || `第${i + 1}步`, price: rule?.pricePerSqm || 0 };
+                          });
+                          const sideLaminationSum = sideStepDetails.reduce((s, d) => s + d.price, 0);
+                          const mainLam = gc.frontBackBottomArea * laminationSum;
+                          const sideLam = gc.twoSideArea * sideLaminationSum;
+                          return (
+                            <>
+                              正背底面复合：{f4(gc.frontBackBottomArea)}㎡ × {laminationSum} 元/㎡ = {f4(mainLam)} 元<br />
+                              侧面复合：{f4(gc.twoSideArea)}㎡ × {sideLaminationSum} 元/㎡ = {f4(sideLam)} 元<br />
+                              合计 = <b>{f4(gc.laminationCostPerUnit)} 元/个</b>
+                            </>
+                          );
+                        }
                         return (
                           <>
                             公式：复合 = 展开面积 × (各步单价之和)<br />
