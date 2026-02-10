@@ -248,100 +248,6 @@ export default function GiftBoxQuotePage({
 
       <main className="flex-1 container mx-auto px-4 py-6 max-w-4xl space-y-6">
         <Card>
-          <CardContent className="pt-6 space-y-4">
-            <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
-              <div className="p-3 rounded-md border" data-testid="card-pretax">
-                <div className="text-xs font-semibold text-muted-foreground">
-                  税前单价
-                </div>
-                <div className="mt-1 text-sm">
-                  <span className="font-bold">¥{fmt(calc.totalCostBeforeTax / calc.validQty, 4)}/个</span>
-                </div>
-                <div className="text-sm">
-                  总价：<span className="font-bold">¥{fmt(calc.totalCostBeforeTax)}</span>
-                  <span className="ml-1 text-xs text-muted-foreground">
-                    ≈ ${fmt(calc.totalCostBeforeTax / calc.validExchangeRate)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-md border" data-testid="card-withtax">
-                <div className="text-xs font-semibold text-muted-foreground">
-                  含税价（{calc.validTaxRate}%）
-                </div>
-                <div className="mt-1 text-sm">
-                  <span className="font-bold">¥{fmt(calc.unitCost, 4)}/个</span>
-                  <span className="ml-1 text-xs text-muted-foreground">
-                    ≈ ${fmt(calc.unitCostUsd, 4)}/个
-                  </span>
-                </div>
-                <div className="text-sm">
-                  总价：<span className="font-bold">¥{fmt(calc.totalCost)}</span>
-                  <span className="ml-1 text-xs text-muted-foreground">
-                    ≈ ${fmt(calc.totalCostUsd)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-md border border-destructive bg-destructive/5" data-testid="card-final-price">
-                <div className="text-xs font-semibold text-destructive">
-                  含税含模具（最终价）
-                </div>
-                <div className="mt-1 text-sm text-destructive">
-                  单价：<span className="font-bold" data-testid="text-unit-cost">¥{fmt(calc.unitCost, 4)}/个</span>
-                  <span className="ml-1 text-xs opacity-80">
-                    ≈ ${fmt(calc.unitCostUsd, 4)}/个
-                  </span>
-                </div>
-                <div className="text-sm text-destructive">
-                  总价：<span className="font-bold" data-testid="text-total-cost">¥{fmt(calc.totalCost)}</span>
-                  <span className="ml-1 text-xs opacity-80">
-                    ≈ ${fmt(calc.totalCostUsd)} USD
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-md border">
-                <div className="text-xs font-semibold text-muted-foreground">模具费（单独）</div>
-                <div className="mt-1 text-sm">
-                  <span className="font-bold">¥{fmt(calc.finalMoldTotal)}</span>
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">{calc.moldFeeInfo.desc}</div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 text-sm" data-testid="cost-breakdown-grid">
-              <div className="p-3 rounded-md border">
-                <div className="text-muted-foreground text-xs">灰板</div>
-                <div className="font-semibold">{fmt(calc.boardCostPerBox, 4)}</div>
-              </div>
-              <div className="p-3 rounded-md border">
-                <div className="text-muted-foreground text-xs">面纸</div>
-                <div className="font-semibold">{fmt(calc.paperCostPerBox, 4)}</div>
-              </div>
-              <div className="p-3 rounded-md border">
-                <div className="text-muted-foreground text-xs">内衬</div>
-                <div className="font-semibold">{fmt(calc.totalLinerCost / calc.validQty, 4)}</div>
-              </div>
-              <div className="p-3 rounded-md border">
-                <div className="text-muted-foreground text-xs">做工</div>
-                <div className="font-semibold">{fmt(calc.totalBoxCost / calc.validQty, 4)}</div>
-              </div>
-              {calc.totalCraftCost > 0 && (
-                <div className="p-3 rounded-md border">
-                  <div className="text-muted-foreground text-xs">工艺</div>
-                  <div className="font-semibold">{fmt(calc.totalCraftCost / calc.validQty, 4)}</div>
-                </div>
-              )}
-              <div className="p-3 rounded-md border">
-                <div className="text-muted-foreground text-xs">纸箱</div>
-                <div className="font-semibold">{fmt(calc.cartonCostPerBox, 4)}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold text-primary">盒型与尺寸</CardTitle>
           </CardHeader>
@@ -714,6 +620,100 @@ export default function GiftBoxQuotePage({
                 <div>模具费合计 = ¥{fmt(calc.moldFeeInfo.total)} - 优惠¥{orderInfo.moldDiscount} = ¥{fmt(calc.finalMoldTotal)}</div>
               </div>
             </CostRow>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6 space-y-4">
+            <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
+              <div className="p-3 rounded-md border" data-testid="card-pretax">
+                <div className="text-xs font-semibold text-muted-foreground">
+                  税前单价
+                </div>
+                <div className="mt-1 text-sm">
+                  <span className="font-bold">¥{fmt(calc.totalCostBeforeTax / calc.validQty, 4)}/个</span>
+                </div>
+                <div className="text-sm">
+                  总价：<span className="font-bold">¥{fmt(calc.totalCostBeforeTax)}</span>
+                  <span className="ml-1 text-xs text-muted-foreground">
+                    ≈ ${fmt(calc.totalCostBeforeTax / calc.validExchangeRate)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-md border" data-testid="card-withtax">
+                <div className="text-xs font-semibold text-muted-foreground">
+                  含税价（{calc.validTaxRate}%）
+                </div>
+                <div className="mt-1 text-sm">
+                  <span className="font-bold">¥{fmt(calc.unitCost, 4)}/个</span>
+                  <span className="ml-1 text-xs text-muted-foreground">
+                    ≈ ${fmt(calc.unitCostUsd, 4)}/个
+                  </span>
+                </div>
+                <div className="text-sm">
+                  总价：<span className="font-bold">¥{fmt(calc.totalCost)}</span>
+                  <span className="ml-1 text-xs text-muted-foreground">
+                    ≈ ${fmt(calc.totalCostUsd)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-md border border-destructive bg-destructive/5" data-testid="card-final-price">
+                <div className="text-xs font-semibold text-destructive">
+                  含税含模具（最终价）
+                </div>
+                <div className="mt-1 text-sm text-destructive">
+                  单价：<span className="font-bold" data-testid="text-unit-cost">¥{fmt(calc.unitCost, 4)}/个</span>
+                  <span className="ml-1 text-xs opacity-80">
+                    ≈ ${fmt(calc.unitCostUsd, 4)}/个
+                  </span>
+                </div>
+                <div className="text-sm text-destructive">
+                  总价：<span className="font-bold" data-testid="text-total-cost">¥{fmt(calc.totalCost)}</span>
+                  <span className="ml-1 text-xs opacity-80">
+                    ≈ ${fmt(calc.totalCostUsd)} USD
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-md border">
+                <div className="text-xs font-semibold text-muted-foreground">模具费（单独）</div>
+                <div className="mt-1 text-sm">
+                  <span className="font-bold">¥{fmt(calc.finalMoldTotal)}</span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">{calc.moldFeeInfo.desc}</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 text-sm" data-testid="cost-breakdown-grid">
+              <div className="p-3 rounded-md border">
+                <div className="text-muted-foreground text-xs">灰板</div>
+                <div className="font-semibold">{fmt(calc.boardCostPerBox, 4)}</div>
+              </div>
+              <div className="p-3 rounded-md border">
+                <div className="text-muted-foreground text-xs">面纸</div>
+                <div className="font-semibold">{fmt(calc.paperCostPerBox, 4)}</div>
+              </div>
+              <div className="p-3 rounded-md border">
+                <div className="text-muted-foreground text-xs">内衬</div>
+                <div className="font-semibold">{fmt(calc.totalLinerCost / calc.validQty, 4)}</div>
+              </div>
+              <div className="p-3 rounded-md border">
+                <div className="text-muted-foreground text-xs">做工</div>
+                <div className="font-semibold">{fmt(calc.totalBoxCost / calc.validQty, 4)}</div>
+              </div>
+              {calc.totalCraftCost > 0 && (
+                <div className="p-3 rounded-md border">
+                  <div className="text-muted-foreground text-xs">工艺</div>
+                  <div className="font-semibold">{fmt(calc.totalCraftCost / calc.validQty, 4)}</div>
+                </div>
+              )}
+              <div className="p-3 rounded-md border">
+                <div className="text-muted-foreground text-xs">纸箱</div>
+                <div className="font-semibold">{fmt(calc.cartonCostPerBox, 4)}</div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
