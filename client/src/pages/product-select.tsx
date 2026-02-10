@@ -89,7 +89,7 @@ export default function ProductSelectPage() {
               选择产品类型
             </h2>
             <p className="text-muted-foreground">
-              请选择您需要报价的产品类型，我们将根据您的选择提供定制化报价方案
+              请选择您生产的产品类型，我们将根据您的选择生成定制化报价器
             </p>
           </div>
 
