@@ -89,7 +89,13 @@ interface DigitalMaterialLayer {
   notes: string;
 }
 
-export default function QuotePage() {
+interface QuotePageProps {
+  surveyPath?: string;
+  homePath?: string;
+  hideRestart?: boolean;
+}
+
+export default function QuotePage({ surveyPath = "/survey", homePath = "/", hideRestart = false }: QuotePageProps) {
   const [, navigate] = useLocation();
   const { state, resetQuote } = useQuote();
   const config = state.config;
@@ -253,7 +259,7 @@ export default function QuotePage() {
   };
 
   if (!state.productType) {
-    navigate("/");
+    navigate(homePath);
     return null;
   }
 
@@ -818,12 +824,12 @@ export default function QuotePage() {
   ]);
 
   const handleEditParams = () => {
-    navigate("/survey");
+    navigate(surveyPath);
   };
 
   const handleRestart = () => {
     resetQuote();
-    navigate("/");
+    navigate(homePath);
   };
 
   const addMaterialLayer = () => {
@@ -888,10 +894,12 @@ export default function QuotePage() {
                   <Edit className="w-4 h-4" />
                   编辑参数
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleRestart} className="gap-2" data-testid="button-restart">
-                  <RefreshCw className="w-4 h-4" />
-                  重新开始
-                </Button>
+                {!hideRestart && (
+                  <Button variant="outline" size="sm" onClick={handleRestart} className="gap-2" data-testid="button-restart">
+                    <RefreshCw className="w-4 h-4" />
+                    重新开始
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -1429,10 +1437,12 @@ export default function QuotePage() {
                 <Edit className="w-4 h-4" />
                 编辑参数
               </Button>
-              <Button variant="outline" size="sm" onClick={handleRestart} className="gap-2" data-testid="button-restart">
-                <RefreshCw className="w-4 h-4" />
-                重新开始
-              </Button>
+              {!hideRestart && (
+                <Button variant="outline" size="sm" onClick={handleRestart} className="gap-2" data-testid="button-restart">
+                  <RefreshCw className="w-4 h-4" />
+                  重新开始
+                </Button>
+              )}
             </div>
           </div>
         </div>

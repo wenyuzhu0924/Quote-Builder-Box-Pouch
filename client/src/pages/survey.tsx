@@ -13,7 +13,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuote, type CustomMaterial, type PrintingPriceRule, type LaminationPriceRule, type PostProcessingOptionConfig, type PostProcessingPricingType, type PostProcessingCategory, type BagTypePrice, type SpecOption, type QuantityDiscountRule, type CustomBagType, type DigitalMaterial, type DigitalSpecialProcess, type DigitalZipperType, type DigitalValveType, type DigitalAccessory, type DigitalPrintingTier, parseDimensionsFromFormula } from "@/lib/quote-store";
 
-export default function SurveyPage() {
+interface SurveyPageProps {
+  backPath?: string;
+  nextPath?: string;
+  hideBack?: boolean;
+}
+
+export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBack = false }: SurveyPageProps) {
   const [, navigate] = useLocation();
   const { state, updateConfig, updateDigitalConfig } = useQuote();
   const { toast } = useToast();
@@ -55,7 +61,7 @@ export default function SurveyPage() {
   const [newAccessory, setNewAccessory] = useState({ name: "", price: 0, isStackable: false });
 
   if (!state.productType) {
-    navigate("/");
+    navigate(backPath);
     return null;
   }
 
@@ -63,11 +69,11 @@ export default function SurveyPage() {
   const isDigital = state.productType === "pouch" && state.printingMethod === "digital";
 
   const handleBack = () => {
-    navigate("/");
+    navigate(backPath);
   };
 
   const handleNext = () => {
-    navigate("/quote");
+    navigate(nextPath);
   };
 
   const addCustomBagType = () => {
@@ -527,15 +533,17 @@ export default function SurveyPage() {
             </div>
 
             <div className="mt-8 flex justify-between">
-              <Button
-                data-testid="button-back"
-                variant="outline"
-                onClick={handleBack}
-                className="gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                返回
-              </Button>
+              {!hideBack ? (
+                <Button
+                  data-testid="button-back"
+                  variant="outline"
+                  onClick={handleBack}
+                  className="gap-2"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  返回
+                </Button>
+              ) : <div />}
               <Button
                 data-testid="button-next"
                 onClick={handleNext}
@@ -1654,15 +1662,17 @@ export default function SurveyPage() {
             </Accordion>
 
             <div className="mt-8 flex justify-between sticky bottom-4 bg-background/95 backdrop-blur py-4 border-t">
-              <Button
-                data-testid="button-back"
-                variant="outline"
-                onClick={handleBack}
-                className="gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                返回
-              </Button>
+              {!hideBack ? (
+                <Button
+                  data-testid="button-back"
+                  variant="outline"
+                  onClick={handleBack}
+                  className="gap-2"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  返回
+                </Button>
+              ) : <div />}
               <Button
                 data-testid="button-next"
                 onClick={handleNext}
@@ -2729,15 +2739,17 @@ export default function SurveyPage() {
           </Accordion>
 
           <div className="mt-8 flex justify-between sticky bottom-4 bg-background/95 backdrop-blur py-4 border-t">
-            <Button
-              data-testid="button-back"
-              variant="outline"
-              onClick={handleBack}
-              className="gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              返回
-            </Button>
+            {!hideBack ? (
+              <Button
+                data-testid="button-back"
+                variant="outline"
+                onClick={handleBack}
+                className="gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                返回
+              </Button>
+            ) : <div />}
             <Button
               data-testid="button-next"
               onClick={handleNext}
