@@ -71,3 +71,25 @@ Preferred communication style: Simple, everyday language.
 - **esbuild**: Server bundling.
 - **Drizzle Kit**: Database schema tooling.
 - **TypeScript**: Language for type safety across the application.
+
+## Recent Changes
+
+### February 10, 2026 - Roll Film (卷膜) Added to Gravure Printing
+- **Roll Film Bag Type**: Added `rollFilm` to gravure `defaultCustomBagTypes` with area=1㎡ basis
+- **Calculation Logic**: All costs calculated per sqm, then converted to per-kg using material weight
+  - `weightPerSqmGrams` = sum of each layer's weight (gsm for paper, thickness*density for film)
+  - `costPerKg = costPerSqm / weightPerSqmKg`
+  - Making cost = slitting cost (分切费, flat rate per sqm, default 0.05)
+  - No post-processing options for roll film
+- **UI Adaptations**: Quantity label shows "kg", pricing displays in 元/kg and USD/kg
+  - Roll film parameter info box shows weight/sqm and cost conversion
+  - Post-processing section hidden for roll film
+  - Cost breakdown grid shows 4 columns (material, print, lamination, slitting) instead of 5
+- **Calculation Breakdown**: Shows sqm-to-kg conversion step, section numbering adapts
+
+### February 10, 2026 - Eight-Side Bag Side Material Differentiation
+- **Eight-Side Bag (八边封) Added**: New bag type option in gravure printing bag type list
+- **Side Material Differentiation Mode**: Toggle between "sides same as front/back" vs "sides use different materials"
+  - When `eightSideMode="diff"`, system maintains separate material stacks, separate print coverage, and separate lamination steps
+  - Area split: frontBackBottomArea and twoSideArea calculated separately
+- **Calculation**: gravureCosts splits material/print/lamination costs by area zone; breakdown shows split details
