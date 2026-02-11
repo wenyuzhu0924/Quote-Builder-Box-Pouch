@@ -676,7 +676,13 @@ export function isValidBagFormula(formula: string): boolean {
 
 export function isValidMakingFormula(formula: string): boolean {
   if (!formula || !formula.trim()) return false;
-  return /[\d.]+\s*[×*]\s*[\u4e00-\u9fff(]/.test(formula) || /min|max/i.test(formula) && /[\d.]/.test(formula);
+  const hasFormulaPattern = /[\d.]+\s*[×*]\s*[\u4e00-\u9fff(]/.test(formula) || (/min|max/i.test(formula) && /[\d.]/.test(formula));
+  if (!hasFormulaPattern) return false;
+  const cleaned = formula
+    .replace(/min|max/gi, "")
+    .replace(/袋宽|袋高|底插入|底琴|侧面展开|侧琴|背封边/g, "")
+    .replace(/[\d.\s+\-×*÷/(),，()]+/g, "");
+  return cleaned.length === 0;
 }
 
 export function safeEvalMakingFormula(formula: string, dims: { width: number; height: number; bottomInsert: number; sideExpansion: number; backSeal: number }): number {
