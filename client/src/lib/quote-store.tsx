@@ -148,7 +148,7 @@ export interface DigitalPrintMode {
   coefficient: number;
 }
 
-export type DigitalSpecialCalcBasis = "perQuantity" | "perMeter" | "doublePrint";
+export type DigitalSpecialCalcBasis = "perQuantity" | "perMeter" | "printMultiplier";
 
 export interface DigitalSpecialProcess {
   id: string;
@@ -343,7 +343,7 @@ const defaultDigitalPrintModes: DigitalPrintMode[] = [
 ];
 
 const defaultDigitalSpecialProcesses: DigitalSpecialProcess[] = [
-  { id: "doubleSide", name: "双面印刷", enabled: true, unitPrice: 0, calcBasis: "doublePrint", minPrice: 0, notes: "又称里印" },
+  { id: "doubleSide", name: "双面印刷", enabled: true, unitPrice: 1, calcBasis: "printMultiplier", minPrice: 0, notes: "又称里印" },
   { id: "shapedBag", name: "异形袋", enabled: true, unitPrice: 0.05, calcBasis: "perQuantity", minPrice: 0, notes: "自动增加模具费" },
   { id: "variableCode", name: "可变码", enabled: true, unitPrice: 0.05, calcBasis: "perQuantity", minPrice: 300, notes: "" },
   { id: "uniqueImage", name: "一袋一图", enabled: true, unitPrice: 0.05, calcBasis: "perQuantity", minPrice: 300, notes: "" },

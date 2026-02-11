@@ -457,8 +457,8 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
         cost = process.unitPrice * _qty * _sku;
       } else if (process.calcBasis === "perMeter") {
         cost = process.unitPrice * totalMeters;
-      } else if (process.calcBasis === "doublePrint") {
-        cost = printCostTotal;
+      } else if (process.calcBasis === "printMultiplier") {
+        cost = printCostTotal * process.unitPrice;
       }
       
       if (process.minPrice > 0 && cost < process.minPrice) {
@@ -1153,7 +1153,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                             {process.minPrice > 0 && `起步价${process.minPrice}元，`}
                             {process.calcBasis === "perQuantity" && `${process.unitPrice}元/个`}
                             {process.calcBasis === "perMeter" && `${process.unitPrice}元/米`}
-                            {process.calcBasis === "doublePrint" && "印刷费x2"}
+                            {process.calcBasis === "printMultiplier" && `${process.unitPrice}×印刷费`}
                           </div>
                         </div>
                       </div>

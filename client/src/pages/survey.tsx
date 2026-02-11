@@ -1285,17 +1285,13 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 />
                               </TableCell>
                               <TableCell>
-                                {process.calcBasis === "doublePrint" ? (
-                                  <span className="text-sm text-muted-foreground">--</span>
-                                ) : (
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    value={process.unitPrice || ""}
-                                    onChange={(e) => updateDigitalSpecialProcess(process.id, "unitPrice", Number(e.target.value) || 0)}
-                                    className="h-8"
-                                  />
-                                )}
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={process.unitPrice || ""}
+                                  onChange={(e) => updateDigitalSpecialProcess(process.id, "unitPrice", Number(e.target.value) || 0)}
+                                  className="h-8"
+                                />
                               </TableCell>
                               <TableCell>
                                 <Select
@@ -1308,7 +1304,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   <SelectContent>
                                     <SelectItem value="perQuantity">元/个</SelectItem>
                                     <SelectItem value="perMeter">元/米</SelectItem>
-                                    <SelectItem value="doublePrint">印刷费x2</SelectItem>
+                                    <SelectItem value="printMultiplier">×印刷费</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </TableCell>
@@ -1371,7 +1367,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 <SelectContent>
                                   <SelectItem value="perQuantity">元/个</SelectItem>
                                   <SelectItem value="perMeter">元/米</SelectItem>
-                                  <SelectItem value="doublePrint">印刷费x2</SelectItem>
+                                  <SelectItem value="printMultiplier">×印刷费</SelectItem>
                                 </SelectContent>
                               </Select>
                             </TableCell>
