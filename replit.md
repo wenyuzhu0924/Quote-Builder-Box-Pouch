@@ -122,3 +122,22 @@ Preferred communication style: Simple, everyday language.
 - **Main App Integration**: Product select → /giftbox/survey (builder) → /giftbox/quote (calculator)
 - **Demo Route**: `/demo/giftbox` - standalone access with no back/restart buttons
 - **Routing**: App.tsx uses location-based routing to separate giftbox, demo, and pouch flows with independent providers
+
+### February 11, 2026 - Digital Printing Calculation Engine
+- **New File**: `client/src/lib/digital-calc.ts` - Complete calculation engine for digital printing quotes
+  - Bag expansion formulas for all bag types (三边封, 自立袋, 中封, 风琴, 八边封, etc.)
+  - Layout optimization: N_row (across maxPrintWidth) × N_circ (around circumference)
+  - Revolution-based pricing: printingTiers use maxRevolutions/pricePerRevolution with mode multipliers
+  - Material width optimization based on order revolutions and print pattern width
+  - Lamination formula: max(laminationUnitPrice, laminationPerMeter × totalMeters) × layerCount
+  - Bag-making formula: max(coefficient × L_rev × totalRevolutions × N_row, minPrice)
+  - Eight-side bag separate body/side calculations with independent layout/rotation
+  - Double-bag support (×2 multiplier for threeSideDouble, standupDouble, eightSideDouble)
+  - File handling fee: (SKU - 5) × 50 when SKU > 5
+  - Special process costs with perQuantity/perMeter/printMultiplier calc bases
+- **Config Types Updated**: `DigitalGeneratorConfig` in quote-store.tsx
+  - `CustomBagType` has `makingCoefficient` and `makingMinPrice` fields
+  - `printingTiers` use `maxRevolutions`/`pricePerRevolution` (revolution-based, not meter-based)
+  - `laminationUnitPrice`/`laminationPerMeter` for lamination cost config
+- **Survey Page**: Added bag-making cost configuration UI (coefficient + min price per digital bag type), lamination price configuration section
+- **Quote Page**: Uses `calculateDigital()` from digital-calc.ts; displays comprehensive cost breakdown (material, lamination, print, bag-making, accessories, special process, custom costs, file fees, with/without tax totals in CNY and USD)

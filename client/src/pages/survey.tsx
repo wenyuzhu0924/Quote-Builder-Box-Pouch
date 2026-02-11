@@ -86,6 +86,8 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
       requiredDimensions: dimensions,
       wasteCoefficient: newBagType.wasteCoefficient || 1.1,
       makingCostFormula: newBagType.makingCostFormula || "",
+      makingCoefficient: 0,
+      makingMinPrice: 0,
       isBuiltIn: false,
       enabled: true,
     };
@@ -271,6 +273,8 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
       requiredDimensions: dimensions,
       wasteCoefficient: newBagType.wasteCoefficient || 1.0,
       makingCostFormula: newBagType.makingCostFormula || "",
+      makingCoefficient: 0.25,
+      makingMinPrice: 300,
       isBuiltIn: false,
       enabled: true,
     };
@@ -377,8 +381,8 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
   const addDigitalPrintingTier = () => {
     const lastTier = digitalConfig.printingTiers[digitalConfig.printingTiers.length - 1];
     const tier: DigitalPrintingTier = {
-      maxMeters: (lastTier?.maxMeters || 0) + 500,
-      pricePerMeter: lastTier?.pricePerMeter || 0,
+      maxRevolutions: (lastTier?.maxRevolutions || 0) + 500,
+      pricePerRevolution: lastTier?.pricePerRevolution || 0,
       label: "",
     };
     updateDigitalConfig({ printingTiers: [...digitalConfig.printingTiers, tier] });
@@ -1172,14 +1176,14 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                     </Button>
 
                     <div className="mt-4">
-                      <p className="font-medium mb-2">印刷阶梯价（按米数）</p>
+                      <p className="font-medium mb-2">印刷阶梯价（按转数）</p>
                       <div className="border rounded-lg overflow-hidden">
                         <Table>
                           <TableHeader>
                             <TableRow>
                               <TableHead>标签</TableHead>
-                              <TableHead className="w-[120px]">最大米数</TableHead>
-                              <TableHead className="w-[120px]">单价 (元/m)</TableHead>
+                              <TableHead className="w-[120px]">最大转数</TableHead>
+                              <TableHead className="w-[120px]">单价 (元/转)</TableHead>
                               <TableHead className="w-[60px]"></TableHead>
                             </TableRow>
                           </TableHeader>
@@ -1197,8 +1201,8 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 <TableCell>
                                   <Input
                                     type="number"
-                                    value={tier.maxMeters || ""}
-                                    onChange={(e) => updateDigitalPrintingTier(index, "maxMeters", Number(e.target.value) || 0)}
+                                    value={tier.maxRevolutions || ""}
+                                    onChange={(e) => updateDigitalPrintingTier(index, "maxRevolutions", Number(e.target.value) || 0)}
                                     className="h-8"
                                     data-testid={`input-tier-maxmeters-${index}`}
                                   />
@@ -1207,8 +1211,8 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   <Input
                                     type="number"
                                     step="0.01"
-                                    value={tier.pricePerMeter || ""}
-                                    onChange={(e) => updateDigitalPrintingTier(index, "pricePerMeter", Number(e.target.value) || 0)}
+                                    value={tier.pricePerRevolution || ""}
+                                    onChange={(e) => updateDigitalPrintingTier(index, "pricePerRevolution", Number(e.target.value) || 0)}
                                     className="h-8"
                                     data-testid={`input-tier-price-${index}`}
                                   />
@@ -1231,6 +1235,120 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                       <Button variant="outline" onClick={addDigitalPrintingTier} className="gap-2 mt-2" data-testid="button-add-tier">
                         <Plus className="w-4 h-4" /> 添加阶梯
                       </Button>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="bagMakingCost" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline py-4">
+                  <div className="flex items-center gap-3">
+                    <Scissors className="w-5 h-5 text-primary" />
+                    <div className="text-left">
+                      <div className="font-semibold">制袋费用</div>
+                      <div className="text-sm text-muted-foreground">
+                        配置各袋型的制袋系数和最低起步价
+                      </div>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      制袋费 = max(最低起步价, 制袋系数 × 总米数)
+                    </p>
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>袋型名称</TableHead>
+                            <TableHead className="w-[150px]">制袋系数</TableHead>
+                            <TableHead className="w-[150px]">最低起步价 (元)</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {digitalConfig.customBagTypes.filter((b) => b.enabled).map((bagType) => (
+                            <TableRow key={bagType.id}>
+                              <TableCell className="font-medium">{bagType.name}</TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={bagType.makingCoefficient || ""}
+                                  onChange={(e) => {
+                                    updateDigitalConfig({
+                                      customBagTypes: digitalConfig.customBagTypes.map((b) =>
+                                        b.id === bagType.id ? { ...b, makingCoefficient: Number(e.target.value) || 0 } : b
+                                      ),
+                                    });
+                                  }}
+                                  className="h-8"
+                                  data-testid={`input-making-coeff-${bagType.id}`}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step="1"
+                                  value={bagType.makingMinPrice || ""}
+                                  onChange={(e) => {
+                                    updateDigitalConfig({
+                                      customBagTypes: digitalConfig.customBagTypes.map((b) =>
+                                        b.id === bagType.id ? { ...b, makingMinPrice: Number(e.target.value) || 0 } : b
+                                      ),
+                                    });
+                                  }}
+                                  className="h-8"
+                                  data-testid={`input-making-minprice-${bagType.id}`}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="laminationCost" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline py-4">
+                  <div className="flex items-center gap-3">
+                    <Combine className="w-5 h-5 text-primary" />
+                    <div className="text-left">
+                      <div className="font-semibold">复合费用</div>
+                      <div className="text-sm text-muted-foreground">
+                        配置复合费用参数
+                      </div>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      复合费 = max(最低价, 单价/米 × 总米数) × 复合层数
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>单层复合最低价 (元)</Label>
+                        <Input
+                          type="number"
+                          step="1"
+                          value={digitalConfig.laminationUnitPrice || ""}
+                          onChange={(e) => updateDigitalConfig({ laminationUnitPrice: Number(e.target.value) || 0 })}
+                          data-testid="input-lamination-unit-price"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>单层复合单价/米 (元)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={digitalConfig.laminationPerMeter || ""}
+                          onChange={(e) => updateDigitalConfig({ laminationPerMeter: Number(e.target.value) || 0 })}
+                          data-testid="input-lamination-per-meter"
+                        />
+                      </div>
                     </div>
                   </div>
                 </AccordionContent>

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuote, type CustomMaterial, type CustomBagType, type DigitalMaterial, type PostProcessingOptionConfig } from "@/lib/quote-store";
+import { calculateDigital, type DigitalCalcResult } from "@/lib/digital-calc";
 
 function calcPostProcessingCost(
   opt: PostProcessingOptionConfig,
@@ -350,208 +351,47 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
     a.isStackable && !a.name.includes("吸嘴") && !a.name.includes("嘴")
   );
 
-  const calculateDigitalCosts = useMemo(() => {
+  const digitalCalcResult: DigitalCalcResult = useMemo(() => {
     const _qty = toNum(String(quantity));
     const _sku = toNum(String(skuCount));
     const _tax = toNum(String(taxRate));
     const _exr = toNum(String(exchangeRate));
     const _mold = toNum(String(moldCost));
     const _spp = toNum(String(specialProcessPlateCost));
-    const w = toNum(String(dimensions.width));
-    const h = toNum(String(dimensions.height));
-    const bi = toNum(String(dimensions.bottomInsert));
-    const se = toNum(String(dimensions.sideExpansion));
-    const bs = toNum(String(dimensions.backSeal));
-    const sg = toNum(String(dimensions.sideGusset));
-    const sealE = toNum(String(dimensions.sealEdge));
-    const areaCoef = toNum(String(dimensions.areaCoefficient));
 
-    let unfoldedLengthMM = 0;
-    let unfoldedWidthMM = 0;
-
-    switch (selectedBagType?.id) {
-      case "threeSide":
-      case "threeSideDouble":
-        unfoldedLengthMM = h * 2 + sealE * 2;
-        unfoldedWidthMM = w + sealE;
-        break;
-      case "standupNoZip":
-      case "standupWithZip":
-      case "standupDouble":
-      case "standupSplitBottom":
-        unfoldedLengthMM = (h + bi) * 2;
-        unfoldedWidthMM = w + sealE;
-        break;
-      case "centerSeal":
-      case "sideSeal":
-        unfoldedLengthMM = h;
-        unfoldedWidthMM = (w + bs) * 2;
-        break;
-      case "gusset":
-        unfoldedLengthMM = h;
-        unfoldedWidthMM = (w + se + bs) * 2;
-        break;
-      case "eightSideNoZip":
-      case "eightSideWithZip":
-      case "eightSideDouble":
-      case "eightSideSplitBottom":
-        unfoldedLengthMM = h * 2 + sg * 2;
-        unfoldedWidthMM = w + sg * 2;
-        break;
-      case "shapedBag":
-        unfoldedLengthMM = h * 2 * areaCoef;
-        unfoldedWidthMM = w;
-        break;
-      default:
-        unfoldedLengthMM = h * 2;
-        unfoldedWidthMM = w;
-    }
-
-    const { maxPrintWidth, maxPrintCircumference, materialWidth } = digitalConfig.systemConstants;
-
-    const acrossCount = Math.floor(maxPrintWidth / unfoldedWidthMM);
-    const aroundCount = Math.floor(maxPrintCircumference / unfoldedLengthMM);
-    const bagsPerRevolution = acrossCount * aroundCount;
-
-    const orderRevolutions = Math.ceil((_qty * _sku) / bagsPerRevolution);
-    const wasteRevolutions = _sku * digitalConfig.systemConstants.skuWaste;
-    const totalRevolutions = orderRevolutions + wasteRevolutions;
-
-    const orderMeters = (orderRevolutions * maxPrintCircumference) / 1000;
-    const wasteMeters = (wasteRevolutions * maxPrintCircumference) / 1000;
-    const idleMeters = digitalConfig.systemConstants.idleMaterialMin;
-    const totalMeters = orderMeters + wasteMeters + idleMeters;
-
-    const feedAreaSqm = (totalMeters * materialWidth) / 1000;
-
-    const bagAreaSqm = (unfoldedLengthMM * unfoldedWidthMM) / 1000000;
-
-    const materialCostTotal = feedAreaSqm * totalSquarePrice;
-    const materialCostPerUnit = materialCostTotal / (_qty * _sku || 1);
-
-    let printCostPerMeter = 0;
-    const selectedMode = digitalConfig.printModes.find(m => m.id === selectedPrintModeId);
-    if (selectedMode && selectedMode.coefficient > 0) {
-      for (const tier of digitalConfig.printingTiers) {
-        if (totalMeters <= tier.maxMeters) {
-          printCostPerMeter = tier.pricePerMeter;
-          break;
-        }
-      }
-      if (printCostPerMeter === 0 && digitalConfig.printingTiers.length > 0) {
-        printCostPerMeter = digitalConfig.printingTiers[digitalConfig.printingTiers.length - 1].pricePerMeter;
-      }
-      printCostPerMeter *= selectedMode.coefficient;
-    }
-    const printCostTotal = totalMeters * printCostPerMeter;
-    const printCostPerUnit = printCostTotal / (_qty * _sku || 1);
-
-    let specialProcessCostTotal = 0;
-    Object.entries(selectedSpecialProcesses).forEach(([id, isSelected]) => {
-      if (!isSelected) return;
-      const process = digitalConfig.specialProcesses.find(p => p.id === id);
-      if (!process) return;
-      
-      let cost = 0;
-      if (process.calcBasis === "perQuantity") {
-        cost = process.unitPrice * _qty * _sku;
-      } else if (process.calcBasis === "perMeter") {
-        cost = process.unitPrice * totalMeters;
-      } else if (process.calcBasis === "printMultiplier") {
-        cost = printCostTotal * process.unitPrice;
-      }
-      
-      if (process.minPrice > 0 && cost < process.minPrice) {
-        cost = process.minPrice;
-      }
-      specialProcessCostTotal += cost;
-    });
-    const specialProcessCostPerUnit = specialProcessCostTotal / (_qty * _sku || 1);
-
-    let accessoryCostPerUnit = 0;
-    
-    if (selectedZipperId !== "none") {
-      const zipper = digitalConfig.zipperTypes.find(z => z.id === selectedZipperId);
-      if (zipper) {
-        accessoryCostPerUnit += (w / 1000) * zipper.pricePerMeter;
-      }
-    }
-    
-    if (selectedValveId !== "none") {
-      const valve = digitalConfig.valveTypes.find(v => v.id === selectedValveId);
-      if (valve) {
-        accessoryCostPerUnit += valve.pricePerUnit;
-      }
-    }
-    
-    if (selectedSpoutId) {
-      const spout = digitalConfig.accessories.find(a => a.id === selectedSpoutId);
-      if (spout) {
-        accessoryCostPerUnit += spout.price;
-      }
-    }
-    
-    Object.entries(selectedAccessories).forEach(([id, isSelected]) => {
-      if (!isSelected) return;
-      const acc = digitalConfig.accessories.find(a => a.id === id);
-      if (acc) {
-        if (acc.price > 0) {
-          accessoryCostPerUnit += acc.price;
-        } else if (acc.name.includes("束口条")) {
-          if (w <= 140) accessoryCostPerUnit += 0.5;
-          else if (w <= 200) accessoryCostPerUnit += 0.6;
-          else if (w <= 250) accessoryCostPerUnit += 0.7;
-          else accessoryCostPerUnit += 0.8;
-        } else if (acc.name.includes("激光易撕线")) {
-          accessoryCostPerUnit += 0.35 * totalMeters / (_qty * _sku || 1);
-        }
-      }
-    });
-
-    const baseCostPerUnit = materialCostPerUnit + printCostPerUnit + specialProcessCostPerUnit + accessoryCostPerUnit;
-    
-    const fixedCosts = _mold + _spp;
-    const fixedCostPerUnit = fixedCosts / (_qty * _sku || 1);
-    
-    const subtotalPerUnit = baseCostPerUnit + fixedCostPerUnit;
-    const taxMultiplier = 1 + _tax / 100;
-    const finalCostPerUnit = subtotalPerUnit * taxMultiplier;
-    
-    const totalCostCNY = finalCostPerUnit * _qty * _sku + fixedCosts;
-    const totalCostUSD = totalCostCNY / (_exr || 1);
-
-    return {
-      unfoldedLength: unfoldedLengthMM,
-      unfoldedWidth: unfoldedWidthMM,
-      acrossCount,
-      aroundCount,
-      bagsPerRevolution,
-      orderRevolutions,
-      wasteRevolutions,
-      totalRevolutions,
-      orderMeters,
-      wasteMeters,
-      idleMeters,
-      totalMeters,
-      feedAreaSqm,
-      bagAreaSqm,
-      materialCostTotal,
-      materialCostPerUnit,
-      printCostPerMeter,
-      printCostTotal,
-      printCostPerUnit,
-      specialProcessCostTotal,
-      specialProcessCostPerUnit,
-      accessoryCostPerUnit,
-      baseCostPerUnit,
-      fixedCosts,
-      fixedCostPerUnit,
-      subtotalPerUnit,
-      finalCostPerUnit,
-      totalCostCNY,
-      totalCostUSD,
-    };
-  }, [dimensions, selectedBagType, quantity, skuCount, digitalConfig, totalSquarePrice, selectedPrintModeId, selectedSpecialProcesses, selectedZipperId, selectedValveId, selectedSpoutId, selectedAccessories, moldCost, specialProcessPlateCost, taxRate, exchangeRate]);
+    return calculateDigital({
+      bagTypeId: selectedBagTypeId,
+      dimensions: {
+        width: toNum(String(dimensions.width)),
+        height: toNum(String(dimensions.height)),
+        bottomInsert: toNum(String(dimensions.bottomInsert)),
+        sideExpansion: toNum(String(dimensions.sideExpansion)),
+        backSeal: toNum(String(dimensions.backSeal)),
+        sideGusset: toNum(String(dimensions.sideGusset)),
+        sealEdge: toNum(String(dimensions.sealEdge)),
+        areaCoefficient: toNum(String(dimensions.areaCoefficient)),
+      },
+      quantity: _qty,
+      skuCount: _sku,
+      taxRate: _tax,
+      exchangeRate: _exr,
+      printModeId: selectedPrintModeId,
+      selectedSpecialProcessIds: Object.entries(selectedSpecialProcesses).filter(([, v]) => v).map(([id]) => id),
+      zipperId: selectedZipperId,
+      valveId: selectedValveId,
+      spoutId: selectedSpoutId,
+      selectedAccessoryIds: Object.entries(selectedAccessories).filter(([, v]) => v).map(([id]) => id),
+      moldCost: _mold,
+      plateCost: _spp,
+      materialLayers: digitalLayers.map(l => ({
+        id: l.id,
+        layerType: l.layerType,
+        materialId: l.materialId,
+        squarePrice: l.squarePrice,
+        name: l.materialId ? (getMaterialsForLayerType(l.layerType).find(m => m.id === l.materialId)?.name || "") : "",
+      })),
+    }, digitalConfig);
+  }, [dimensions, selectedBagTypeId, quantity, skuCount, digitalConfig, digitalLayers, selectedPrintModeId, selectedSpecialProcesses, selectedZipperId, selectedValveId, selectedSpoutId, selectedAccessories, moldCost, specialProcessPlateCost, taxRate, exchangeRate]);
 
   const getMaterialById = (id: string): CustomMaterial | undefined => {
     return config.materialLibrary.find((m) => m.id === id);
@@ -1314,80 +1154,100 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm">
-                  <div><strong>展开尺寸：</strong>长度 {calculateDigitalCosts.unfoldedLength.toFixed(2)} mm，宽度 {calculateDigitalCosts.unfoldedWidth.toFixed(2)} mm</div>
-                  <div><strong>排版参数：</strong>横排 {calculateDigitalCosts.acrossCount} 个，周排 {calculateDigitalCosts.aroundCount} 个，每转产出 {calculateDigitalCosts.bagsPerRevolution} 个</div>
-                  <div><strong>转数：</strong>订单转数 {calculateDigitalCosts.orderRevolutions.toFixed(2)} 转，损耗转数 {calculateDigitalCosts.wasteRevolutions.toFixed(2)} 转</div>
-                  <div><strong>米数：</strong>订单 {calculateDigitalCosts.orderMeters.toFixed(2)} m，损耗 {calculateDigitalCosts.wasteMeters.toFixed(2)} m，闲置 {calculateDigitalCosts.idleMeters.toFixed(2)} m，总投料 {calculateDigitalCosts.totalMeters.toFixed(2)} m</div>
-                  <div><strong>投料面积：</strong>{calculateDigitalCosts.feedAreaSqm.toFixed(2)} ㎡</div>
+                  <div><strong>展开尺寸：</strong>长度 {digitalCalcResult.processData.expandSize.L_exp.toFixed(2)} mm，宽度 {digitalCalcResult.processData.expandSize.W_exp.toFixed(2)} mm</div>
+                  <div><strong>排版参数：</strong>横排 {digitalCalcResult.processData.layout.N_row} 个，周排 {digitalCalcResult.processData.layout.N_circ} 个，每转产出 {digitalCalcResult.processData.layout.N_rev} 个</div>
+                  <div><strong>转数：</strong>订单转数 {digitalCalcResult.processData.rotation.R_order.toFixed(2)} 转，损耗转数 {digitalCalcResult.processData.rotation.R_loss.toFixed(2)} 转</div>
+                  <div><strong>米数：</strong>订单 {digitalCalcResult.processData.meterage.M_order.toFixed(2)} m，损耗 {digitalCalcResult.processData.meterage.M_loss.toFixed(2)} m，闲置 {digitalCalcResult.processData.meterage.M_idle.toFixed(2)} m，总投料 {digitalCalcResult.processData.meterage.M_total.toFixed(2)} m</div>
+                  <div><strong>材料幅宽：</strong>{digitalCalcResult.processData.materialWidth} mm</div>
+                  <div><strong>投料面积：</strong>{digitalCalcResult.processData.feedArea.toFixed(2)} ㎡</div>
+                  {digitalCalcResult.isDoubleBag && <div className="text-primary font-medium">双放袋型，总价 ×2</div>}
+                  {digitalCalcResult.isEightSide && digitalCalcResult.eightSideCalc && (
+                    <>
+                      <div className="pt-2 border-t mt-2"><strong>八边封分体计算：</strong></div>
+                      <div className="pl-4">袋体展开：{digitalCalcResult.eightSideCalc.bagBody.L_exp.toFixed(1)} × {digitalCalcResult.eightSideCalc.bagBody.W_exp.toFixed(1)} mm，排版 {digitalCalcResult.eightSideCalc.bagBody.N_row}×{digitalCalcResult.eightSideCalc.bagBody.N_circ}，转数 {digitalCalcResult.eightSideCalc.bagBody.R_order.toFixed(1)}+{digitalCalcResult.eightSideCalc.bagBody.R_loss.toFixed(1)}</div>
+                      <div className="pl-4">侧面展开：{digitalCalcResult.eightSideCalc.bagSide.L_exp.toFixed(1)} × {digitalCalcResult.eightSideCalc.bagSide.W_exp.toFixed(1)} mm，排版 {digitalCalcResult.eightSideCalc.bagSide.N_row}×{digitalCalcResult.eightSideCalc.bagSide.N_circ}，转数 {digitalCalcResult.eightSideCalc.bagSide.R_order.toFixed(1)}+{digitalCalcResult.eightSideCalc.bagSide.R_loss.toFixed(1)}</div>
+                      <div className="pl-4">合计米数：{digitalCalcResult.eightSideCalc.totalMeter.toFixed(2)} m</div>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
             <Card className="border-primary bg-primary/5">
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">报价结果</CardTitle>
+                <CardTitle className="text-lg">成本明细</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="p-4 bg-background rounded-lg">
-                    <div className="text-sm text-muted-foreground">材料成本/个</div>
-                    <div className="text-xl font-semibold">{calculateDigitalCosts.materialCostPerUnit.toFixed(4)} 元</div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                  <div className="p-4 bg-background rounded-lg" data-testid="cost-material">
+                    <div className="text-sm text-muted-foreground">材料成本</div>
+                    <div className="text-xl font-semibold">{digitalCalcResult.costBreakdown.material.toFixed(2)} 元</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {digitalCalcResult.materialSquarePriceTotal.toFixed(4)} 元/㎡ × {digitalCalcResult.processData.feedArea.toFixed(2)} ㎡
+                    </div>
                   </div>
-                  <div className="p-4 bg-background rounded-lg">
-                    <div className="text-sm text-muted-foreground">印刷成本/个</div>
-                    <div className="text-xl font-semibold">{calculateDigitalCosts.printCostPerUnit.toFixed(4)} 元</div>
+                  <div className="p-4 bg-background rounded-lg" data-testid="cost-lamination">
+                    <div className="text-sm text-muted-foreground">复合成本</div>
+                    <div className="text-xl font-semibold">{digitalCalcResult.costBreakdown.lamination.toFixed(2)} 元</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {digitalCalcResult.materialDetails.length > 0 ? `${Math.max(0, digitalCalcResult.materialDetails.length - 1)} 层复合` : "无复合"}
+                    </div>
                   </div>
-                  <div className="p-4 bg-background rounded-lg">
-                    <div className="text-sm text-muted-foreground">特殊工艺成本/个</div>
-                    <div className="text-xl font-semibold">{calculateDigitalCosts.specialProcessCostPerUnit.toFixed(4)} 元</div>
+                  <div className="p-4 bg-background rounded-lg" data-testid="cost-print">
+                    <div className="text-sm text-muted-foreground">印刷成本</div>
+                    <div className="text-xl font-semibold">{digitalCalcResult.costBreakdown.print.toFixed(2)} 元</div>
+                    {digitalCalcResult.costBreakdown.fileFee > 0 && (
+                      <div className="text-xs text-muted-foreground mt-1">含文件费 {digitalCalcResult.costBreakdown.fileFee} 元</div>
+                    )}
                   </div>
-                  <div className="p-4 bg-background rounded-lg">
-                    <div className="text-sm text-muted-foreground">附件成本/个</div>
-                    <div className="text-xl font-semibold">{calculateDigitalCosts.accessoryCostPerUnit.toFixed(4)} 元</div>
+                  <div className="p-4 bg-background rounded-lg" data-testid="cost-bagmaking">
+                    <div className="text-sm text-muted-foreground">制袋成本</div>
+                    <div className="text-xl font-semibold">{digitalCalcResult.costBreakdown.bagMaking.toFixed(2)} 元</div>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="p-4 bg-background rounded-lg">
-                    <div className="text-sm text-muted-foreground">基础成本/个</div>
-                    <div className="text-xl font-semibold">{calculateDigitalCosts.baseCostPerUnit.toFixed(4)} 元</div>
+                  <div className="p-4 bg-background rounded-lg" data-testid="cost-accessories">
+                    <div className="text-sm text-muted-foreground">附件成本</div>
+                    <div className="text-xl font-semibold">{digitalCalcResult.costBreakdown.accessories.toFixed(2)} 元</div>
                   </div>
-                  <div className="p-4 bg-background rounded-lg">
-                    <div className="text-sm text-muted-foreground">固定费用分摊/个</div>
-                    <div className="text-xl font-semibold">{calculateDigitalCosts.fixedCostPerUnit.toFixed(4)} 元</div>
-                  </div>
-                  <div className="p-4 bg-background rounded-lg">
-                    <div className="text-sm text-muted-foreground">税率</div>
-                    <div className="text-xl font-semibold">{taxRate}%</div>
-                  </div>
-                  <div className="p-4 bg-background rounded-lg">
-                    <div className="text-sm text-muted-foreground">汇率</div>
-                    <div className="text-xl font-semibold">{toNum(String(exchangeRate)).toFixed(2)}</div>
+                  <div className="p-4 bg-background rounded-lg" data-testid="cost-special">
+                    <div className="text-sm text-muted-foreground">特殊工艺成本</div>
+                    <div className="text-xl font-semibold">{digitalCalcResult.costBreakdown.specialProcess.toFixed(2)} 元</div>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-6 bg-primary text-primary-foreground rounded-lg">
+                {digitalCalcResult.costBreakdown.custom > 0 && (
+                  <div className="mb-6 p-3 bg-muted/50 rounded-lg text-sm">
+                    <strong>自定义费用：</strong>模具费 {toNum(String(moldCost)).toFixed(2)} 元 + 特殊工艺版费 {toNum(String(specialProcessPlateCost)).toFixed(2)} 元 = {digitalCalcResult.costBreakdown.custom.toFixed(2)} 元
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="p-4 bg-background rounded-lg">
+                    <div className="text-sm text-muted-foreground">成本总计（不含税）</div>
+                    <div className="text-xl font-semibold">{digitalCalcResult.quote.exFactory.total.toFixed(2)} 元</div>
+                  </div>
+                  <div className="p-4 bg-background rounded-lg">
+                    <div className="text-sm text-muted-foreground">单价（不含税）</div>
+                    <div className="text-xl font-semibold">{digitalCalcResult.quote.exFactory.unit.toFixed(4)} 元/个</div>
+                    <div className="text-xs text-muted-foreground mt-1">${digitalCalcResult.quote.exFactory.unitUSD.toFixed(4)} /pc</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-4 p-6 bg-primary text-primary-foreground rounded-lg flex-wrap">
                   <div>
-                    <div className="text-sm opacity-80">单价（含税）</div>
-                    <div className="text-3xl font-bold">¥{calculateDigitalCosts.finalCostPerUnit.toFixed(4)}/个</div>
+                    <div className="text-sm opacity-80">含税单价（{taxRate}%增值税）</div>
+                    <div className="text-3xl font-bold">¥{digitalCalcResult.quote.withTax.unit.toFixed(4)}/个</div>
                     <div className="text-sm opacity-80 mt-1">
-                      ${(calculateDigitalCosts.finalCostPerUnit / (toNum(String(exchangeRate)) || 1)).toFixed(4)}/个
+                      ${digitalCalcResult.quote.withTax.unitUSD.toFixed(4)}/pc
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm opacity-80">总价（{(toNum(String(quantity)) * toNum(String(skuCount))).toLocaleString()} 个 + 固定费用）</div>
-                    <div className="text-3xl font-bold">¥{calculateDigitalCosts.totalCostCNY.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    <div className="text-sm opacity-80">含税总价（{toNum(String(quantity)).toLocaleString()} 个）</div>
+                    <div className="text-3xl font-bold">¥{digitalCalcResult.quote.withTax.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                     <div className="text-sm opacity-80 mt-1">
-                      ${calculateDigitalCosts.totalCostUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ${digitalCalcResult.quote.withTax.totalUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                   </div>
                 </div>
-
-                {calculateDigitalCosts.fixedCosts > 0 && (
-                  <div className="mt-4 p-3 bg-muted/50 rounded-lg text-sm">
-                    <strong>固定费用明细：</strong>模具费 {toNum(String(moldCost)).toFixed(2)} 元 + 特殊工艺版费 {toNum(String(specialProcessPlateCost)).toFixed(2)} 元 = {calculateDigitalCosts.fixedCosts.toFixed(2)} 元
-                  </div>
-                )}
               </CardContent>
             </Card>
 
