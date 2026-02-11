@@ -453,15 +453,11 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
       if (!process) return;
       
       let cost = 0;
-      if (process.priceFormula.includes("×总数量")) {
-        const match = process.priceFormula.match(/(\d+\.?\d*)/);
-        const rate = match ? parseFloat(match[1]) : 0.05;
-        cost = rate * _qty * _sku;
-      } else if (process.priceFormula.includes("×印刷米数") || process.priceFormula.includes("×投料米数")) {
-        const match = process.priceFormula.match(/(\d+\.?\d*)/);
-        const rate = match ? parseFloat(match[1]) : 1;
-        cost = rate * totalMeters;
-      } else if (process.priceFormula.includes("印刷费×2")) {
+      if (process.calcBasis === "perQuantity") {
+        cost = process.unitPrice * _qty * _sku;
+      } else if (process.calcBasis === "perMeter") {
+        cost = process.unitPrice * totalMeters;
+      } else if (process.calcBasis === "doublePrint") {
         cost = printCostTotal;
       }
       
@@ -1154,8 +1150,10 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm">{process.name}</div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            {process.minPrice > 0 && `最低${process.minPrice}元，`}
-                            {process.priceFormula}
+                            {process.minPrice > 0 && `起步价${process.minPrice}元，`}
+                            {process.calcBasis === "perQuantity" && `${process.unitPrice}元/个`}
+                            {process.calcBasis === "perMeter" && `${process.unitPrice}元/米`}
+                            {process.calcBasis === "doublePrint" && "印刷费x2"}
                           </div>
                         </div>
                       </div>

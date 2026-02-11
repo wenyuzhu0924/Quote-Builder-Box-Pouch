@@ -11,7 +11,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuote, type CustomMaterial, type PrintingPriceRule, type LaminationPriceRule, type PostProcessingOptionConfig, type PostProcessingPricingType, type PostProcessingCategory, type BagTypePrice, type SpecOption, type QuantityDiscountRule, type CustomBagType, type DigitalMaterial, type DigitalPrintMode, type DigitalSpecialProcess, type DigitalZipperType, type DigitalValveType, type DigitalAccessory, type DigitalPrintingTier, parseDimensionsFromFormula } from "@/lib/quote-store";
+import { useQuote, type CustomMaterial, type PrintingPriceRule, type LaminationPriceRule, type PostProcessingOptionConfig, type PostProcessingPricingType, type PostProcessingCategory, type BagTypePrice, type SpecOption, type QuantityDiscountRule, type CustomBagType, type DigitalMaterial, type DigitalPrintMode, type DigitalSpecialProcess, type DigitalSpecialCalcBasis, type DigitalZipperType, type DigitalValveType, type DigitalAccessory, type DigitalPrintingTier, parseDimensionsFromFormula } from "@/lib/quote-store";
 
 interface SurveyPageProps {
   backPath?: string;
@@ -55,7 +55,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
     notes: "",
   });
 
-  const [newSpecialProcess, setNewSpecialProcess] = useState({ name: "", priceFormula: "", minPrice: 0, notes: "" });
+  const [newSpecialProcess, setNewSpecialProcess] = useState({ name: "", unitPrice: 0, calcBasis: "perQuantity" as DigitalSpecialCalcBasis, minPrice: 0, notes: "" });
   const [newZipper, setNewZipper] = useState({ name: "", pricePerMeter: 0 });
   const [newValve, setNewValve] = useState({ name: "", pricePerUnit: 0 });
   const [newAccessory, setNewAccessory] = useState({ name: "", price: 0, isStackable: false });
@@ -463,13 +463,14 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
     const process: DigitalSpecialProcess = {
       id: `sp_${Date.now()}`,
       name: newSpecialProcess.name,
-      priceFormula: newSpecialProcess.priceFormula,
+      unitPrice: newSpecialProcess.unitPrice,
+      calcBasis: newSpecialProcess.calcBasis,
       minPrice: newSpecialProcess.minPrice,
       notes: newSpecialProcess.notes,
       enabled: true,
     };
     updateDigitalConfig({ specialProcesses: [...digitalConfig.specialProcesses, process] });
-    setNewSpecialProcess({ name: "", priceFormula: "", minPrice: 0, notes: "" });
+    setNewSpecialProcess({ name: "", unitPrice: 0, calcBasis: "perQuantity", minPrice: 0, notes: "" });
     toast({ title: "工艺已添加" });
   };
 
@@ -1250,17 +1251,18 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                 <AccordionContent className="pb-4">
                   <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
-                      特殊工艺包括双面印刷、异形袋、可变码、局部UV、烫金等。
+                      特殊工艺包括双面印刷、异形袋、可变码、局部UV等。
                     </p>
                     
-                    <div className="border rounded-lg overflow-hidden">
+                    <div className="border rounded-lg overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
                             <TableHead className="w-[50px]">启用</TableHead>
                             <TableHead className="w-[180px]">工艺名称</TableHead>
-                            <TableHead>计算公式</TableHead>
-                            <TableHead className="w-[100px]">起步价 (元)</TableHead>
+                            <TableHead className="w-[100px]">单价 (元)</TableHead>
+                            <TableHead className="w-[150px]">计算方式</TableHead>
+                            <TableHead className="w-[110px]">起步价 (元)</TableHead>
                             <TableHead>备注</TableHead>
                             <TableHead className="w-[60px]"></TableHead>
                           </TableRow>
@@ -1283,11 +1285,32 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 />
                               </TableCell>
                               <TableCell>
-                                <Input
-                                  value={process.priceFormula}
-                                  onChange={(e) => updateDigitalSpecialProcess(process.id, "priceFormula", e.target.value)}
-                                  className="h-8"
-                                />
+                                {process.calcBasis === "doublePrint" ? (
+                                  <span className="text-sm text-muted-foreground">--</span>
+                                ) : (
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={process.unitPrice || ""}
+                                    onChange={(e) => updateDigitalSpecialProcess(process.id, "unitPrice", Number(e.target.value) || 0)}
+                                    className="h-8"
+                                  />
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Select
+                                  value={process.calcBasis}
+                                  onValueChange={(v) => updateDigitalSpecialProcess(process.id, "calcBasis", v)}
+                                >
+                                  <SelectTrigger className="h-8">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="perQuantity">元/个</SelectItem>
+                                    <SelectItem value="perMeter">元/米</SelectItem>
+                                    <SelectItem value="doublePrint">印刷费x2</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </TableCell>
                               <TableCell>
                                 <Input
@@ -1329,11 +1352,28 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                             </TableCell>
                             <TableCell>
                               <Input
-                                value={newSpecialProcess.priceFormula}
-                                onChange={(e) => setNewSpecialProcess({ ...newSpecialProcess, priceFormula: e.target.value })}
-                                placeholder="计算公式"
+                                type="number"
+                                step="0.01"
+                                value={newSpecialProcess.unitPrice || ""}
+                                onChange={(e) => setNewSpecialProcess({ ...newSpecialProcess, unitPrice: Number(e.target.value) || 0 })}
+                                placeholder="单价"
                                 className="h-8"
                               />
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={newSpecialProcess.calcBasis}
+                                onValueChange={(v) => setNewSpecialProcess({ ...newSpecialProcess, calcBasis: v as DigitalSpecialCalcBasis })}
+                              >
+                                <SelectTrigger className="h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="perQuantity">元/个</SelectItem>
+                                  <SelectItem value="perMeter">元/米</SelectItem>
+                                  <SelectItem value="doublePrint">印刷费x2</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </TableCell>
                             <TableCell>
                               <Input

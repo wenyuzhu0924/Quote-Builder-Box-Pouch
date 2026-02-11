@@ -148,11 +148,14 @@ export interface DigitalPrintMode {
   coefficient: number;
 }
 
+export type DigitalSpecialCalcBasis = "perQuantity" | "perMeter" | "doublePrint";
+
 export interface DigitalSpecialProcess {
   id: string;
   name: string;
   enabled: boolean;
-  priceFormula: string;
+  unitPrice: number;
+  calcBasis: DigitalSpecialCalcBasis;
   minPrice: number;
   notes: string;
 }
@@ -340,21 +343,20 @@ const defaultDigitalPrintModes: DigitalPrintMode[] = [
 ];
 
 const defaultDigitalSpecialProcesses: DigitalSpecialProcess[] = [
-  { id: "doubleSide", name: "双面印刷", enabled: true, priceFormula: "印刷费×2", minPrice: 0, notes: "又称里印" },
-  { id: "shapedBag", name: "异形袋", enabled: true, priceFormula: "0.05×总数量", minPrice: 0, notes: "自动增加模具费" },
-  { id: "variableCode", name: "可变码", enabled: true, priceFormula: "0.05×总数量", minPrice: 300, notes: "" },
-  { id: "uniqueImage", name: "一袋一图", enabled: true, priceFormula: "0.05×总数量", minPrice: 300, notes: "" },
-  { id: "stripWindow", name: "条形窗", enabled: true, priceFormula: "0.2×总数量", minPrice: 300, notes: "" },
-  { id: "shapedWindow", name: "异形窗", enabled: true, priceFormula: "0.2×总数量", minPrice: 800, notes: "需要额外收取模具费" },
-  { id: "hotStamp", name: "烫金", enabled: true, priceFormula: "咨询我们，铜版价格需要根据客户设计面积定制铜版，袋子尺寸越大价格越贵", minPrice: 0, notes: "铜版烫金(牛皮纸烫金使用)" },
-  { id: "digitalUV", name: "数码局部UV", enabled: true, priceFormula: "1×印刷米数", minPrice: 400, notes: "" },
-  { id: "digitalFoil", name: "数码烫金/银", enabled: true, priceFormula: "1.5×印刷米数", minPrice: 600, notes: "" },
-  { id: "embossUV", name: "强凸感局部UV", enabled: true, priceFormula: "1.3×印刷米数", minPrice: 400, notes: "" },
-  { id: "laserFoil", name: "镭射烫金/银", enabled: true, priceFormula: "2×印刷米数", minPrice: 800, notes: "" },
-  { id: "uvEmbossSmall", name: "普通+强凸感局部UV(UV幅宽<=320)", enabled: true, priceFormula: "1.6×印刷米数", minPrice: 600, notes: "" },
-  { id: "uvEmbossLarge", name: "普通+强凸感局部UV(UV幅宽>=320)", enabled: true, priceFormula: "2×印刷米数", minPrice: 600, notes: "" },
-  { id: "uvFoil", name: "局部UV+烫金", enabled: true, priceFormula: "2×印刷米数", minPrice: 1000, notes: "" },
-  { id: "embossLaserFoil", name: "强凸感烫镭射金/银", enabled: true, priceFormula: "2.3×印刷米数", minPrice: 1000, notes: "" },
+  { id: "doubleSide", name: "双面印刷", enabled: true, unitPrice: 0, calcBasis: "doublePrint", minPrice: 0, notes: "又称里印" },
+  { id: "shapedBag", name: "异形袋", enabled: true, unitPrice: 0.05, calcBasis: "perQuantity", minPrice: 0, notes: "自动增加模具费" },
+  { id: "variableCode", name: "可变码", enabled: true, unitPrice: 0.05, calcBasis: "perQuantity", minPrice: 300, notes: "" },
+  { id: "uniqueImage", name: "一袋一图", enabled: true, unitPrice: 0.05, calcBasis: "perQuantity", minPrice: 300, notes: "" },
+  { id: "stripWindow", name: "条形窗", enabled: true, unitPrice: 0.2, calcBasis: "perQuantity", minPrice: 300, notes: "" },
+  { id: "shapedWindow", name: "异形窗", enabled: true, unitPrice: 0.2, calcBasis: "perQuantity", minPrice: 800, notes: "需要额外收取模具费" },
+  { id: "digitalUV", name: "数码局部UV", enabled: true, unitPrice: 1, calcBasis: "perMeter", minPrice: 400, notes: "" },
+  { id: "digitalFoil", name: "数码烫金/银", enabled: true, unitPrice: 1.5, calcBasis: "perMeter", minPrice: 600, notes: "" },
+  { id: "embossUV", name: "强凸感局部UV", enabled: true, unitPrice: 1.3, calcBasis: "perMeter", minPrice: 400, notes: "" },
+  { id: "laserFoil", name: "镭射烫金/银", enabled: true, unitPrice: 2, calcBasis: "perMeter", minPrice: 800, notes: "" },
+  { id: "uvEmbossSmall", name: "普通+强凸感局部UV(UV幅宽<=320)", enabled: true, unitPrice: 1.6, calcBasis: "perMeter", minPrice: 600, notes: "" },
+  { id: "uvEmbossLarge", name: "普通+强凸感局部UV(UV幅宽>=320)", enabled: true, unitPrice: 2, calcBasis: "perMeter", minPrice: 600, notes: "" },
+  { id: "uvFoil", name: "局部UV+烫金", enabled: true, unitPrice: 2, calcBasis: "perMeter", minPrice: 1000, notes: "" },
+  { id: "embossLaserFoil", name: "强凸感烫镭射金/银", enabled: true, unitPrice: 2.3, calcBasis: "perMeter", minPrice: 1000, notes: "" },
 ];
 
 const defaultDigitalZipperTypes: DigitalZipperType[] = [
