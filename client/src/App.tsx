@@ -12,6 +12,7 @@ import GiftBoxSurveyPage from "@/pages/giftbox-survey";
 import GiftBoxQuotePage from "@/pages/giftbox-quote";
 import DemoGravurePage from "@/pages/demo-gravure";
 import DemoGiftBoxPage from "@/pages/demo-giftbox";
+import DemoDigitalPage from "@/pages/demo-digital";
 import NotFound from "@/pages/not-found";
 
 function AppRouter() {
@@ -23,6 +24,10 @@ function AppRouter() {
 
   if (location.startsWith("/demo/giftbox")) {
     return <DemoGiftBoxPage />;
+  }
+
+  if (location.startsWith("/demo/digital")) {
+    return <DemoDigitalPage />;
   }
 
   if (location.startsWith("/giftbox")) {
