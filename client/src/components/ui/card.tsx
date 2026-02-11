@@ -11,7 +11,7 @@ const Card = React.forwardRef<
     className={cn(
       "shadcn-card border bg-card border-card-border text-card-foreground transition-shadow duration-200",
       "rounded-[10px]",
-      "[box-shadow:0_10px_30px_rgba(0,0,0,0.06)]",
+      "shadow-[0_10px_30px_rgba(0,0,0,0.06)] dark:shadow-none",
       className
     )}
     {...props}

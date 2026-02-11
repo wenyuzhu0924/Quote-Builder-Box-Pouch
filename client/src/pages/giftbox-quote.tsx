@@ -659,17 +659,18 @@ export default function GiftBoxQuotePage({
                 </div>
               </div>
 
-              <div className="p-3 rounded-md border border-destructive bg-destructive/5" data-testid="card-final-price">
+              <div className="summary-panel !border-l-destructive !p-3" data-testid="card-final-price">
                 <div className="text-xs font-semibold text-destructive">
                   含税含模具（最终价）
                 </div>
-                <div className="mt-1 text-sm text-destructive">
-                  单价：<span className="font-bold" data-testid="text-unit-cost">¥{fmt(calc.unitCost, 4)}/个</span>
-                  <span className="ml-1 text-xs opacity-80">
+                <div className="mt-1">
+                  <span className="price-main text-destructive text-xl" data-testid="text-unit-cost">¥{fmt(calc.unitCost, 4)}</span>
+                  <span className="price-unit ml-1">/个</span>
+                  <span className="price-unit ml-2">
                     ≈ ${fmt(calc.unitCostUsd, 4)}/个
                   </span>
                 </div>
-                <div className="text-sm text-destructive">
+                <div className="text-sm text-destructive mt-1">
                   总价：<span className="font-bold" data-testid="text-total-cost">¥{fmt(calc.totalCost)}</span>
                   <span className="ml-1 text-xs opacity-80">
                     ≈ ${fmt(calc.totalCostUsd)} USD

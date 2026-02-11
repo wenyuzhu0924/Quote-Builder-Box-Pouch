@@ -227,7 +227,7 @@
     display: block;
     width: 40px;
     height: 3px;
-    background: #F05A0E;
+    background: hsl(var(--primary));
     margin-top: 8px;
     border-radius: 2px;
   }
@@ -245,10 +245,13 @@
 
   .summary-panel {
     background: hsl(var(--card));
-    border-left: 4px solid #F05A0E;
+    border-left: 4px solid hsl(var(--primary));
     box-shadow: 0 20px 40px rgba(0,0,0,0.08);
     border-radius: 12px;
     padding: 24px;
+  }
+  .dark .summary-panel {
+    box-shadow: none;
   }
 
   .price-main {

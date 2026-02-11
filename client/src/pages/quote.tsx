@@ -2314,18 +2314,18 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                       </div>
                     </div>
 
-                    <div className="p-3 rounded-md border border-destructive bg-destructive/5" data-testid="card-final-price">
+                    <div className="summary-panel !border-l-destructive !p-3" data-testid="card-final-price">
                       <div className="text-xs font-semibold text-destructive">
                         含版费含运含税价（含版费，含损耗，含利润，含运费 +3%，含税 +9%）
                       </div>
-                      <div className="mt-1 text-sm text-destructive">
-                        单价：
-                        <span className="font-bold">{f4(gc.withPlateFreightTaxUnit)} {priceUnit}</span>
-                        <span className="ml-1 text-xs opacity-80">
+                      <div className="mt-1">
+                        <span className="price-main text-destructive text-xl">{f4(gc.withPlateFreightTaxUnit)}</span>
+                        <span className="price-unit ml-1">{priceUnit}</span>
+                        <span className="price-unit ml-2">
                           ≈ {f4(usd(gc.withPlateFreightTaxUnit))} {priceUnitEn}
                         </span>
                       </div>
-                      <div className="text-sm text-destructive">
+                      <div className="text-sm text-destructive mt-1">
                         总价：
                         <span className="font-bold">{f2(gc.withPlateFreightTaxTotal)} 元</span>
                         <span className="ml-1 text-xs opacity-80">
