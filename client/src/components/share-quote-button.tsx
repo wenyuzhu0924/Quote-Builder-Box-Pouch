@@ -84,7 +84,7 @@ export function ShareQuoteButton({ quoteType, customerName, configData }: ShareQ
           <DialogHeader>
             <DialogTitle>报价器链接已生成</DialogTitle>
             <DialogDescription>
-              复制以下链接，分享给客户即可直接使用报价器
+              复制以下链接，输入浏览器即可直接使用报价器
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-2 items-center">
