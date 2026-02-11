@@ -726,41 +726,83 @@ export default function GiftBoxQuotePage({
               </div>
             </div>
 
+            <div>
+              <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                <Badge variant="default" className="text-xs">{calc.craftDetails.length > 0 ? "9" : "8"}</Badge> 税费计算
+              </h3>
+              <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>不含税总价：¥{fmt(calc.totalCostBeforeTax)}</span>
+                </div>
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>税率：{calc.validTaxRate}%</span>
+                </div>
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>税额 = 不含税总价 × 税率 = ¥{fmt(calc.totalCostBeforeTax)} × {calc.validTaxRate}% = ¥{fmt(calc.totalCostBeforeTax * calc.validTaxRate / 100)}</span>
+                </div>
+                <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                  <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <span>含税总价 = 不含税总价 + 税额 = ¥{fmt(calc.totalCostBeforeTax)} + ¥{fmt(calc.totalCostBeforeTax * calc.validTaxRate / 100)} = ¥{fmt(calc.totalCost)}</span>
+                </div>
+              </div>
+            </div>
+
             <div className="border-t-2 border-destructive pt-4 mt-6">
               <h3 className="text-base font-bold text-destructive mb-3 flex items-center gap-2 flex-wrap">
-                <Sparkles className="w-4 h-4 shrink-0" /> 最终价格推导【完整计算步骤】
+                <Sparkles className="w-4 h-4 shrink-0" /> 总成本汇总
               </h3>
-              <div className="border-l-2 border-muted pl-4 space-y-3 text-sm">
-                <div>
-                  <div className="font-medium mb-1">► 第一步：税前总成本累加</div>
-                  <div className="text-muted-foreground">
-                    灰板 {fmt(calc.totalBoardCost)} + 面纸 {fmt(calc.totalPaperCost)} + 内衬 {fmt(calc.totalLinerCost)} + 做工 {fmt(calc.totalBoxCost)}
-                    {calc.totalCraftCost > 0 && ` + 工艺 ${fmt(calc.totalCraftCost)}`}
-                    {" "}+ 纸箱 {fmt(calc.totalCartonCost)}
-                  </div>
-                  <div className="text-primary font-medium mt-1">= ¥{fmt(calc.totalCostBeforeTax)}（税前总成本）</div>
+              <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>灰板成本：¥{fmt(calc.totalBoardCost)}</span>
                 </div>
-                <div>
-                  <div className="font-medium mb-1">► 第二步：税前单价</div>
-                  <div className="text-muted-foreground">¥{fmt(calc.totalCostBeforeTax)} ÷ {calc.validQty} = ¥{fmt(calc.totalCostBeforeTax / calc.validQty, 4)}/个</div>
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>面纸成本：¥{fmt(calc.totalPaperCost)}</span>
                 </div>
-                <div>
-                  <div className="font-medium mb-1">► 第三步：含税计算（税率{calc.validTaxRate}%）</div>
-                  <div className="text-muted-foreground">
-                    含税单价 = ¥{fmt(calc.totalCostBeforeTax / calc.validQty, 4)} × (1 + {calc.validTaxRate}%) = ¥{fmt(calc.unitCost, 4)}/个
-                  </div>
-                  <div className="text-primary font-medium mt-1">
-                    含税总成本 = ¥{fmt(calc.totalCost)}
-                  </div>
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>内衬成本（含孔位）：¥{fmt(calc.totalLinerCost)}</span>
                 </div>
-                <div>
-                  <div className="font-medium mb-1">► 第四步：美金换算（汇率 {calc.validExchangeRate}）</div>
-                  <div className="text-destructive font-medium">
-                    含税美金单价：¥{fmt(calc.unitCost, 4)} ÷ {calc.validExchangeRate} = ${fmt(calc.unitCostUsd, 4)}/pc
-                  </div>
-                  <div className="text-destructive font-medium">
-                    模具费：¥{fmt(calc.finalMoldTotal)}（单独计算）
-                  </div>
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>盒型做工成本：¥{fmt(calc.totalBoxCost)}</span>
+                </div>
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>特殊工艺成本：¥{fmt(calc.totalCraftCost)}</span>
+                </div>
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>运输纸箱成本：¥{fmt(calc.totalCartonCost)}</span>
+                </div>
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>刀版+模具成本：¥{fmt(calc.finalMoldTotal)}</span>
+                </div>
+                <div className="flex items-start gap-2 font-medium flex-wrap mt-2">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>不含税总成本：¥{fmt(calc.totalCostBeforeTax)}</span>
+                </div>
+                <div className="flex items-start gap-2 font-medium flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>税额：¥{fmt(calc.totalCostBeforeTax * calc.validTaxRate / 100)}（税率{calc.validTaxRate}%）</span>
+                </div>
+                <div className="breakdown-divider"></div>
+                <div className="flex items-start gap-2 text-destructive font-bold flex-wrap">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>含税总成本 = ¥{fmt(calc.totalCost)}</span>
+                </div>
+                <div className="flex items-start gap-2 flex-wrap">
+                  <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <span className="font-medium">单个成本（含税） = 含税总成本 ÷ 数量 = ¥{fmt(calc.totalCost)} ÷ {calc.validQty} = ¥{fmt(calc.unitCost, 4)}</span>
+                </div>
+                <div className="flex items-start gap-2 flex-wrap mt-1">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>美金换算（汇率 {calc.validExchangeRate}）：¥{fmt(calc.unitCost, 4)} ÷ {calc.validExchangeRate} = ${fmt(calc.unitCostUsd, 4)}/pc | 总计 ≈ ${fmt(calc.totalCostUsd)}</span>
                 </div>
               </div>
             </div>
