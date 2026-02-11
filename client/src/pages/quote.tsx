@@ -1025,10 +1025,9 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">无</SelectItem>
                         {digitalConfig.zipperTypes.map((z) => (
                           <SelectItem key={z.id} value={z.id}>
-                            {z.name} ({z.pricePerMeter}元/米)
+                            {z.id === "none" ? z.name : `${z.name} (${z.pricePerMeter}元/米)`}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1041,10 +1040,9 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">无</SelectItem>
                         {digitalConfig.valveTypes.map((v) => (
                           <SelectItem key={v.id} value={v.id}>
-                            {v.name} ({v.pricePerUnit}元/个)
+                            {v.id === "none" ? v.name : `${v.name} (${v.pricePerUnit}元/个)`}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1251,13 +1249,6 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
               </CardContent>
             </Card>
 
-            <Button 
-              size="lg" 
-              className="w-full gap-2 py-6 text-lg" 
-              data-testid="button-generate"
-            >
-              生成报价
-            </Button>
           </div>
         </main>
       </div>
