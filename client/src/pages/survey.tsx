@@ -2149,12 +2149,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                   <p className="text-xs text-muted-foreground">
                     提示：在公式中使用"袋宽"、"袋高"、"底插入"、"侧面展开"、"背封边"等关键词，系统会自动识别所需尺寸字段
                   </p>
-                  <div className="flex justify-end">
-                    <Button variant="outline" onClick={() => toast({ title: "袋型已保存", description: `共 ${config.customBagTypes.length} 种袋型` })} className="gap-2" data-testid="button-save-bagtypes">
-                      <Save className="w-4 h-4" />
-                      保存袋型
-                    </Button>
-                  </div>
+                  <SectionSaveButton section="gravure-bagTypes" label="袋型" onSave={() => showSaveToast("袋型")} />
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -2328,12 +2323,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                       </TableBody>
                     </Table>
                   </div>
-                  <div className="flex justify-end">
-                    <Button variant="outline" onClick={saveMaterialLibrary} className="gap-2" data-testid="save-materials">
-                      <Save className="w-4 h-4" />
-                      保存材料库
-                    </Button>
-                  </div>
+                  <SectionSaveButton section="gravure-materials" label="材料库" onSave={() => { saveMaterialLibrary(); showSaveToast("材料库"); }} />
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -2416,11 +2406,8 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                       <Plus className="w-4 h-4" />
                       添加印刷规则
                     </Button>
-                    <Button variant="outline" onClick={() => toast({ title: "印刷规则已保存", description: `共 ${config.printingPriceRules.length} 条规则` })} className="gap-2" data-testid="button-save-printing">
-                      <Save className="w-4 h-4" />
-                      保存印刷规则
-                    </Button>
                   </div>
+                  <SectionSaveButton section="gravure-printing" label="印刷费用" onSave={() => showSaveToast("印刷费用")} />
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -2518,12 +2505,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                       </TableBody>
                     </Table>
                   </div>
-                  <div className="flex justify-end">
-                    <Button variant="outline" onClick={() => toast({ title: "复合规则已保存", description: `共 ${config.laminationPriceRules.length} 种复合类型` })} className="gap-2" data-testid="button-save-lamination">
-                      <Save className="w-4 h-4" />
-                      保存复合规则
-                    </Button>
-                  </div>
+                  <SectionSaveButton section="gravure-lamination" label="复合费用" onSave={() => showSaveToast("复合费用")} />
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -2595,12 +2577,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                       </div>
                     )}
                   </div>
-                  <div className="flex justify-end">
-                    <Button variant="outline" onClick={() => toast({ title: "制袋公式已保存" })} className="gap-2" data-testid="button-save-making">
-                      <Save className="w-4 h-4" />
-                      保存制袋公式
-                    </Button>
-                  </div>
+                  <SectionSaveButton section="gravure-makingCost" label="制袋费用" onSave={() => showSaveToast("制袋费用")} />
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -2869,12 +2846,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                           </div>
                         </div>
                       </div>
-                      <div className="flex justify-end">
-                        <Button variant="outline" onClick={() => toast({ title: `${catLabel}选项已保存`, description: `共 ${enabledCount} 个启用选项` })} className="gap-2" data-testid={`save-${cat}`}>
-                          <Save className="w-4 h-4" />
-                          保存{catLabel}选项
-                        </Button>
-                      </div>
+                      <SectionSaveButton section={`gravure-${cat}`} label={catLabel} onSave={() => showSaveToast(catLabel)} />
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -3010,11 +2982,8 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                       <Plus className="w-4 h-4" />
                       添加折扣档位
                     </Button>
-                    <Button variant="outline" onClick={() => toast({ title: "折扣规则已保存", description: `共 ${config.quantityDiscounts.length} 个档位` })} className="gap-2" data-testid="button-save-discount">
-                      <Save className="w-4 h-4" />
-                      保存折扣规则
-                    </Button>
                   </div>
+                  <SectionSaveButton section="gravure-quantity" label="数量折扣" onSave={() => showSaveToast("数量折扣")} />
                 </div>
               </AccordionContent>
             </AccordionItem>
