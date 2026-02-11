@@ -2254,20 +2254,85 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                     <CheckCircle2 className="w-5 h-5 text-primary" /> 报价汇总 & 完整成本计算明细
                   </h2>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                    <div className="p-5 border rounded-[10px]" data-testid="card-exfactory">
-                      <div className="text-sm text-muted-foreground mb-2 font-semibold uppercase tracking-wide">出厂价（含损耗+利润）</div>
-                      <div className="price-main">{f4(gc.exFactoryUnit)} <span className="text-lg">{priceUnit}</span></div>
-                      <div className="price-unit mt-2">≈ {f4(usd(gc.exFactoryUnit))} {priceUnitEn}</div>
-                      <div className="breakdown-divider"></div>
-                      <div className="price-unit font-medium">总价：{f2(gc.exFactoryTotal)} 元 ≈ {f2(usd(gc.exFactoryTotal))} USD</div>
+                  <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3 mt-6">
+                    <div className="p-4 border rounded-[10px]" data-testid="card-exfactory">
+                      <div className="text-xs font-semibold text-muted-foreground">
+                        出厂价（不含版费，含损耗，含利润）
+                      </div>
+                      <div className="mt-1 text-sm">
+                        单价：<span className="font-bold">{f4(gc.exFactoryUnit)} {priceUnit}</span>
+                        <span className="ml-1 text-xs text-muted-foreground">≈ {f4(usd(gc.exFactoryUnit))} {priceUnitEn}</span>
+                      </div>
+                      <div className="text-sm">
+                        总价：<span className="font-bold">{f2(gc.exFactoryTotal)} 元</span>
+                        <span className="ml-1 text-xs text-muted-foreground">≈ {f2(usd(gc.exFactoryTotal))} USD</span>
+                      </div>
                     </div>
-                    <div className="p-5 border-2 border-primary rounded-[10px] bg-primary/5" data-testid="card-final-price">
-                      <div className="text-sm text-primary mb-2 font-semibold uppercase tracking-wide">含版费含运含税价（最终价）</div>
-                      <div className="price-main">{f4(gc.withPlateFreightTaxUnit)} <span className="text-lg">{priceUnit}</span></div>
-                      <div className="price-unit mt-2 text-primary font-medium">≈ {f4(usd(gc.withPlateFreightTaxUnit))} {priceUnitEn}</div>
-                      <div className="breakdown-divider"></div>
-                      <div className="price-unit text-primary font-medium">总价：{f2(gc.withPlateFreightTaxTotal)} 元 ≈ {f2(usd(gc.withPlateFreightTaxTotal))} USD</div>
+
+                    <div className="p-4 border rounded-[10px]" data-testid="card-withfreight">
+                      <div className="text-xs font-semibold text-muted-foreground">
+                        含运价（不含版费，含损耗，含利润，含运费 +3%）
+                      </div>
+                      <div className="mt-1 text-sm">
+                        单价：<span className="font-bold">{f4(gc.withFreightUnit)} {priceUnit}</span>
+                        <span className="ml-1 text-xs text-muted-foreground">≈ {f4(usd(gc.withFreightUnit))} {priceUnitEn}</span>
+                      </div>
+                      <div className="text-sm">
+                        总价：<span className="font-bold">{f2(gc.withFreightTotal)} 元</span>
+                        <span className="ml-1 text-xs text-muted-foreground">≈ {f2(usd(gc.withFreightTotal))} USD</span>
+                      </div>
+                    </div>
+
+                    <div className="p-4 border rounded-[10px]" data-testid="card-withfreighttax">
+                      <div className="text-xs font-semibold text-muted-foreground">
+                        含运含税价（不含版费，含损耗，含利润，含运费 +3%，含税 +9%）
+                      </div>
+                      <div className="mt-1 text-sm">
+                        单价：<span className="font-bold">{f4(gc.withFreightTaxUnit)} {priceUnit}</span>
+                        <span className="ml-1 text-xs text-muted-foreground">≈ {f4(usd(gc.withFreightTaxUnit))} {priceUnitEn}</span>
+                      </div>
+                      <div className="text-sm">
+                        总价：<span className="font-bold">{f2(gc.withFreightTaxTotal)} 元</span>
+                        <span className="ml-1 text-xs text-muted-foreground">≈ {f2(usd(gc.withFreightTaxTotal))} USD</span>
+                      </div>
+                    </div>
+
+                    <div className="p-4 border-2 border-primary rounded-[10px] bg-primary/5" data-testid="card-final-price">
+                      <div className="text-xs font-semibold text-primary">
+                        含版费含运含税价（含版费，含损耗，含利润，含运费 +3%，含税 +9%）
+                      </div>
+                      <div className="mt-1">
+                        <span className="price-main text-primary">{f4(gc.withPlateFreightTaxUnit)}</span>
+                        <span className="price-unit ml-1">{priceUnit}</span>
+                        <span className="price-unit ml-2">≈ {f4(usd(gc.withPlateFreightTaxUnit))} {priceUnitEn}</span>
+                      </div>
+                      <div className="text-sm text-primary mt-1">
+                        总价：<span className="font-bold">{f2(gc.withPlateFreightTaxTotal)} 元</span>
+                        <span className="ml-1 text-xs opacity-80">≈ {f2(usd(gc.withPlateFreightTaxTotal))} USD</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-5 gap-3 mt-4 text-sm" data-testid="cost-breakdown-grid">
+                    <div className="p-3 rounded-md border" data-testid="cost-material">
+                      <div className="text-muted-foreground">材料</div>
+                      <div className="font-semibold">{f4(gc.materialCostPerUnit)} 元</div>
+                    </div>
+                    <div className="p-3 rounded-md border" data-testid="cost-print">
+                      <div className="text-muted-foreground">印刷</div>
+                      <div className="font-semibold">{f4(gc.printCostPerUnit)} 元</div>
+                    </div>
+                    <div className="p-3 rounded-md border" data-testid="cost-lamination">
+                      <div className="text-muted-foreground">复合</div>
+                      <div className="font-semibold">{f4(gc.laminationCostPerUnit)} 元</div>
+                    </div>
+                    <div className="p-3 rounded-md border" data-testid="cost-making">
+                      <div className="text-muted-foreground">制袋</div>
+                      <div className="font-semibold">{f4(gc.makingCostPerUnit)} 元</div>
+                    </div>
+                    <div className="p-3 rounded-md border" data-testid="cost-postprocess">
+                      <div className="text-muted-foreground">后加工</div>
+                      <div className="font-semibold">{f4(gc.postProcessingCostPerUnit)} 元</div>
                     </div>
                   </div>
 
@@ -2624,6 +2689,11 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="text-xs text-muted-foreground mt-6 pt-3 border-t">
+                    注：材料成本公式=面积×厚度(μm)×密度(g/cm³)×单价(元/kg)/1000；纸类用面积×(gsm/1000)×单价。
+                    印刷、复合、制袋等单价按㎡或m计入；数量系数按起订量规则。
                   </div>
                 </div>
               </div>

@@ -1,0 +1,589 @@
+                  {/* 顶部关键数字 */}
+                  {(() => {
+                    const q = Number(quantityNum) || 0;
+                    const safeUnit = (total: number) => (q > 0 ? total / q : 0);
+                    const usd = (x: number) =>
+                      exchangeRateNum > 0 ? x / exchangeRateNum : 0;
+
+                    // 出厂价（不含版费，含损耗，含利润）
+                    const exFactoryTotal = quotedTotal;
+                    const exFactoryUnit = safeUnit(exFactoryTotal);
+
+                    // 含运价（+3% 运费）
+                    const freightFactor = 1.03;
+                    const withFreightTotal = exFactoryTotal * freightFactor;
+                    const withFreightUnit = safeUnit(withFreightTotal);
+
+                    // 含运含税价（在含运价基础上 +9% 税）
+                    const taxFactor = 1.09;
+                    const withFreightTaxTotal = withFreightTotal * taxFactor;
+                    const withFreightTaxUnit = safeUnit(withFreightTaxTotal);
+
+                    // 含版费含运含税价（以 grandTotalQuoted 为基数，再加运费+税）
+                    const withPlateFreightTaxTotal =
+                      grandTotalQuoted * freightFactor * taxFactor;
+                    const withPlateFreightTaxUnit = safeUnit(withPlateFreightTaxTotal);
+
+                    return (
+                      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
+                        {/* 1. 出厂价（不含版费，含损耗，含利润） */}
+                        <div className="p-3 rounded bg-slate-50 border border-slate-300">
+                          <div className="text-xs font-semibold text-slate-700">
+                            出厂价（不含版费，含损耗，含利润）
+                          </div>
+                          <div className="mt-1 text-sm text-slate-600">
+                            单价：
+                            <span className="font-bold text-slate-900">
+                              {f4(exFactoryUnit)} 元/个
+                            </span>
+                            <span className="ml-1 text-xs text-slate-500">
+                              ≈ {f4(usd(exFactoryUnit))} USD/pc
+                            </span>
+                          </div>
+                          <div className="text-sm text-slate-600">
+                            总价：
+                            <span className="font-bold text-slate-900">
+                              {f2(exFactoryTotal)} 元
+                            </span>
+                            <span className="ml-1 text-xs text-slate-500">
+                              ≈ {f2(usd(exFactoryTotal))} USD
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 2. 含运价（不含版费，含损耗，含利润，含运费） */}
+                        <div className="p-3 rounded bg-slate-50 border border-slate-300">
+                          <div className="text-xs font-semibold text-slate-700">
+                            含运价（不含版费，含损耗，含利润，含运费 +3%）
+                          </div>
+                          <div className="mt-1 text-sm text-slate-600">
+                            单价：
+                            <span className="font-bold text-slate-900">
+                              {f4(withFreightUnit)} 元/个
+                            </span>
+                            <span className="ml-1 text-xs text-slate-500">
+                              ≈ {f4(usd(withFreightUnit))} USD/pc
+                            </span>
+                          </div>
+                          <div className="text-sm text-slate-600">
+                            总价：
+                            <span className="font-bold text-slate-900">
+                              {f2(withFreightTotal)} 元
+                            </span>
+                            <span className="ml-1 text-xs text-slate-500">
+                              ≈ {f2(usd(withFreightTotal))} USD
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 3. 含运含税价（不含版费，含损耗，含利润，含运费+含税） */}
+                        <div className="p-3 rounded bg-slate-50 border border-slate-300">
+                          <div className="text-xs font-semibold text-slate-700">
+                            含运含税价（不含版费，含损耗，含利润，含运费 +3%，含税 +9%）
+                          </div>
+                          <div className="mt-1 text-sm text-slate-600">
+                            单价：
+                            <span className="font-bold text-slate-900">
+                              {f4(withFreightTaxUnit)} 元/个
+                            </span>
+                            <span className="ml-1 text-xs text-slate-500">
+                              ≈ {f4(usd(withFreightTaxUnit))} USD/pc
+                            </span>
+                          </div>
+                          <div className="text-sm text-slate-600">
+                            总价：
+                            <span className="font-bold text-slate-900">
+                              {f2(withFreightTaxTotal)} 元
+                            </span>
+                            <span className="ml-1 text-xs text-slate-500">
+                              ≈ {f2(usd(withFreightTaxTotal))} USD
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 4. 含版费含运含税价（含版费，含损耗，含利润，含运费+含税） */}
+                        <div className="p-3 rounded bg-red-50 border border-red-300">
+                          <div className="text-xs font-semibold text-red-700">
+                            含版费含运含税价（含版费，含损耗，含利润，含运费 +3%，含税 +9%）
+                          </div>
+                          <div className="mt-1 text-sm text-red-700">
+                            单价：
+                            <span className="font-bold">
+                              {f4(withPlateFreightTaxUnit)} 元/个
+                            </span>
+                            <span className="ml-1 text-xs text-red-500">
+                              ≈ {f4(usd(withPlateFreightTaxUnit))} USD/pc
+                            </span>
+                          </div>
+                          <div className="text-sm text-red-700">
+                            总价：
+                            <span className="font-bold">
+                              {f2(withPlateFreightTaxTotal)} 元
+                            </span>
+                            <span className="ml-1 text-xs text-red-500">
+                              ≈ {f2(usd(withPlateFreightTaxTotal))} USD
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* 成本构成 */}
+                  <div className="grid md:grid-cols-5 gap-3 mt-2 text-sm">
+                    <div className="p-3 rounded border">
+                      <div className="text-slate-500">材料</div>
+                      <div className="font-semibold">{f4(materialCostPerBag)} 元</div>
+                    </div>
+                    <div className="p-3 rounded border">
+                      <div className="text-slate-500">印刷</div>
+                      <div className="font-semibold">{f4(printingCostPerBag)} 元</div>
+                    </div>
+                    <div className="p-3 rounded border">
+                      <div className="text-slate-500">复合</div>
+                      <div className="font-semibold">{f4(laminationCostPerBag)} 元</div>
+                    </div>
+                    <div className="p-3 rounded border">
+                      <div className="text-slate-500">制袋</div>
+                      <div className="font-semibold">{f4(makingCostPerBag)} 元</div>
+                    </div>
+                    <div className="p-3 rounded border">
+                      <div className="text-slate-500">后加工</div>
+                      <div className="font-semibold">{f4(postProcessCostPerBag)} 元</div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 计算明细（公式 + 代入数字） */}
+              <div className="mt-3 text-xs md:text-sm space-y-2">
+                {/* ===== 材料成本标题（区分八边封diff模式） ===== */}
+                {bagType === "eightSide" && eightSideMode === "diff" ? (
+                  <>
+                    <div className="font-medium">一、材料成本</div>
+                    <div>
+                      正背底面材料成本：<b>{f4(
+                        layers.reduce((sum, layer) => 
+                          sum + materialUnitCostPerBag(eightSideAreas.frontBackBottomArea, layer, bagType, widthNum, heightNum, bottomInsertNum, sideExpandNum, backSealNum),
+                          0
+                        )
+                      )} 元/个</b>
+                      <br />
+                      侧面材料成本：<b>{f4(
+                        sideLayers.reduce((sum, layer) => 
+                          sum + materialUnitCostPerBag(eightSideAreas.twoSideArea, layer, bagType, widthNum, heightNum, bottomInsertNum, sideExpandNum, backSealNum),
+                          0
+                        )
+                      )} 元/个</b>
+                      <br />
+                      合计材料成本：<b>{f4(materialCostPerBag)} 元/个</b>
+                    </div>
+                  </>
+                ) : (
+                  <div className="font-medium">一、材料成本（合计 {f4(materialCostPerBag)} 元/个）</div>
+                )}
+
+                {/* ===== 非八边封diff模式：原有主材料层展示（保留所有逻辑） ===== */}
+                {!(bagType === "eightSide" && eightSideMode === "diff") && (
+                  <ul className="list-disc pl-5 space-y-1">
+                    {layers.map((layer, i) => {
+                      const materialInfo = MATERIAL_PRESETS[layer.material];
+                      const baseLabel = `${i + 1}层 ${materialInfo?.label || '未知材料'}`;
+                      const baseCost = materialUnitCostPerBag(
+                        areaM2,
+                        layer,
+                        bagType,
+                        widthNum,
+                        heightNum,
+                        bottomInsertNum,
+                        sideExpandNum,
+                        backSealNum
+                      );
+
+                      // 若有拼接开窗（保留原有逻辑）
+                      if (layer.splice?.enabled && layer.splice.windowWidthMm !== undefined) {
+                        const totalWidthMm = expandWidthMmForSplice(bagType, {
+                          W: widthNum,
+                          H: heightNum,
+                          BI: bottomInsertNum,
+                          S: sideExpandNum,
+                          BS: backSealNum,
+                        }) || 0;
+                        const rawWindowMm = Number(layer.splice.windowWidthMm) || 0;
+                        const windowWidthMm = Math.max(0, Math.min(rawWindowMm, totalWidthMm));
+                        const mainWidthMm = Math.max(0, totalWidthMm - windowWidthMm);
+
+                        const mainKey = layer.material;
+                        const mainMat = MATERIAL_PRESETS[mainKey];
+                        const mainIsPaper = ["Kraft", "WhiteKraft", "CottonPaper"].includes(mainKey);
+                        const mainThickness = Number(layer.thicknessUm) || mainMat?.defaultThickness || 0;
+                        const mainDensity = Number(layer.density) || mainMat?.density || 1;
+                        const mainPrice = Number(layer.pricePerKg) || mainMat?.pricePerKg || 0;
+
+                        const windowKey = layer.splice.windowMaterial;
+                        const winMat = MATERIAL_PRESETS[windowKey];
+                        const windowIsPaper = ["Kraft", "WhiteKraft", "CottonPaper"].includes(windowKey);
+                        const windowThickness = Number(layer.splice.windowThicknessUm) || winMat?.defaultThickness || 0;
+                        const windowDensity = winMat?.density || 1;
+                        const windowPrice = winMat?.pricePerKg || 0;
+
+                        const mainWidthM = mainWidthMm / 1000;
+                        const windowWidthM = windowWidthMm / 1000;
+                        const bagWidthM = widthNum / 1000;
+
+                        let mainCost = 0;
+                        if (mainIsPaper) {
+                          mainCost = mainWidthM * bagWidthM * mainThickness * mainPrice / 1000;
+                        } else {
+                          mainCost = mainWidthM * bagWidthM * mainThickness * mainDensity * mainPrice / 1000;
+                        }
+
+                        let windowCost = 0;
+                        if (windowIsPaper) {
+                          windowCost = windowWidthM * bagWidthM * windowThickness * windowPrice / 1000;
+                        } else {
+                          windowCost = windowWidthM * bagWidthM * windowThickness * windowDensity * windowPrice / 1000;
+                        }
+
+                        return (
+                          <li key={i}>
+                            <b>{baseLabel}（拼接复合）</b>：
+                            主材({Math.round(mainWidthMm)}mm) + 窗口膜({Math.round(windowWidthMm)}mm)
+                            <br />
+                            主材成本 = {mainIsPaper ? 
+                              `${Math.round(mainWidthMm)}mm × ${widthNum}mm × ${mainThickness}g × ${mainPrice}元/kg ÷ 1000 = ${f4(mainCost)}` : 
+                              `${Math.round(mainWidthMm)}mm × ${widthNum}mm × ${mainThickness}um × ${mainDensity} × ${mainPrice}元/kg ÷ 1000 = ${f4(mainCost)}`
+                            }
+                            <br />
+                            窗口膜成本 = {windowIsPaper ? 
+                              `${Math.round(windowWidthMm)}mm × ${widthNum}mm × ${windowThickness}g × ${windowPrice}元/kg ÷ 1000 = ${f4(windowCost)}` : 
+                              `${Math.round(windowWidthMm)}mm × ${widthNum}mm × ${windowThickness}um × ${windowDensity} × ${windowPrice}元/kg ÷ 1000 = ${f4(windowCost)}`
+                            }
+                            <br />
+                            合计 = <b>{f4(mainCost + windowCost)} 元/个</b>
+                          </li>
+                        );
+                      }
+
+                      // 普通无拼接（保留原有逻辑）
+                      return (
+                        <li key={i}>
+                          {baseLabel}：面积 {f4(areaM2)}㎡ × 厚度 {layer.thicknessUm}μm × 密度{" "}
+                          {layer.density} × 单价 {layer.pricePerKg} ÷1000 =
+                          <b> {f4(baseCost)} 元/个</b>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                {/* ===== 八边封diff模式：定制化展示（正背底面+侧面，包含拼接逻辑） ===== */}
+                {bagType === "eightSide" && eightSideMode === "diff" && (
+                  <>
+                    <div className="mt-2 font-medium">（八边封·正背底面材料层）</div>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {layers.map((layer, i) => {
+                        const materialInfo = MATERIAL_PRESETS[layer.material];
+                        const label = `${i + 1}层 ${materialInfo?.label || '未知材料'}`;
+                        const cost = materialUnitCostPerBag(
+                          eightSideAreas.frontBackBottomArea,
+                          layer,
+                          bagType,
+                          widthNum,
+                          heightNum,
+                          bottomInsertNum,
+                          sideExpandNum,
+                          backSealNum
+                        );
+
+                        // 八边封正背底层也保留拼接复合逻辑
+                        if (layer.splice?.enabled && layer.splice.windowWidthMm !== undefined) {
+                          const totalWidthMm = expandWidthMmForSplice(bagType, {
+                            W: widthNum,
+                            H: heightNum,
+                            BI: bottomInsertNum,
+                            S: sideExpandNum,
+                            BS: backSealNum,
+                          }) || 0;
+                          const rawWindowMm = Number(layer.splice.windowWidthMm) || 0;
+                          const windowWidthMm = Math.max(0, Math.min(rawWindowMm, totalWidthMm));
+                          const mainWidthMm = Math.max(0, totalWidthMm - windowWidthMm);
+
+                          const mainKey = layer.material;
+                          const mainMat = MATERIAL_PRESETS[mainKey];
+                          const mainIsPaper = ["Kraft", "WhiteKraft", "CottonPaper"].includes(mainKey);
+                          const mainThickness = Number(layer.thicknessUm) || mainMat?.defaultThickness || 0;
+                          const mainDensity = Number(layer.density) || mainMat?.density || 1;
+                          const mainPrice = Number(layer.pricePerKg) || mainMat?.pricePerKg || 0;
+
+                          const windowKey = layer.splice.windowMaterial;
+                          const winMat = MATERIAL_PRESETS[windowKey];
+                          const windowIsPaper = ["Kraft", "WhiteKraft", "CottonPaper"].includes(windowKey);
+                          const windowThickness = Number(layer.splice.windowThicknessUm) || winMat?.defaultThickness || 0;
+                          const windowDensity = winMat?.density || 1;
+                          const windowPrice = winMat?.pricePerKg || 0;
+
+                          const mainWidthM = mainWidthMm / 1000;
+                          const windowWidthM = windowWidthMm / 1000;
+                          const bagWidthM = widthNum / 1000;
+
+                          let mainCost = 0;
+                          if (mainIsPaper) {
+                            mainCost = mainWidthM * bagWidthM * mainThickness * mainPrice / 1000;
+                          } else {
+                            mainCost = mainWidthM * bagWidthM * mainThickness * mainDensity * mainPrice / 1000;
+                          }
+
+                          let windowCost = 0;
+                          if (windowIsPaper) {
+                            windowCost = windowWidthM * bagWidthM * windowThickness * windowPrice / 1000;
+                          } else {
+                            windowCost = windowWidthM * bagWidthM * windowThickness * windowDensity * windowPrice / 1000;
+                          }
+
+                          return (
+                            <li key={layer.id || i}>
+                              <b>{label}（拼接复合）</b>：
+                              主材({Math.round(mainWidthMm)}mm) + 窗口膜({Math.round(windowWidthMm)}mm)
+                              <br />
+                              主材成本 = {mainIsPaper ? 
+                                `${Math.round(mainWidthMm)}mm × ${widthNum}mm × ${mainThickness}g × ${mainPrice}元/kg ÷ 1000 = ${f4(mainCost)}` : 
+                                `${Math.round(mainWidthMm)}mm × ${widthNum}mm × ${mainThickness}um × ${mainDensity} × ${mainPrice}元/kg ÷ 1000 = ${f4(mainCost)}`
+                              }
+                              <br />
+                              窗口膜成本 = {windowIsPaper ? 
+                                `${Math.round(windowWidthMm)}mm × ${widthNum}mm × ${windowThickness}g × ${windowPrice}元/kg ÷ 1000 = ${f4(windowCost)}` : 
+                                `${Math.round(windowWidthMm)}mm × ${widthNum}mm × ${windowThickness}um × ${windowDensity} × ${windowPrice}元/kg ÷ 1000 = ${f4(windowCost)}`
+                              }
+                              <br />
+                              合计 = <b>{f4(mainCost + windowCost)} 元/个</b>
+                            </li>
+                          );
+                        }
+
+                        // 八边封正背底层无拼接
+                        return (
+                          <li key={layer.id || i}>
+                            {label}：正背底面积 {f4(eightSideAreas.frontBackBottomArea)}㎡ × 厚度 {layer.thicknessUm}μm × 密度 {layer.density} × 单价 {layer.pricePerKg} ÷1000 =
+                            <b> {f4(cost)} 元/个</b>
+                          </li>
+                        );
+                      })}
+                    </ul>
+
+                    <div className="mt-2 font-medium">（八边封·侧面材料层）</div>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {sideLayers.map((layer, i) => {
+                        const materialInfo = MATERIAL_PRESETS[layer.material];
+                        const label = `侧边第 ${i + 1} 层 ${materialInfo?.label || '未知材料'}`;
+                        const cost = materialUnitCostPerBag(
+                          eightSideAreas.twoSideArea,
+                          layer,
+                          bagType,
+                          widthNum,
+                          heightNum,
+                          bottomInsertNum,
+                          sideExpandNum,
+                          backSealNum
+                        );
+                        return (
+                          <li key={layer.id || i}>
+                            {label}：侧面面积 {f4(eightSideAreas.twoSideArea)}㎡ × 厚度 {layer.thicknessUm}μm × 密度 {layer.density} × 单价 {layer.pricePerKg} ÷1000 =
+                            <b> {f4(cost)} 元/个</b>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
+                )}
+
+                {/* ===== 其他成本项（印刷、复合等）- 保留原有代码 ===== */}
+                <div className="font-medium mt-2">二、印刷成本</div>
+                {bagType === "eightSide" ? (
+                  <div>
+                    正背底面印刷 = {f4(eightSideAreas.frontBackBottomArea)} ㎡ × {printPricePerM2} 元/㎡ = {f4(eightSideAreas.frontBackBottomArea * printPricePerM2)} 元/个
+                    <br/>
+                    侧面印刷 = {f4(eightSideAreas.twoSideArea)} ㎡ × {(() => {
+                      const found = PRINT_COVERAGE_OPTIONS.find(o => o.pct === sidePrintCoveragePct);
+                      return found ? found.price : 0;
+                    })()} 元/㎡ = {f4(eightSideAreas.twoSideArea * (() => {
+                      const found = PRINT_COVERAGE_OPTIONS.find(o => o.pct === sidePrintCoveragePct);
+                      return found ? found.price : 0;
+                    })())} 元/个
+                    <br/>
+                    合计印刷成本 = <b>{f4(printingCostPerBag)}</b> 元/个
+                  </div>
+                ) : (
+                  <div>
+                    公式：印刷 = 展开面积 × 覆盖单价
+                    代入：{f4(areaM2)} ㎡/个 × {printPricePerM2} 元/㎡ = <b>{f4(printingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+
+                <div className="font-medium mt-2">三、复合成本</div>
+                {bagType === "eightSide" ? (
+                  <div>
+                    正背底面复合 = {f4(eightSideAreas.frontBackBottomArea)} ㎡ × ({laminations.map(st => LAMINATION_PRICE[st.process]).join(" + ")} = {laminations.reduce((s, st) => s + LAMINATION_PRICE[st.process], 0)}) = {f4(eightSideAreas.frontBackBottomArea * laminations.reduce((s, st) => s + LAMINATION_PRICE[st.process], 0))} 元/个
+                    <br/>
+                    侧面复合 = {f4(eightSideAreas.twoSideArea)} ㎡ × ({sideLaminations.map(st => LAMINATION_PRICE[st.process]).join(" + ")} = {sideLaminations.reduce((s, st) => s + LAMINATION_PRICE[st.process], 0)}) = {f4(eightSideAreas.twoSideArea * sideLaminations.reduce((s, st) => s + LAMINATION_PRICE[st.process], 0))} 元/个
+                    <br/>
+                    合计复合成本 = <b>{f4(laminationCostPerBag)}</b> 元/个
+                  </div>
+                ) : (
+                  <div>
+                    公式：复合 = 展开面积 × (各步单价之和)
+                    代入：{f4(areaM2)} ㎡/个 × ({laminations.map(st => LAMINATION_PRICE[st.process]).join(" + ")} = {laminationSumUnit}) =
+                    <b> {f4(laminationCostPerBag)}</b> 元/个
+                  </div>
+                )}
+
+                <div className="font-medium mt-2">四、制袋成本</div>
+                {bagType === "standup" && (
+                  <div>
+                    公式：站立袋 = 0.09 × 袋宽(m)
+                    <br />
+                    （拉链费用已计入附加工艺，不含在此项中）
+                    <br />
+                    代入：袋宽 {f4(mmToM(widthNum))} m × 0.09 = <b>{f4(makingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+                {bagType === "threeSide" && (
+                  <div>
+                    公式：三边封袋 = 单价系数 × 短边(m)
+                    <br />
+                    当前排数：
+                    {rowCountThreeSide === 1 ? "单排 (0.045×短边)" : rowCountThreeSide === 2 ? "双排 (0.03×短边)" : "三排 (0.0225×短边)"}
+                    <br />
+                    代入：短边 {f4(mmToM(Math.min(widthNum, heightNum)))} m × 系数 = <b>{f4(makingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+                {bagType === "centerSeal" && (
+                  <div>
+                    公式：中封袋 = 0.04 × 袋高(m)
+                    <br />
+                    代入：袋高 {f4(mmToM(heightNum))} m × 0.04 = <b>{f4(makingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+                {bagType === "gusset" && (
+                  <div>
+                    公式：风琴袋 = 0.04 × 袋高(m)
+                    <br />
+                    代入：袋高 {f4(mmToM(heightNum))} m × 0.04 = <b>{f4(makingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+                {bagType === "eightSide" && (
+                  <div>
+                    公式：八边封袋 = 0.28 × 袋宽(m)
+                    <br />
+                    （拉链费用已计入附加工艺，不含在此项中）
+                    <br />
+                    代入：袋宽 {f4(mmToM(widthNum))} m × 0.28 = <b>{f4(makingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+                {bagType === "taperBottom" && (
+                  <div>
+                    公式：尖底袋 = 0.22 × 袋高(m)
+                    <br />
+                    代入：袋高 {f4(mmToM(heightNum))} m × 0.22 = <b>{f4(makingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+                {bagType === "flatBottom" && (
+                  <div>
+                    公式：方底袋 = 0.25 × 袋高(m)
+                    <br />
+                    代入：袋高 {f4(mmToM(heightNum))} m × 0.25 = <b>{f4(makingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+                {bagType === "threeSideShape" && (
+                  <div>
+                    公式：三边封异形袋 = （单价系数 × 短边） + 模切费
+                    <br />
+                    当前排数：
+                    {rowCountShape === 1
+                      ? "单排 (0.045×短边 + 0.018)"
+                      : rowCountShape === 2
+                      ? "双排 (0.03×短边 + 0.009)"
+                      : "三排 (0.0225×短边 + 0.006)"}
+                    <br />
+                    代入：短边 {f4(mmToM(Math.min(widthNum, heightNum)))} m → <b>{f4(makingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+                {bagType === "taperShape" && (
+                  <div>
+                    公式：自立异形袋 = (0.09 × 袋宽(m)) + 模切费 0.018 元
+                    <br />
+                    （拉链费用已计入附加工艺，不含在此项中）
+                    <br />
+                    代入：袋宽 {f4(mmToM(widthNum))} m × 0.09 + 0.018 = <b>{f4(makingCostPerBag)}</b> 元/个
+                  </div>
+                )}
+
+                <div className="font-medium mt-2">五、附加工艺</div>
+                <div>
+                  公式：附加工艺 = 各项附加之和
+                  代入：
+                  {selectedPost.length
+                    ? selectedPost
+                        .map((k) => {
+                          const v = POST_PROCESS_PRICING[k];
+                          const c = v?.calc({ areaM2, widthMm: widthNum, bagType, spoutKey: spoutOption }) || 0;
+                          if (k === "spout") {
+                            const spec = spoutOption ? SPOUT_LABEL_MAP[spoutOption] : "未选规格";
+                            return `吸嘴(${spec})=${f4(c)}`;
+                          }
+                          return `${v?.label || k}=${f4(c)}`;
+                        })
+                        .join(" + ")
+                    : "无"} {selectedPost.length ? `= ${f4(postProcessCostPerBag)}` : ""} 元/个
+                </div>
+
+                {/* 卷膜模式下隐藏以下报价相关明细 */}
+                {bagType !== "rollFilm" && (
+                  <>
+                    <div className="font-medium mt-2">六、数量折扣</div>
+                    <div>
+                      公式：袋子单价 = (材料 + 印刷 + 复合 + 制袋 + 附加工艺) × 数量折扣系数
+                      代入：({f4(materialCostPerBag)} + {f4(printingCostPerBag)} + {f4(laminationCostPerBag)} + {f4(makingCostPerBag)} + {f4(postProcessCostPerBag)})
+                      × {qtyFactor.toFixed(2)} = <b>{f4(unitPrice)}</b> 元/个
+                    </div>
+
+                    <div className="font-medium mt-2">七、版费</div>
+                    <div>
+                      公式：版费 = 版长 × 版周 × 色数 × 单价（元/cm²）
+                      代入：{plateLenCm} × {plateCircumferenceCm} × {numColors} × {plateUnitYuanPerCm2} = <b>{f2(plateFee)}</b> 元
+                    </div>
+
+                    <div className="font-medium mt-2">八、总价</div>
+                    <div>
+                      公式：袋子总价（不含版费） = 袋子单价 × 数量
+                      代入：{f4(unitPrice)} × {quantity} = <b>{f2(unitPrice * quantityNum)}</b> 元
+                    </div>
+
+                    <div>
+                      公式：袋子总价（不含版费，含损耗） = （袋子单价 × 损耗系数） × 数量
+                      代入：{f4(unitPrice)} × {lossFactor.toFixed(2)} × {quantity} = <b>{f2(totalWithWaste)}</b> 元
+                    </div>
+
+                    <div>
+                      公式：总计（含版费，含损耗，不含利润） = 袋子总价（含损耗，不含版费） + 版费
+                      代入：{f2(totalWithWaste)} + {f2(plateFee)} = <b>{f2(grandTotalWithWaste)}</b> 元
+                    </div>
+
+                    <div>
+                      公式：总计（含版费，含损耗，含利润） = 总计（含版费，含损耗，不含利润） × 利润系数
+                      代入：{f2(grandTotalWithWaste)} × {profitFactor.toFixed(2)} = <b>{f2(grandTotalQuoted)}</b> 元
+                    </div>
+                  </>
+                )}
+
+                <div className="text-xs text-slate-500 mt-2">
+                  注：材料成本公式=面积×厚度(μm)×密度(g/cm³)×单价(元/kg)/1000；纸类用面积×(gsm/1000)×单价。
+                  印刷、复合、制袋等单价按㎡或m计入；数量系数按起订量规则。
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+

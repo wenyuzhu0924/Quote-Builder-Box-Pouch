@@ -1,0 +1,135 @@
+      {/* 5. 报价结果（详细计算步骤） */}
+      <div style={{ padding: "20px", border: "1px solid #e0e0e0", borderRadius: "8px", backgroundColor: "#f9f9f9", textAlign: "left" }}>
+        <h2 style={{ fontSize: "18px", marginBottom: "15px", borderBottom: "1px solid #e0e0e0", paddingBottom: "10px", textAlign: "left" }}>报价结果</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "15px", marginBottom: "20px", textAlign: "left" }}>
+          <div style={{ padding: "15px", border: "1px solid #e0e0e0", borderRadius: "4px", textAlign: "left" }}>
+            <div style={{ fontSize: "14px", color: "#666", textAlign: "left" }}>单个成本（含税）</div>
+            <div style={{ fontSize: "16px", fontWeight: "bold", textAlign: "left" }}>¥{calculationResult.unitCost}</div>
+            <div style={{ fontSize: "12px", color: "#999", textAlign: "left", marginTop: "5px" }}>
+              ≈ ${calculationResult.details.usd.unitCost}（汇率：1:${calculationResult.details.usd.exchangeRate}）
+            </div>
+          </div>
+          <div style={{ padding: "15px", border: "1px solid #e0e0e0", borderRadius: "4px", backgroundColor: "#fff3f3", textAlign: "left" }}>
+            <div style={{ fontSize: "14px", color: "#666", textAlign: "left" }}>总金额（含税）</div>
+            <div style={{ fontSize: "16px", fontWeight: "bold", color: "#e91e63", textAlign: "left" }}>¥{calculationResult.totalCost}</div>
+            <div style={{ fontSize: "12px", color: "#999", textAlign: "left", marginTop: "5px" }}>
+              ≈ ${calculationResult.details.usd.totalCost}（汇率：1:${calculationResult.details.usd.exchangeRate}）
+            </div>
+          </div>
+        </div>
+
+        {/* 详细计算过程 */}
+        <div style={{ marginBottom: "20px", textAlign: "left" }}>
+          {/* 展开面积计算 */}
+          <div style={{ marginBottom: "15px", padding: "15px", backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>一、展开面积计算</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.6", color: "#333", marginBottom: "10px", textAlign: "left" }}>
+              <strong>计算公式：</strong> {calculationResult.areaCalculationDesc}
+            </div>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }} 
+                 dangerouslySetInnerHTML={{ __html: calculationResult.areaCalculationDetail.replace(/<br\/>/g, '<br style="text-align:left"/>') }}>
+            </div>
+            <div style={{ marginTop: "10px", fontSize: "14px", fontWeight: "bold", textAlign: "left" }}>
+              面纸面积 = 灰板展开面积 × 1.3 = {calculationResult.details.board.area} × 1.3 = {calculationResult.details.paper.area} ㎡
+            </div>
+          </div>
+
+          {/* 灰板成本计算 */}
+          <div style={{ marginBottom: "15px", padding: "15px", backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>二、灰板成本计算</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }} 
+                 dangerouslySetInnerHTML={{ __html: calculationResult.boardCalculationDetail.replace(/<br\/>/g, '<br style="text-align:left"/>') }}>
+            </div>
+          </div>
+
+          {/* 面纸成本计算 */}
+          <div style={{ marginBottom: "15px", padding: "15px", backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>三、面纸成本计算</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }} 
+                 dangerouslySetInnerHTML={{ __html: calculationResult.paperCalculationDetail.replace(/<br\/>/g, '<br style="text-align:left"/>') }}>
+            </div>
+          </div>
+
+          {/* 内衬成本计算 */}
+          <div style={{ marginBottom: "15px", padding: "15px", backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>四、内衬成本计算（含孔位）</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.6", color: "#333", marginBottom: "10px", textAlign: "left" }}>
+              <strong>计算公式：</strong> {calculationResult.linerCalculationDesc}
+            </div>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }} 
+                 dangerouslySetInnerHTML={{ __html: calculationResult.linerCalculationDetail.replace(/<br\/>/g, '<br style="text-align:left"/>') }}>
+            </div>
+          </div>
+
+          {/* 盒型做工成本计算 */}
+          <div style={{ marginBottom: "15px", padding: "15px", backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>五、盒型做工成本计算</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }} 
+                 dangerouslySetInnerHTML={{ __html: calculationResult.boxCalculationDetail.replace(/<br\/>/g, '<br style="text-align:left"/>') }}>
+            </div>
+          </div>
+
+          {/* 特殊工艺成本计算 */}
+          <div style={{ marginBottom: "15px", padding: "15px", backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>六、特殊工艺成本计算</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }} 
+                 dangerouslySetInnerHTML={{ __html: calculationResult.craftCalculationDetail.replace(/<br\/>/g, '<br style="text-align:left"/>') }}>
+            </div>
+          </div>
+
+          {/* 运输纸箱成本计算 */}
+          <div style={{ marginBottom: "15px", padding: "15px", backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>七、运输纸箱成本计算</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }} 
+                 dangerouslySetInnerHTML={{ __html: calculationResult.cartonCalculationDetail.replace(/<br\/>/g, '<br style="text-align:left"/>') }}>
+            </div>
+          </div>
+
+          {/* 刀版+模具成本计算 */}
+          <div style={{ marginBottom: "15px", padding: "15px", backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>八、刀版+模具成本计算</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }} 
+                 dangerouslySetInnerHTML={{ __html: calculationResult.moldCalculationDetail.replace(/<br\/>/g, '<br style="text-align:left"/>') }}>
+            </div>
+          </div>
+
+          {/* 税费计算 */}
+          <div style={{ marginBottom: "15px", padding: "15px", backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>九、税费计算</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }}>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>不含税总价：¥{calculationResult.totalCostBeforeTax}</p>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>税率：{calculationResult.details.tax.rate}%</p>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>税额 = 不含税总价 × 税率 = ¥{calculationResult.totalCostBeforeTax} × {calculationResult.details.tax.rate}% = ¥{calculationResult.details.tax.amount}</p>
+              <p style={{ margin: "5px 0", fontWeight: "bold", textAlign: "left" }}>含税总价 = 不含税总价 + 税额 = ¥{calculationResult.totalCostBeforeTax} + ¥{calculationResult.details.tax.amount} = ¥{calculationResult.totalCost}</p>
+            </div>
+          </div>
+
+          {/* 总成本汇总 */}
+          <div style={{ padding: "15px", backgroundColor: "#f8f8f8", borderRadius: "8px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+            <h3 style={{ fontSize: "16px", marginBottom: "10px", textAlign: "left" }}>十、总成本汇总</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.8", color: "#333", textAlign: "left" }}>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>灰板成本：¥{calculationResult.details.board.total}</p>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>面纸成本：¥{calculationResult.details.paper.total}</p>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>内衬成本（含孔位）：¥{calculationResult.details.liner.total}</p>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>盒型做工成本：¥{calculationResult.details.box.total}</p>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>特殊工艺成本：¥{calculationResult.details.craft.total}</p>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>运输纸箱成本：¥{calculationResult.details.carton.total}</p>
+              <p style={{ margin: "5px 0", textAlign: "left" }}>刀版+模具成本：¥{calculationResult.details.mold.total}</p>
+              <p style={{ margin: "5px 0", textAlign: "left", fontWeight: "bold" }}>不含税总成本：¥{calculationResult.totalCostBeforeTax}</p>
+              <p style={{ margin: "5px 0", textAlign: "left", fontWeight: "bold" }}>税额：¥{calculationResult.details.tax.amount}（税率{calculationResult.details.tax.rate}%）</p>
+              <hr style={{ margin: "10px 0", border: "none", borderTop: "1px dashed #ccc" }} />
+              <p style={{ margin: "5px 0", fontSize: "16px", fontWeight: "bold", color: "#e91e63", textAlign: "left" }}>
+                含税总成本 = ¥{calculationResult.totalCost}
+              </p>
+              <p style={{ margin: "5px 0", fontSize: "14px", textAlign: "left" }}>
+                单个成本（含税） = 含税总成本 ÷ 数量 = ¥{calculationResult.totalCost} ÷ {orderInfo.qty || 1} = ¥{calculationResult.unitCost}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default GiftBoxQuoteCalculator;
