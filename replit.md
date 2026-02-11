@@ -155,3 +155,12 @@ Preferred communication style: Simple, everyday language.
 - **Dark Mode**: Updated to match orange primary, neutral dark backgrounds (220 hue family)
 - **Cleanup**: All hardcoded bg-orange-*, bg-blue-*, bg-green-* replaced with semantic tokens (bg-primary, text-primary, etc.)
 - **Sticky Headers**: All page headers use z-50 for proper stacking
+
+### February 11, 2026 - Share/Export Quote Links
+- **Database**: `shared_quotes` table (id varchar(12) PK, quote_type, customer_name, config_data jsonb, created_at)
+- **API**: POST `/api/shared-quotes` (creates), GET `/api/shared-quotes/:id` (fetches)
+- **ShareQuoteButton**: Component in all three quote pages (gravure, digital, giftbox) - generates 8-char short URL
+- **Shared Route**: `/s/:id` loads shared quote page, fetches config from API, renders appropriate calculator
+- **SharedQuotePage**: `client/src/pages/shared-quote.tsx` - loads config and wraps in correct provider (QuoteProvider/GiftBoxProvider)
+- **Shared Mode**: Edit/restart buttons hidden when surveyPath is empty (shared quote view is read-only calculator)
+- **Customer Name**: Preserved in shared links, sets localStorage on load for title customization

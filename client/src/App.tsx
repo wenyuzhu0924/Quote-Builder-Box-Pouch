@@ -13,6 +13,7 @@ import GiftBoxQuotePage from "@/pages/giftbox-quote";
 import DemoGravurePage from "@/pages/demo-gravure";
 import DemoGiftBoxPage from "@/pages/demo-giftbox";
 import DemoDigitalPage from "@/pages/demo-digital";
+import SharedQuotePage from "@/pages/shared-quote";
 import NotFound from "@/pages/not-found";
 
 function AppRouter() {
@@ -28,6 +29,10 @@ function AppRouter() {
 
   if (location.startsWith("/demo/digital")) {
     return <DemoDigitalPage />;
+  }
+
+  if (location.startsWith("/s/")) {
+    return <SharedQuotePage />;
   }
 
   if (location.startsWith("/giftbox")) {

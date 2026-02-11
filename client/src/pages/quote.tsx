@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuote, type CustomMaterial, type CustomBagType, type DigitalMaterial, type PostProcessingOptionConfig, isValidBagFormula, isValidMakingFormula, safeEvalMakingFormula } from "@/lib/quote-store";
 import { calculateDigital, type DigitalCalcResult } from "@/lib/digital-calc";
+import { ShareQuoteButton } from "@/components/share-quote-button";
 
 function calcPostProcessingCost(
   opt: PostProcessingOptionConfig,
@@ -712,10 +713,13 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                 <Badge variant="secondary">数码印刷</Badge>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleEditParams} className="gap-2" data-testid="button-edit">
-                  <Edit className="w-4 h-4" />
-                  编辑参数
-                </Button>
+                <ShareQuoteButton quoteType="digital" customerName={customerName} configData={digitalConfig} />
+                {surveyPath && (
+                  <Button variant="outline" size="sm" onClick={handleEditParams} className="gap-2" data-testid="button-edit">
+                    <Edit className="w-4 h-4" />
+                    编辑参数
+                  </Button>
+                )}
                 {!hideRestart && (
                   <Button variant="outline" size="sm" onClick={handleRestart} className="gap-2" data-testid="button-restart">
                     <RefreshCw className="w-4 h-4" />
@@ -1474,10 +1478,13 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
               <Badge variant="secondary">凹版印刷</Badge>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleEditParams} className="gap-2" data-testid="button-edit">
-                <Edit className="w-4 h-4" />
-                编辑参数
-              </Button>
+              <ShareQuoteButton quoteType="gravure" customerName={customerName} configData={config} />
+              {surveyPath && (
+                <Button variant="outline" size="sm" onClick={handleEditParams} className="gap-2" data-testid="button-edit">
+                  <Edit className="w-4 h-4" />
+                  编辑参数
+                </Button>
+              )}
               {!hideRestart && (
                 <Button variant="outline" size="sm" onClick={handleRestart} className="gap-2" data-testid="button-restart">
                   <RefreshCw className="w-4 h-4" />

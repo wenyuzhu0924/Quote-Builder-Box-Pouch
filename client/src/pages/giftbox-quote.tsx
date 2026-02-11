@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { getBoxPriceByQty, getMoldFeeInfo, evaluateGiftBoxAreaFormula, isValidGiftBoxFormula } from "@/lib/giftbox-config";
 import { useGiftBox } from "@/lib/giftbox-store";
+import { ShareQuoteButton } from "@/components/share-quote-button";
 
 interface GiftBoxQuotePageProps {
   surveyPath?: string;
@@ -223,10 +224,13 @@ export default function GiftBoxQuotePage({
               <Badge variant="secondary">礼盒</Badge>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => navigate(surveyPath)} className="gap-2" data-testid="button-edit-params">
-                <Edit className="w-4 h-4" />
-                编辑参数
-              </Button>
+              <ShareQuoteButton quoteType="giftbox" customerName={customerName} configData={config} />
+              {surveyPath && (
+                <Button variant="outline" size="sm" onClick={() => navigate(surveyPath)} className="gap-2" data-testid="button-edit-params">
+                  <Edit className="w-4 h-4" />
+                  编辑参数
+                </Button>
+              )}
               {!hideRestart && (
                 <Button variant="outline" size="sm" onClick={() => navigate(homePath)} className="gap-2" data-testid="button-restart">
                   <RefreshCw className="w-4 h-4" />
