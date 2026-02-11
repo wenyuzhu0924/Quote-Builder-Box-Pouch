@@ -22,7 +22,7 @@ interface GiftBoxSurveyPageProps {
   hideBack?: boolean;
 }
 
-function SectionSaveButton({ section, onSave }: { section: string; onSave: () => void }) {
+function SectionSaveButton({ section, label, onSave }: { section: string; label: string; onSave: () => void }) {
   return (
     <div className="flex justify-end pt-3">
       <Button
@@ -33,7 +33,7 @@ function SectionSaveButton({ section, onSave }: { section: string; onSave: () =>
         data-testid={`save-${section}`}
       >
         <Save className="w-3.5 h-3.5" />
-        保存
+        保存{label}
       </Button>
     </div>
   );
@@ -401,7 +401,7 @@ export default function GiftBoxSurveyPage({
                   <p className="text-xs text-muted-foreground">
                     提示：在公式中使用"长"、"宽"、"高"关键词，系统会自动识别所需尺寸字段。支持 ×、÷、+、- 运算符和括号。
                   </p>
-                  <SectionSaveButton section="boxTypes" onSave={() => showSaveToast("盒型配置")} />
+                  <SectionSaveButton section="boxTypes" label="盒型配置" onSave={() => showSaveToast("盒型配置")} />
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -523,7 +523,7 @@ export default function GiftBoxSurveyPage({
                       请先在"盒型配置"中启用至少一种盒型
                     </p>
                   )}
-                  <SectionSaveButton section="ladderPricing" onSave={() => showSaveToast("阶梯价格")} />
+                  <SectionSaveButton section="ladderPricing" label="阶梯价格" onSave={() => showSaveToast("阶梯价格")} />
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -802,7 +802,7 @@ export default function GiftBoxSurveyPage({
                       </div>
                     </div>
                   </div>
-                  <SectionSaveButton section="materials" onSave={() => showSaveToast("材料配置")} />
+                  <SectionSaveButton section="materials" label="材料配置" onSave={() => showSaveToast("材料配置")} />
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -965,7 +965,7 @@ export default function GiftBoxSurveyPage({
                       </TableBody>
                     </Table>
                   </div>
-                  <SectionSaveButton section="crafts" onSave={() => showSaveToast("特殊工艺")} />
+                  <SectionSaveButton section="crafts" label="特殊工艺" onSave={() => showSaveToast("特殊工艺")} />
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -1099,7 +1099,7 @@ export default function GiftBoxSurveyPage({
                       </TableBody>
                     </Table>
                   </div>
-                  <SectionSaveButton section="moldFee" onSave={() => showSaveToast("模具费用")} />
+                  <SectionSaveButton section="moldFee" label="模具费用" onSave={() => showSaveToast("模具费用")} />
                 </div>
               </AccordionContent>
             </AccordionItem>

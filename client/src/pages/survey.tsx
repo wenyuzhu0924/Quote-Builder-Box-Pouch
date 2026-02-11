@@ -13,6 +13,23 @@ import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuote, type CustomMaterial, type PrintingPriceRule, type LaminationPriceRule, type PostProcessingOptionConfig, type PostProcessingPricingType, type PostProcessingCategory, type BagTypePrice, type SpecOption, type QuantityDiscountRule, type CustomBagType, type DigitalMaterial, type DigitalPrintMode, type DigitalSpecialProcess, type DigitalSpecialCalcBasis, type DigitalZipperType, type DigitalValveType, type DigitalAccessory, type DigitalPrintingTier, parseDimensionsFromFormula, isValidBagFormula, isValidMakingFormula } from "@/lib/quote-store";
 
+function SectionSaveButton({ section, label, onSave }: { section: string; label: string; onSave: () => void }) {
+  return (
+    <div className="flex justify-end pt-3">
+      <Button
+        variant="default"
+        size="sm"
+        onClick={onSave}
+        className="gap-1.5"
+        data-testid={`save-${section}`}
+      >
+        <Save className="w-3.5 h-3.5" />
+        保存{label}
+      </Button>
+    </div>
+  );
+}
+
 interface SurveyPageProps {
   backPath?: string;
   nextPath?: string;
@@ -23,6 +40,10 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
   const [, navigate] = useLocation();
   const { state, updateConfig, updateDigitalConfig } = useQuote();
   const { toast } = useToast();
+
+  const showSaveToast = (section: string) => {
+    toast({ title: `${section}已保存`, description: "配置已自动保存到当前会话" });
+  };
   const config = state.config;
   const digitalConfig = state.digitalConfig;
 
@@ -776,6 +797,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                       </Table>
                     </div>
                   </div>
+                  <SectionSaveButton section="bagTypes" label="袋型" onSave={() => showSaveToast("袋型")} />
                 </AccordionContent>
               </AccordionItem>
 
@@ -883,12 +905,9 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                         <Plus className="w-4 h-4" />
                         添加材料
                       </Button>
-                      <Button variant="outline" onClick={() => toast({ title: "印刷层材料已保存" })} className="gap-2">
-                        <Save className="w-4 h-4" />
-                        保存印刷层材料
-                      </Button>
                     </div>
                   </div>
+                  <SectionSaveButton section="printMaterials" label="印刷层材料" onSave={() => showSaveToast("印刷层材料")} />
                 </AccordionContent>
               </AccordionItem>
 
@@ -996,12 +1015,9 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                         <Plus className="w-4 h-4" />
                         添加材料
                       </Button>
-                      <Button variant="outline" onClick={() => toast({ title: "复合层材料已保存" })} className="gap-2">
-                        <Save className="w-4 h-4" />
-                        保存复合层材料
-                      </Button>
                     </div>
                   </div>
+                  <SectionSaveButton section="compositeMaterials" label="复合层材料" onSave={() => showSaveToast("复合层材料")} />
                 </AccordionContent>
               </AccordionItem>
 
@@ -1109,12 +1125,9 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                         <Plus className="w-4 h-4" />
                         添加材料
                       </Button>
-                      <Button variant="outline" onClick={() => toast({ title: "热封层材料已保存" })} className="gap-2">
-                        <Save className="w-4 h-4" />
-                        保存热封层材料
-                      </Button>
                     </div>
                   </div>
+                  <SectionSaveButton section="sealMaterials" label="热封层材料" onSave={() => showSaveToast("热封层材料")} />
                 </AccordionContent>
               </AccordionItem>
 
@@ -1255,6 +1268,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                       </Button>
                     </div>
                   </div>
+                  <SectionSaveButton section="printModes" label="印刷费用" onSave={() => showSaveToast("印刷费用")} />
                 </AccordionContent>
               </AccordionItem>
 
@@ -1326,6 +1340,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                       </Table>
                     </div>
                   </div>
+                  <SectionSaveButton section="bagMakingCost" label="制袋费用" onSave={() => showSaveToast("制袋费用")} />
                 </AccordionContent>
               </AccordionItem>
 
@@ -1369,6 +1384,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                       </div>
                     </div>
                   </div>
+                  <SectionSaveButton section="laminationCost" label="复合费用" onSave={() => showSaveToast("复合费用")} />
                 </AccordionContent>
               </AccordionItem>
 
@@ -1539,6 +1555,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                       </Table>
                     </div>
                   </div>
+                  <SectionSaveButton section="specialProcesses" label="特殊工艺费用" onSave={() => showSaveToast("特殊工艺费用")} />
                 </AccordionContent>
               </AccordionItem>
 
@@ -1827,6 +1844,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                       </p>
                     </div>
                   </div>
+                  <SectionSaveButton section="accessories" label="附加工艺费用" onSave={() => showSaveToast("附加工艺费用")} />
                 </AccordionContent>
               </AccordionItem>
 
@@ -1905,6 +1923,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                     </div>
 
                   </div>
+                  <SectionSaveButton section="systemConstants" label="系统常量" onSave={() => showSaveToast("系统常量")} />
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
