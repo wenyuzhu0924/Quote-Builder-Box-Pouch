@@ -831,7 +831,7 @@ export default function GiftBoxSurveyPage({
                         <TableRow>
                           <TableHead className="w-[50px]">启用</TableHead>
                           <TableHead>工艺名称</TableHead>
-                          <TableHead className="w-[100px]">计价方式</TableHead>
+                          <TableHead className="w-[140px]">计价方式</TableHead>
                           <TableHead className="w-[100px]">单价</TableHead>
                           <TableHead className="w-[100px]">起步价(元)</TableHead>
                           <TableHead>说明</TableHead>
@@ -860,7 +860,7 @@ export default function GiftBoxSurveyPage({
                                 value={craft.calcType}
                                 onValueChange={(v) => updateCraftField(craft.id, "calcType", v)}
                               >
-                                <SelectTrigger className="h-9">
+                                <SelectTrigger className="h-9 w-full">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -922,7 +922,7 @@ export default function GiftBoxSurveyPage({
                               value={newCraft.calcType}
                               onValueChange={(v: "perUnit" | "perArea") => setNewCraft({ ...newCraft, calcType: v })}
                             >
-                              <SelectTrigger className="h-9">
+                              <SelectTrigger className="h-9 w-full">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -992,8 +992,8 @@ export default function GiftBoxSurveyPage({
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[100px]">最小数量</TableHead>
-                          <TableHead className="w-[100px]">最大数量</TableHead>
+                          <TableHead className="w-[120px]">最小数量</TableHead>
+                          <TableHead className="w-[120px]">最大数量</TableHead>
                           <TableHead className="w-[100px]">单价(元/个)</TableHead>
                           <TableHead>说明</TableHead>
                           <TableHead className="w-[60px]"></TableHead>
