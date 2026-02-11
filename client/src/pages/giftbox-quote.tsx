@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, RefreshCw, ChevronDown, ChevronUp, CheckCircle2, Sparkles, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -504,219 +504,268 @@ export default function GiftBoxQuotePage({
           </Card>
         )}
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base section-title">费用明细</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <CostRow
-              label="一、展开面积计算"
-              summary={`灰板 ${fmt(calc.totalBoardArea, 4)} m² · 面纸 ${fmt(calc.totalPaperArea, 4)} m²`}
-              expanded={expandedSections["area"]}
-              onToggle={() => toggleSection("area")}
-            >
-              <div className="text-xs space-y-1 text-muted-foreground">
-                <div className="font-medium text-foreground">公式：{selectedBoxType.areaFormula}</div>
-                <div>展开面积 = {fmt(calc.areaCm2)} cm² = {fmt(calc.totalBoardArea, 4)} m²</div>
-                {calc.formulaError && (
-                  <div className="text-destructive font-medium">公式计算出错，请检查公式格式</div>
-                )}
-                <div className="font-medium text-foreground mt-2">
-                  面纸面积 = 灰板面积 × {config.paperAreaRatio} = {fmt(calc.totalBoardArea, 4)} × {config.paperAreaRatio} = {fmt(calc.totalPaperArea, 4)} m²
-                </div>
+        <div className="space-y-0" data-testid="calculation-breakdown">
+          <div className="summary-panel mb-8">
+            <h2 className="text-xl font-bold text-foreground flex items-center gap-2 flex-wrap tracking-tight">
+              <CheckCircle2 className="w-5 h-5 text-primary" /> 报价汇总 & 完整成本计算明细
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+              <div className="p-5 border rounded-[10px]" data-testid="card-pretax">
+                <div className="text-sm text-muted-foreground mb-2 font-semibold uppercase tracking-wide">税前单价</div>
+                <div className="price-main">¥{fmt(calc.totalCostBeforeTax / calc.validQty, 4)} <span className="text-lg">/个</span></div>
+                <div className="price-unit mt-2">≈ ${fmt(calc.totalCostBeforeTax / calc.validExchangeRate / calc.validQty, 4)}/pc</div>
+                <div className="breakdown-divider"></div>
+                <div className="price-unit font-medium">总价：¥{fmt(calc.totalCostBeforeTax)} ≈ ${fmt(calc.totalCostBeforeTax / calc.validExchangeRate)}</div>
               </div>
-            </CostRow>
-
-            <CostRow
-              label="二、灰板成本"
-              summary={`${fmt(calc.boardCostPerBox)} 元/个 × ${calc.validQty} = ¥${fmt(calc.totalBoardCost)}`}
-              expanded={expandedSections["board"]}
-              onToggle={() => toggleSection("board")}
-            >
-              <div className="text-xs space-y-1 text-muted-foreground">
-                <div>单盒灰板成本 = {fmt(calc.totalBoardArea, 4)} m² × {config.boardPricePerSqm} 元/m² = {fmt(calc.boardCostPerBox)} 元/个</div>
-                <div>总灰板成本 = {fmt(calc.boardCostPerBox)} × {calc.validQty} = {fmt(calc.totalBoardCost)} 元</div>
-              </div>
-            </CostRow>
-
-            <CostRow
-              label="三、面纸成本"
-              summary={`${fmt(calc.paperCostPerBox)} 元/个 × ${calc.validQty} = ¥${fmt(calc.totalPaperCost)}`}
-              expanded={expandedSections["paper"]}
-              onToggle={() => toggleSection("paper")}
-            >
-              <div className="text-xs space-y-1 text-muted-foreground">
-                <div>面纸单价 = {calc.paperPrice} 元/m²（{selectedPaper.name}）</div>
-                <div>单盒面纸成本 = {fmt(calc.totalPaperArea, 4)} m² × {calc.paperPrice} = {fmt(calc.paperCostPerBox)} 元/个</div>
-                <div>总面纸成本 = {fmt(calc.paperCostPerBox)} × {calc.validQty} = {fmt(calc.totalPaperCost)} 元</div>
-              </div>
-            </CostRow>
-
-            <CostRow
-              label="四、内衬成本（含孔位）"
-              summary={`¥${fmt(calc.totalLinerCost)}（≥${calc.linerMinCost}元）`}
-              expanded={expandedSections["liner"]}
-              onToggle={() => toggleSection("liner")}
-            >
-              <div className="text-xs space-y-1 text-muted-foreground">
-                <div className="font-medium text-foreground">内衬类型：{selectedLiner.name}</div>
-                {calc.linerSteps.map((s, i) => <div key={i}>{s}</div>)}
-                <div className="font-medium text-foreground mt-1">
-                  基础总成本 = max({fmt(calc.linerCostPerBox)} × {calc.validQty}, {calc.linerMinCost}) = {fmt(calc.baseLinerCost)} 元
-                </div>
-                <div>总内衬成本 = {fmt(calc.baseLinerCost)} + {fmt(calc.totalHoleCost)} = {fmt(calc.totalLinerCost)} 元</div>
-              </div>
-            </CostRow>
-
-            <CostRow
-              label="五、做工费"
-              summary={`¥${calc.finalBoxPrice}/个 × ${calc.validQty} = ¥${fmt(calc.totalBoxCost)}`}
-              expanded={expandedSections["box"]}
-              onToggle={() => toggleSection("box")}
-            >
-              <div className="text-xs space-y-1 text-muted-foreground">
-                <div>阶梯单价 = ¥{calc.finalBoxPrice}/个</div>
-                <div>做工总成本 = max({calc.finalBoxPrice} × {calc.validQty}, {calc.ladderInfo.minPrice || 0}) = {fmt(calc.totalBoxCost)} 元</div>
-              </div>
-            </CostRow>
-
-            {calc.craftDetails.length > 0 && (
-              <CostRow
-                label="六、特殊工艺"
-                summary={`¥${fmt(calc.totalCraftCost)}`}
-                expanded={expandedSections["craft"]}
-                onToggle={() => toggleSection("craft")}
-              >
-                <div className="text-xs space-y-1 text-muted-foreground">
-                  {calc.craftDetails.map((d, i) => (
-                    <div key={i}>
-                      <span className="font-medium text-foreground">{d.name}：</span>{d.desc}
-                    </div>
-                  ))}
-                </div>
-              </CostRow>
-            )}
-
-            <CostRow
-              label={calc.craftDetails.length > 0 ? "七、运输纸箱" : "六、运输纸箱"}
-              summary={`${fmt(calc.cartonCostPerBox)} 元/个 × ${calc.validQty} = ¥${fmt(calc.totalCartonCost)}`}
-              expanded={expandedSections["carton"]}
-              onToggle={() => toggleSection("carton")}
-            >
-              <div className="text-xs space-y-1 text-muted-foreground">
-                <div>纸箱数 = {calc.validCartonCount} 个 × {config.cartonPricePerBox} 元/个</div>
-                <div>分摊到每个盒子 = {fmt(calc.cartonCostPerBox)} 元/个</div>
-              </div>
-            </CostRow>
-
-            <CostRow
-              label={calc.craftDetails.length > 0 ? "八、刀版+模具" : "七、刀版+模具"}
-              summary={`¥${fmt(calc.finalMoldTotal)}`}
-              expanded={expandedSections["mold"]}
-              onToggle={() => toggleSection("mold")}
-            >
-              <div className="text-xs space-y-1 text-muted-foreground">
-                <div>{calc.moldFeeInfo.desc}</div>
-                <div>模具费合计 = ¥{fmt(calc.moldFeeInfo.total)} - 优惠¥{orderInfo.moldDiscount} = ¥{fmt(calc.finalMoldTotal)}</div>
-              </div>
-            </CostRow>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6 space-y-4">
-            <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
-              <div className="p-3 rounded-md border" data-testid="card-pretax">
-                <div className="text-xs font-semibold text-muted-foreground">
-                  税前单价
-                </div>
-                <div className="mt-1 text-sm">
-                  <span className="font-bold">¥{fmt(calc.totalCostBeforeTax / calc.validQty, 4)}/个</span>
-                </div>
-                <div className="text-sm">
-                  总价：<span className="font-bold">¥{fmt(calc.totalCostBeforeTax)}</span>
-                  <span className="ml-1 text-xs text-muted-foreground">
-                    ≈ ${fmt(calc.totalCostBeforeTax / calc.validExchangeRate)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-md border" data-testid="card-withtax">
-                <div className="text-xs font-semibold text-muted-foreground">
-                  含税价（{calc.validTaxRate}%）
-                </div>
-                <div className="mt-1 text-sm">
-                  <span className="font-bold">¥{fmt(calc.unitCost, 4)}/个</span>
-                  <span className="ml-1 text-xs text-muted-foreground">
-                    ≈ ${fmt(calc.unitCostUsd, 4)}/个
-                  </span>
-                </div>
-                <div className="text-sm">
-                  总价：<span className="font-bold">¥{fmt(calc.totalCost)}</span>
-                  <span className="ml-1 text-xs text-muted-foreground">
-                    ≈ ${fmt(calc.totalCostUsd)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="summary-panel !border-l-destructive !p-3" data-testid="card-final-price">
-                <div className="text-xs font-semibold text-destructive">
-                  含税含模具（最终价）
-                </div>
-                <div className="mt-1">
-                  <span className="price-main text-destructive text-xl" data-testid="text-unit-cost">¥{fmt(calc.unitCost, 4)}</span>
-                  <span className="price-unit ml-1">/个</span>
-                  <span className="price-unit ml-2">
-                    ≈ ${fmt(calc.unitCostUsd, 4)}/个
-                  </span>
-                </div>
-                <div className="text-sm text-destructive mt-1">
-                  总价：<span className="font-bold" data-testid="text-total-cost">¥{fmt(calc.totalCost)}</span>
-                  <span className="ml-1 text-xs opacity-80">
-                    ≈ ${fmt(calc.totalCostUsd)} USD
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-md border">
-                <div className="text-xs font-semibold text-muted-foreground">模具费（单独）</div>
-                <div className="mt-1 text-sm">
-                  <span className="font-bold">¥{fmt(calc.finalMoldTotal)}</span>
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">{calc.moldFeeInfo.desc}</div>
+              <div className="p-5 border-2 border-primary rounded-[10px] bg-primary/5" data-testid="card-final-price">
+                <div className="text-sm text-primary mb-2 font-semibold uppercase tracking-wide">含税含模具（最终价 含{calc.validTaxRate}%税）</div>
+                <div className="price-main" data-testid="text-unit-cost">¥{fmt(calc.unitCost, 4)} <span className="text-lg">/个</span></div>
+                <div className="price-unit mt-2 text-primary font-medium">≈ ${fmt(calc.unitCostUsd, 4)}/pc</div>
+                <div className="breakdown-divider"></div>
+                <div className="price-unit text-primary font-medium" data-testid="text-total-cost">总价：¥{fmt(calc.totalCost)} ≈ ${fmt(calc.totalCostUsd)}</div>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 text-sm" data-testid="cost-breakdown-grid">
-              <div className="p-3 rounded-md border">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 text-sm mt-5" data-testid="cost-breakdown-grid">
+              <div className="p-3 rounded-md border" data-testid="cost-board">
                 <div className="text-muted-foreground text-xs">灰板</div>
                 <div className="font-semibold">{fmt(calc.boardCostPerBox, 4)}</div>
               </div>
-              <div className="p-3 rounded-md border">
+              <div className="p-3 rounded-md border" data-testid="cost-paper">
                 <div className="text-muted-foreground text-xs">面纸</div>
                 <div className="font-semibold">{fmt(calc.paperCostPerBox, 4)}</div>
               </div>
-              <div className="p-3 rounded-md border">
+              <div className="p-3 rounded-md border" data-testid="cost-liner">
                 <div className="text-muted-foreground text-xs">内衬</div>
                 <div className="font-semibold">{fmt(calc.totalLinerCost / calc.validQty, 4)}</div>
               </div>
-              <div className="p-3 rounded-md border">
+              <div className="p-3 rounded-md border" data-testid="cost-workmanship">
                 <div className="text-muted-foreground text-xs">做工</div>
                 <div className="font-semibold">{fmt(calc.totalBoxCost / calc.validQty, 4)}</div>
               </div>
               {calc.totalCraftCost > 0 && (
-                <div className="p-3 rounded-md border">
+                <div className="p-3 rounded-md border" data-testid="cost-craft">
                   <div className="text-muted-foreground text-xs">工艺</div>
                   <div className="font-semibold">{fmt(calc.totalCraftCost / calc.validQty, 4)}</div>
                 </div>
               )}
-              <div className="p-3 rounded-md border">
+              <div className="p-3 rounded-md border" data-testid="cost-carton">
                 <div className="text-muted-foreground text-xs">纸箱</div>
                 <div className="font-semibold">{fmt(calc.cartonCostPerBox, 4)}</div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+
+            <div className="flex items-center justify-between mt-4 p-3 rounded-md border" data-testid="card-mold-fee">
+              <div>
+                <div className="text-xs font-semibold text-muted-foreground">模具费（单独）</div>
+                <div className="text-xs text-muted-foreground mt-1">{calc.moldFeeInfo.desc}</div>
+              </div>
+              <div className="font-bold text-base">¥{fmt(calc.finalMoldTotal)}</div>
+            </div>
+
+            <div className="mt-5 text-sm font-medium text-muted-foreground flex items-center gap-1 flex-wrap">
+              <Sparkles className="w-4 h-4 text-primary" /> 核心规则：各项成本累加 = 税前总成本 → × (1+税率) = 含税成本 → + 模具费 = 最终价
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                <Badge variant="default" className="text-xs">1</Badge> 展开面积计算
+              </h3>
+              <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>公式：{selectedBoxType.areaFormula}</span>
+                </div>
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>展开面积 = {fmt(calc.areaCm2)} cm² = {fmt(calc.totalBoardArea, 4)} m²</span>
+                </div>
+                {calc.formulaError && (
+                  <div className="flex items-start gap-2 text-destructive font-medium flex-wrap">
+                    <ChevronRight className="w-3 h-3 mt-1 shrink-0" />
+                    <span>公式计算出错，请检查公式格式</span>
+                  </div>
+                )}
+                <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                  <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <span>灰板面积 = {fmt(calc.totalBoardArea, 4)} m² | 面纸面积 = {fmt(calc.totalBoardArea, 4)} × {config.paperAreaRatio} = {fmt(calc.totalPaperArea, 4)} m²</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                <Badge variant="default" className="text-xs">2</Badge> 灰板成本
+              </h3>
+              <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>单盒灰板成本 = {fmt(calc.totalBoardArea, 4)} m² × {config.boardPricePerSqm} 元/m² = {fmt(calc.boardCostPerBox)} 元/个</span>
+                </div>
+                <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                  <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <span>总灰板成本 = {fmt(calc.boardCostPerBox)} × {calc.validQty} = {fmt(calc.totalBoardCost)} 元</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                <Badge variant="default" className="text-xs">3</Badge> 面纸成本
+              </h3>
+              <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>面纸单价 = {calc.paperPrice} 元/m²（{selectedPaper.name}）</span>
+                </div>
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>单盒面纸成本 = {fmt(calc.totalPaperArea, 4)} m² × {calc.paperPrice} = {fmt(calc.paperCostPerBox)} 元/个</span>
+                </div>
+                <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                  <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <span>总面纸成本 = {fmt(calc.paperCostPerBox)} × {calc.validQty} = {fmt(calc.totalPaperCost)} 元</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                <Badge variant="default" className="text-xs">4</Badge> 内衬成本（含孔位）
+              </h3>
+              <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>内衬类型：{selectedLiner.name}</span>
+                </div>
+                {calc.linerSteps.map((s, i) => (
+                  <div key={i} className="flex items-start gap-2 flex-wrap">
+                    <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                    <span>{s}</span>
+                  </div>
+                ))}
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>基础总成本 = max({fmt(calc.linerCostPerBox)} × {calc.validQty}, {calc.linerMinCost}) = {fmt(calc.baseLinerCost)} 元</span>
+                </div>
+                <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                  <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <span>总内衬成本 = {fmt(calc.baseLinerCost)} + {fmt(calc.totalHoleCost)} = {fmt(calc.totalLinerCost)} 元</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                <Badge variant="default" className="text-xs">5</Badge> 做工费
+              </h3>
+              <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>阶梯单价 = ¥{calc.finalBoxPrice}/个</span>
+                </div>
+                <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                  <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <span>做工总成本 = max({calc.finalBoxPrice} × {calc.validQty}, {calc.ladderInfo.minPrice || 0}) = {fmt(calc.totalBoxCost)} 元</span>
+                </div>
+              </div>
+            </div>
+
+            {calc.craftDetails.length > 0 && (
+              <div>
+                <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                  <Badge variant="default" className="text-xs">6</Badge> 特殊工艺
+                </h3>
+                <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                  {calc.craftDetails.map((d, i) => (
+                    <div key={i} className="flex items-start gap-2 flex-wrap">
+                      <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                      <span>{d.name}：{d.desc}</span>
+                    </div>
+                  ))}
+                  <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                    <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <span>特殊工艺总成本 = {fmt(calc.totalCraftCost)} 元</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                <Badge variant="default" className="text-xs">{calc.craftDetails.length > 0 ? "7" : "6"}</Badge> 运输纸箱
+              </h3>
+              <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>纸箱数 = {calc.validCartonCount} 个 × {config.cartonPricePerBox} 元/个</span>
+                </div>
+                <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                  <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <span>分摊到每个盒子 = {fmt(calc.cartonCostPerBox)} 元/个 | 总计 = {fmt(calc.totalCartonCost)} 元</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                <Badge variant="default" className="text-xs">{calc.craftDetails.length > 0 ? "8" : "7"}</Badge> 刀版+模具
+              </h3>
+              <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>{calc.moldFeeInfo.desc}</span>
+                </div>
+                <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                  <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <span>模具费合计 = ¥{fmt(calc.moldFeeInfo.total)} - 优惠¥{orderInfo.moldDiscount} = ¥{fmt(calc.finalMoldTotal)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t-2 border-destructive pt-4 mt-6">
+              <h3 className="text-base font-bold text-destructive mb-3 flex items-center gap-2 flex-wrap">
+                <Sparkles className="w-4 h-4 shrink-0" /> 最终价格推导【完整计算步骤】
+              </h3>
+              <div className="border-l-2 border-muted pl-4 space-y-3 text-sm">
+                <div>
+                  <div className="font-medium mb-1">► 第一步：税前总成本累加</div>
+                  <div className="text-muted-foreground">
+                    灰板 {fmt(calc.totalBoardCost)} + 面纸 {fmt(calc.totalPaperCost)} + 内衬 {fmt(calc.totalLinerCost)} + 做工 {fmt(calc.totalBoxCost)}
+                    {calc.totalCraftCost > 0 && ` + 工艺 ${fmt(calc.totalCraftCost)}`}
+                    {" "}+ 纸箱 {fmt(calc.totalCartonCost)}
+                  </div>
+                  <div className="text-primary font-medium mt-1">= ¥{fmt(calc.totalCostBeforeTax)}（税前总成本）</div>
+                </div>
+                <div>
+                  <div className="font-medium mb-1">► 第二步：税前单价</div>
+                  <div className="text-muted-foreground">¥{fmt(calc.totalCostBeforeTax)} ÷ {calc.validQty} = ¥{fmt(calc.totalCostBeforeTax / calc.validQty, 4)}/个</div>
+                </div>
+                <div>
+                  <div className="font-medium mb-1">► 第三步：含税计算（税率{calc.validTaxRate}%）</div>
+                  <div className="text-muted-foreground">
+                    含税单价 = ¥{fmt(calc.totalCostBeforeTax / calc.validQty, 4)} × (1 + {calc.validTaxRate}%) = ¥{fmt(calc.unitCost, 4)}/个
+                  </div>
+                  <div className="text-primary font-medium mt-1">
+                    含税总成本 = ¥{fmt(calc.totalCost)}
+                  </div>
+                </div>
+                <div>
+                  <div className="font-medium mb-1">► 第四步：美金换算（汇率 {calc.validExchangeRate}）</div>
+                  <div className="text-destructive font-medium">
+                    含税美金单价：¥{fmt(calc.unitCost, 4)} ÷ {calc.validExchangeRate} = ${fmt(calc.unitCostUsd, 4)}/pc
+                  </div>
+                  <div className="text-destructive font-medium">
+                    模具费：¥{fmt(calc.finalMoldTotal)}（单独计算）
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
       </main>
 

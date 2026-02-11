@@ -859,7 +859,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                     variant="default" 
                     size="sm" 
                     onClick={() => addDigitalLayer("composite")}
-                    className=""
+                    className="bg-[hsl(20,89%,60%)] border-[hsl(20,89%,52%)]"
                     data-testid="add-composite-layer"
                   >
                     + 复合层
@@ -868,7 +868,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                     variant="default" 
                     size="sm" 
                     onClick={() => addDigitalLayer("seal")}
-                    className=""
+                    className="bg-[hsl(20,89%,70%)] border-[hsl(20,89%,62%)]"
                     data-testid="add-seal-layer"
                   >
                     + 热封层
@@ -2248,144 +2248,66 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
             const priceUnitEn = "USD/pc";
 
             return (
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg section-title" data-testid="text-quote-result-title">报价结果</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
-                    <div className="p-3 rounded-md border" data-testid="card-exfactory">
-                      <div className="text-xs font-semibold text-muted-foreground">
-                        出厂价（不含版费，含损耗，含利润）
-                      </div>
-                      <div className="mt-1 text-sm">
-                        单价：
-                        <span className="font-bold">{f4(gc.exFactoryUnit)} {priceUnit}</span>
-                        <span className="ml-1 text-xs text-muted-foreground">
-                          ≈ {f4(usd(gc.exFactoryUnit))} {priceUnitEn}
-                        </span>
-                      </div>
-                      <div className="text-sm">
-                        总价：
-                        <span className="font-bold">{f2(gc.exFactoryTotal)} 元</span>
-                        <span className="ml-1 text-xs text-muted-foreground">
-                          ≈ {f2(usd(gc.exFactoryTotal))} USD
-                        </span>
-                      </div>
-                    </div>
+              <div className="space-y-0" data-testid="calculation-breakdown">
+                <div className="summary-panel mb-8">
+                  <h2 className="text-xl font-bold text-foreground flex items-center gap-2 flex-wrap tracking-tight">
+                    <CheckCircle2 className="w-5 h-5 text-primary" /> 报价汇总 & 完整成本计算明细
+                  </h2>
 
-                    <div className="p-3 rounded-md border" data-testid="card-withfreight">
-                      <div className="text-xs font-semibold text-muted-foreground">
-                        含运价（不含版费，含损耗，含利润，含运费 +3%）
-                      </div>
-                      <div className="mt-1 text-sm">
-                        单价：
-                        <span className="font-bold">{f4(gc.withFreightUnit)} {priceUnit}</span>
-                        <span className="ml-1 text-xs text-muted-foreground">
-                          ≈ {f4(usd(gc.withFreightUnit))} {priceUnitEn}
-                        </span>
-                      </div>
-                      <div className="text-sm">
-                        总价：
-                        <span className="font-bold">{f2(gc.withFreightTotal)} 元</span>
-                        <span className="ml-1 text-xs text-muted-foreground">
-                          ≈ {f2(usd(gc.withFreightTotal))} USD
-                        </span>
-                      </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                    <div className="p-5 border rounded-[10px]" data-testid="card-exfactory">
+                      <div className="text-sm text-muted-foreground mb-2 font-semibold uppercase tracking-wide">出厂价（含损耗+利润）</div>
+                      <div className="price-main">{f4(gc.exFactoryUnit)} <span className="text-lg">{priceUnit}</span></div>
+                      <div className="price-unit mt-2">≈ {f4(usd(gc.exFactoryUnit))} {priceUnitEn}</div>
+                      <div className="breakdown-divider"></div>
+                      <div className="price-unit font-medium">总价：{f2(gc.exFactoryTotal)} 元 ≈ {f2(usd(gc.exFactoryTotal))} USD</div>
                     </div>
-
-                    <div className="p-3 rounded-md border" data-testid="card-withfreighttax">
-                      <div className="text-xs font-semibold text-muted-foreground">
-                        含运含税价（不含版费，含损耗，含利润，含运费 +3%，含税 +9%）
-                      </div>
-                      <div className="mt-1 text-sm">
-                        单价：
-                        <span className="font-bold">{f4(gc.withFreightTaxUnit)} {priceUnit}</span>
-                        <span className="ml-1 text-xs text-muted-foreground">
-                          ≈ {f4(usd(gc.withFreightTaxUnit))} {priceUnitEn}
-                        </span>
-                      </div>
-                      <div className="text-sm">
-                        总价：
-                        <span className="font-bold">{f2(gc.withFreightTaxTotal)} 元</span>
-                        <span className="ml-1 text-xs text-muted-foreground">
-                          ≈ {f2(usd(gc.withFreightTaxTotal))} USD
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="summary-panel !border-l-destructive !p-3" data-testid="card-final-price">
-                      <div className="text-xs font-semibold text-destructive">
-                        含版费含运含税价（含版费，含损耗，含利润，含运费 +3%，含税 +9%）
-                      </div>
-                      <div className="mt-1">
-                        <span className="price-main text-destructive text-xl">{f4(gc.withPlateFreightTaxUnit)}</span>
-                        <span className="price-unit ml-1">{priceUnit}</span>
-                        <span className="price-unit ml-2">
-                          ≈ {f4(usd(gc.withPlateFreightTaxUnit))} {priceUnitEn}
-                        </span>
-                      </div>
-                      <div className="text-sm text-destructive mt-1">
-                        总价：
-                        <span className="font-bold">{f2(gc.withPlateFreightTaxTotal)} 元</span>
-                        <span className="ml-1 text-xs opacity-80">
-                          ≈ {f2(usd(gc.withPlateFreightTaxTotal))} USD
-                        </span>
-                      </div>
+                    <div className="p-5 border-2 border-primary rounded-[10px] bg-primary/5" data-testid="card-final-price">
+                      <div className="text-sm text-primary mb-2 font-semibold uppercase tracking-wide">含版费含运含税价（最终价）</div>
+                      <div className="price-main">{f4(gc.withPlateFreightTaxUnit)} <span className="text-lg">{priceUnit}</span></div>
+                      <div className="price-unit mt-2 text-primary font-medium">≈ {f4(usd(gc.withPlateFreightTaxUnit))} {priceUnitEn}</div>
+                      <div className="breakdown-divider"></div>
+                      <div className="price-unit text-primary font-medium">总价：{f2(gc.withPlateFreightTaxTotal)} 元 ≈ {f2(usd(gc.withPlateFreightTaxTotal))} USD</div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-5 gap-3 text-sm" data-testid="cost-breakdown-grid">
-                    <div className="p-3 rounded-md border" data-testid="cost-material">
-                      <div className="text-muted-foreground">材料</div>
-                      <div className="font-semibold" data-testid="text-cost-material">{f4(gc.materialCostPerUnit)} 元</div>
-                    </div>
-                    <div className="p-3 rounded-md border" data-testid="cost-print">
-                      <div className="text-muted-foreground">印刷</div>
-                      <div className="font-semibold" data-testid="text-cost-print">{f4(gc.printCostPerUnit)} 元</div>
-                    </div>
-                    <div className="p-3 rounded-md border" data-testid="cost-lamination">
-                      <div className="text-muted-foreground">复合</div>
-                      <div className="font-semibold" data-testid="text-cost-lamination">{f4(gc.laminationCostPerUnit)} 元</div>
-                    </div>
-                    <div className="p-3 rounded-md border" data-testid="cost-making">
-                      <div className="text-muted-foreground">制袋</div>
-                      <div className="font-semibold" data-testid="text-cost-making">{f4(gc.makingCostPerUnit)} 元</div>
-                    </div>
-                    <div className="p-3 rounded-md border" data-testid="cost-postprocess">
-                      <div className="text-muted-foreground">后加工</div>
-                      <div className="font-semibold" data-testid="text-cost-postprocess">{f4(gc.postProcessingCostPerUnit)} 元</div>
-                    </div>
+                  <div className="mt-5 text-sm font-medium text-muted-foreground flex items-center gap-1 flex-wrap">
+                    <Sparkles className="w-4 h-4 text-primary" /> 核心规则：基础单价 × 损耗 × 数量系数 × 利润 = 出厂价 → +运费3% → +税9% → +版费分摊 = 最终价
                   </div>
+                </div>
 
-                  <div className="text-xs md:text-sm space-y-2 p-4 bg-muted/30 rounded-lg" data-testid="calculation-detail">
-                    <div className="font-medium text-base mb-3">计算明细</div>
-
-                    <div className="font-medium">一、材料成本（合计 {f4(gc.materialCostPerUnit)} 元/个）</div>
-                    {gc.isEightSideDiff && (
-                      <div className="pl-5 text-muted-foreground mb-1">
-                        八边封分区：正背底面积 {f4(gc.frontBackBottomArea)}㎡ + 两侧面积 {f4(gc.twoSideArea)}㎡ = 总 {f4(gc.area)}㎡
-                      </div>
-                    )}
-                    {gc.isEightSideDiff && <div className="pl-5 font-medium text-xs mb-1">正背底面材料：</div>}
-                    <ul className="list-disc pl-5 space-y-1">
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                      <Badge variant="default" className="text-xs">1</Badge> 材料成本【逐层精准计算】
+                    </h3>
+                    <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                      {gc.isEightSideDiff && (
+                        <>
+                          <div className="flex items-start gap-2 flex-wrap">
+                            <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                            <span>八边封分区：正背底面积 {f4(gc.frontBackBottomArea)}㎡ + 两侧面积 {f4(gc.twoSideArea)}㎡ = 总 {f4(gc.area)}㎡</span>
+                          </div>
+                          <div className="flex items-start gap-2 flex-wrap font-medium text-xs">
+                            <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                            <span>正背底面材料：</span>
+                          </div>
+                        </>
+                      )}
                       {materialLayers.map((layer, i) => {
                         const material = config.materialLibrary.find(m => m.id === layer.materialId);
                         const materialName = material?.name || "未知材料";
                         const _area = gc.isEightSideDiff ? gc.frontBackBottomArea : gc.area;
-
                         const calcDetailCost = (a: number, thick: number, dens: number, prc: number) => {
                           if (dens === 0 || dens === undefined) return a * (thick / 1000) * prc;
                           return a * thick * dens * prc / 1000;
                         };
-
                         const formatFormula = (a: number, thick: number, dens: number, prc: number, cost: number) => {
                           if (dens === 0 || dens === undefined) {
-                            return <>面积 {f4(a)}㎡ × (克重 {thick} ÷ 1000) × 单价 {prc} 元/kg = <b>{f4(cost)} 元</b></>;
+                            return <>面积 {f4(a)}㎡ × (克重 {thick} ÷ 1000) × 单价 {prc} 元/kg = {f4(cost)} 元</>;
                           }
-                          return <>面积 {f4(a)}㎡ × 厚度 {thick}μm × 密度 {dens} × 单价 {prc} ÷ 1000 = <b>{f4(cost)} 元</b></>;
+                          return <>面积 {f4(a)}㎡ × 厚度 {thick}μm × 密度 {dens} × 单价 {prc} ÷ 1000 = {f4(cost)} 元</>;
                         };
-
                         if (layer.splice?.enabled && gc.unfoldedWidthMm > 0) {
                           const wMm = Math.max(0, Math.min(layer.splice.windowWidthMm, gc.unfoldedWidthMm));
                           const mainMm = gc.unfoldedWidthMm - wMm;
@@ -2398,28 +2320,32 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                           const winName = winMat?.name || "窗口膜";
                           const winCost = calcDetailCost(winArea, layer.splice.windowThicknessUm, layer.splice.windowDensity, layer.splice.windowPrice);
                           return (
-                            <li key={i}>
-                              第{i + 1}层 {materialName}（开窗拼接）：<br />
-                              <span className="ml-4">主材 {materialName}（{Math.round(mainMm)}mm / {Math.round(gc.unfoldedWidthMm)}mm）：{formatFormula(spliceMainArea, layer.thickness, layer.density, layer.price, mainCost)}</span><br />
-                              <span className="ml-4">窗口膜 {winName}（{Math.round(wMm)}mm / {Math.round(gc.unfoldedWidthMm)}mm）：{formatFormula(winArea, layer.splice.windowThicknessUm, layer.splice.windowDensity, layer.splice.windowPrice, winCost)}</span><br />
-                              <span className="ml-4">合计 = <b>{f4(mainCost + winCost)} 元/个</b></span>
-                            </li>
+                            <div key={i} className="space-y-1">
+                              <div className="flex items-start gap-2 flex-wrap">
+                                <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                                <span>第{i + 1}层 {materialName}（开窗拼接）</span>
+                              </div>
+                              <div className="pl-5 text-muted-foreground">主材（{Math.round(mainMm)}mm / {Math.round(gc.unfoldedWidthMm)}mm）：{formatFormula(spliceMainArea, layer.thickness, layer.density, layer.price, mainCost)}</div>
+                              <div className="pl-5 text-muted-foreground">窗口膜 {winName}（{Math.round(wMm)}mm / {Math.round(gc.unfoldedWidthMm)}mm）：{formatFormula(winArea, layer.splice.windowThicknessUm, layer.splice.windowDensity, layer.splice.windowPrice, winCost)}</div>
+                              <div className="pl-5 font-medium">合计 = {f4(mainCost + winCost)} 元/个</div>
+                            </div>
                           );
                         }
-
                         const cost = calcDetailCost(_area, layer.thickness, layer.density, layer.price);
                         const method = (layer.density === 0 || layer.density === undefined) ? "纸类gsm法" : "薄膜法";
                         return (
-                          <li key={i}>
-                            第{i + 1}层 {materialName}（{method}）：{formatFormula(_area, layer.thickness, layer.density, layer.price, cost)}
-                          </li>
+                          <div key={i} className="flex items-start gap-2 flex-wrap">
+                            <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                            <span>第{i + 1}层 {materialName}（{method}）：{formatFormula(_area, layer.thickness, layer.density, layer.price, cost)}</span>
+                          </div>
                         );
                       })}
-                    </ul>
-                    {gc.isEightSideDiff && (
-                      <>
-                        <div className="pl-5 font-medium text-xs mt-2 mb-1">侧面材料（面积 {f4(gc.twoSideArea)}㎡）：</div>
-                        <ul className="list-disc pl-5 space-y-1">
+                      {gc.isEightSideDiff && (
+                        <>
+                          <div className="flex items-start gap-2 flex-wrap font-medium text-xs mt-2">
+                            <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                            <span>侧面材料（面积 {f4(gc.twoSideArea)}㎡）：</span>
+                          </div>
                           {sideMaterialLayers.map((layer, i) => {
                             const material = config.materialLibrary.find(m => m.id === layer.materialId);
                             const materialName = material?.name || "未知材料";
@@ -2430,22 +2356,35 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                             const cost = calcSideCost(gc.twoSideArea, layer.thickness, layer.density, layer.price);
                             const method = (layer.density === 0 || layer.density === undefined) ? "纸类gsm法" : "薄膜法";
                             return (
-                              <li key={`side-${i}`}>
-                                侧面第{i + 1}层 {materialName}（{method}）：
-                                {layer.density === 0 || layer.density === undefined
-                                  ? <>面积 {f4(gc.twoSideArea)}㎡ × (克重 {layer.thickness} ÷ 1000) × 单价 {layer.price} 元/kg = <b>{f4(cost)} 元</b></>
-                                  : <>面积 {f4(gc.twoSideArea)}㎡ × 厚度 {layer.thickness}μm × 密度 {layer.density} × 单价 {layer.price} ÷ 1000 = <b>{f4(cost)} 元</b></>
-                                }
-                              </li>
+                              <div key={`side-${i}`} className="flex items-start gap-2 flex-wrap">
+                                <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                                <span>侧面第{i + 1}层 {materialName}（{method}）：
+                                  {layer.density === 0 || layer.density === undefined
+                                    ? <>面积 {f4(gc.twoSideArea)}㎡ × (克重 {layer.thickness} ÷ 1000) × 单价 {layer.price} 元/kg = {f4(cost)} 元</>
+                                    : <>面积 {f4(gc.twoSideArea)}㎡ × 厚度 {layer.thickness}μm × 密度 {layer.density} × 单价 {layer.price} ÷ 1000 = {f4(cost)} 元</>
+                                  }
+                                </span>
+                              </div>
                             );
                           })}
-                        </ul>
-                        <div className="pl-5 mt-1">侧面材料合计 = <b>{f4(gc.sideMaterialCostPerUnit)} 元/个</b></div>
-                      </>
-                    )}
+                          <div className="flex items-start gap-2 font-medium flex-wrap">
+                            <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                            <span>侧面材料合计 = {f4(gc.sideMaterialCostPerUnit)} 元/个</span>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                        <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <span>材料总成本 = {f4(gc.materialCostPerUnit)} 元/个</span>
+                      </div>
+                    </div>
+                  </div>
 
-                    <div className="font-medium mt-3">二、印刷成本</div>
-                    <div className="pl-5">
+                  <div>
+                    <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                      <Badge variant="default" className="text-xs">2</Badge> 印刷成本【覆盖率定价】
+                    </h3>
+                    <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
                       {(() => {
                         const printRule = config.printingPriceRules.find(r => r.coverage === selectedPrintCoverage);
                         const pricePerSqm = printRule?.pricePerSqm || 0;
@@ -2456,23 +2395,42 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                           const sidePrint = gc.twoSideArea * sidePricePerSqm;
                           return (
                             <>
-                              正背底面印刷：{f4(gc.frontBackBottomArea)}㎡ × {pricePerSqm} 元/㎡ = {f4(mainPrint)} 元<br />
-                              侧面印刷：{f4(gc.twoSideArea)}㎡ × {sidePricePerSqm} 元/㎡ = {f4(sidePrint)} 元<br />
-                              合计 = <b>{f4(gc.printCostPerUnit)} 元/个</b>
+                              <div className="flex items-start gap-2 flex-wrap">
+                                <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                                <span>正背底面印刷：{f4(gc.frontBackBottomArea)}㎡ × {pricePerSqm} 元/㎡ = {f4(mainPrint)} 元</span>
+                              </div>
+                              <div className="flex items-start gap-2 flex-wrap">
+                                <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                                <span>侧面印刷：{f4(gc.twoSideArea)}㎡ × {sidePricePerSqm} 元/㎡ = {f4(sidePrint)} 元</span>
+                              </div>
                             </>
                           );
                         }
                         return (
                           <>
-                            公式：印刷 = 展开面积 × 覆盖单价<br />
-                            代入：{f4(gc.area)} ㎡ × {pricePerSqm} 元/㎡ = <b>{f4(gc.printCostPerUnit)} 元/个</b>
+                            <div className="flex items-start gap-2 flex-wrap">
+                              <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                              <span>公式：印刷 = 展开面积 × 覆盖单价</span>
+                            </div>
+                            <div className="flex items-start gap-2 flex-wrap">
+                              <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                              <span>代入：{f4(gc.area)} ㎡ × {pricePerSqm} 元/㎡</span>
+                            </div>
                           </>
                         );
                       })()}
+                      <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                        <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <span>印刷总成本 = {f4(gc.printCostPerUnit)} 元/个</span>
+                      </div>
                     </div>
+                  </div>
 
-                    <div className="font-medium mt-3">三、复合成本</div>
-                    <div className="pl-5">
+                  <div>
+                    <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                      <Badge variant="default" className="text-xs">3</Badge> 复合成本【分步叠加】
+                    </h3>
+                    <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
                       {(() => {
                         const stepDetails = laminationSteps.map((step, i) => {
                           const rule = config.laminationPriceRules.find(r => r.id === step.laminationId);
@@ -2489,114 +2447,186 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                           const sideLam = gc.twoSideArea * sideLaminationSum;
                           return (
                             <>
-                              正背底面复合：{f4(gc.frontBackBottomArea)}㎡ × {laminationSum} 元/㎡ = {f4(mainLam)} 元<br />
-                              侧面复合：{f4(gc.twoSideArea)}㎡ × {sideLaminationSum} 元/㎡ = {f4(sideLam)} 元<br />
-                              合计 = <b>{f4(gc.laminationCostPerUnit)} 元/个</b>
+                              <div className="flex items-start gap-2 flex-wrap">
+                                <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                                <span>正背底面复合：{f4(gc.frontBackBottomArea)}㎡ × {laminationSum} 元/㎡ = {f4(mainLam)} 元</span>
+                              </div>
+                              <div className="flex items-start gap-2 flex-wrap">
+                                <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                                <span>侧面复合：{f4(gc.twoSideArea)}㎡ × {sideLaminationSum} 元/㎡ = {f4(sideLam)} 元</span>
+                              </div>
                             </>
                           );
                         }
                         return (
                           <>
-                            公式：复合 = 展开面积 × (各步单价之和)<br />
-                            {stepDetails.map((d, i) => (
-                              <span key={i}>{i > 0 ? " + " : ""}{d.label} {d.price}元/㎡</span>
-                            ))}
-                            {" = "}{laminationSum} 元/㎡<br />
-                            代入：{f4(gc.area)} ㎡ × {laminationSum} = <b>{f4(gc.laminationCostPerUnit)} 元/个</b>
+                            <div className="flex items-start gap-2 flex-wrap">
+                              <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                              <span>公式：复合 = 展开面积 × (各步单价之和)</span>
+                            </div>
+                            <div className="flex items-start gap-2 flex-wrap">
+                              <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                              <span>{stepDetails.map((d, i) => `${i > 0 ? " + " : ""}${d.label} ${d.price}元/㎡`).join("")} = {laminationSum} 元/㎡</span>
+                            </div>
+                            <div className="flex items-start gap-2 flex-wrap">
+                              <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                              <span>代入：{f4(gc.area)} ㎡ × {laminationSum}</span>
+                            </div>
                           </>
                         );
                       })()}
-                    </div>
-
-                    <div className="font-medium mt-3">四、制袋成本</div>
-                    <div className="pl-5">
-                      {selectedBagType?.makingCostFormula ? (
-                        <>
-                          公式：{selectedBagType.makingCostFormula}<br />
-                          代入尺寸：袋宽={toNum(String(dimensions.width)) / 1000}m 袋高={toNum(String(dimensions.height)) / 1000}m
-                          {requiredDimensions.includes("bottomInsert") && <> 底插入={toNum(String(dimensions.bottomInsert)) / 1000}m</>}
-                          {requiredDimensions.includes("sideExpansion") && <> 侧展开={toNum(String(dimensions.sideExpansion)) / 1000}m</>}
-                          {requiredDimensions.includes("backSeal") && <> 背封边={toNum(String(dimensions.backSeal)) / 1000}m</>}
-                          <br />
-                          结果 = <b>{f4(gc.makingCostPerUnit)} 元/个</b>
-                        </>
-                      ) : (
-                        <>未配置制袋公式，制袋 = <b>0 元/个</b></>
-                      )}
-                    </div>
-
-                    <div className="font-medium mt-3">五、后加工成本</div>
-                    <div className="pl-5">
-                      {Object.entries(selectedPostProcessing).filter(([, v]) => v).length === 0 ? (
-                        <>未选择后加工，后加工费 = <b>0 元/个</b></>
-                      ) : (
-                        <ul className="list-disc pl-5 space-y-1">
-                          {Object.entries(selectedPostProcessing).filter(([, v]) => v).map(([id]) => {
-                            const opt = config.postProcessingOptions.find(o => o.id === id);
-                            if (!opt) return null;
-                            const _wM = toNum(String(dimensions.width)) / 1000;
-                            const _cost = calcPostProcessingCost(opt, _wM, gravureCosts.area, selectedBagType?.id, selectedSpecs[id]);
-                            return (
-                              <li key={id}>
-                                {opt.name}
-                                {opt.pricingType === "specSelection" && selectedSpecs[id] && (
-                                  <span className="text-muted-foreground"> ({selectedSpecs[id]})</span>
-                                )}
-                                {opt.pricingType !== "free" && (
-                                  <span>：{_cost.toFixed(4)} 元/个</span>
-                                )}
-                                {opt.pricingType === "free" && (
-                                  <span className="text-muted-foreground">（免费）</span>
-                                )}
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                      合计后加工 = <b>{f4(gc.postProcessingCostPerUnit)} 元/个</b>
-                    </div>
-
-                    <div className="font-medium mt-3 pt-3 border-t">六、单价合计与系数</div>
-                    <div className="pl-5 space-y-1">
-                      <div data-testid="text-base-cost">
-                        基础单价 = 材料 + 印刷 + 复合 + 制袋 + 后加工<br />
-                        = {f4(gc.materialCostPerUnit)} + {f4(gc.printCostPerUnit)} + {f4(gc.laminationCostPerUnit)} + {f4(gc.makingCostPerUnit)} + {f4(gc.postProcessingCostPerUnit)} = <b>{f4(gc.baseCostPerUnit)} 元/个</b>
+                      <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                        <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <span>复合总成本 = {f4(gc.laminationCostPerUnit)} 元/个</span>
                       </div>
-                      <div data-testid="text-waste-coeff">
-                        × 损耗系数 {gc.wasteCoefficient.toFixed(2)} = {f4(gc.costWithWaste)} 元/个
-                      </div>
-                      <div data-testid="text-qty-coeff">
-                        × 数量系数 {gc.quantityCoefficient.toFixed(2)} = {f4(gc.costWithQuantity)} 元/个
-                      </div>
-                      <div data-testid="text-profit-coeff">
-                        × 利润系数 {gc.profitMultiplier.toFixed(2)} = <b>{f4(gc.exFactoryUnit)} 元/个</b>（出厂价）
-                      </div>
-                    </div>
-
-                    <div className="font-medium mt-3 pt-3 border-t">七、版费与上机费</div>
-                    <div className="pl-5 space-y-1">
-                      <div data-testid="text-plate-cost">
-                        版费 = 版长 {plateConfig.plateLength}cm × 版周 {plateConfig.plateCircumference}cm × {plateConfig.colorCount}色 × {plateConfig.pricePerSqcm} 元/cm² = <b>{f2(gc.plateCost)} 元</b>
-                      </div>
-                      <div data-testid="text-setup-fee">
-                        上机费 = {toNum(String(quantity)) >= 10000
-                          ? <>数量 ≥ 10,000，免上机费 = <b>0 元</b></>
-                          : <>min(200 × {plateConfig.colorCount}色, 1800) = <b>{f2(gc.setupFee)} 元</b></>
-                        }
-                      </div>
-                    </div>
-
-                    <div className="font-medium mt-3 pt-3 border-t">八、最终价格推导</div>
-                    <div className="pl-5 space-y-1">
-                      <div data-testid="text-exfactory-derivation">出厂单价 = <b>{f4(gc.exFactoryUnit)}</b> {priceUnit} → 总 {f2(gc.exFactoryTotal)} 元</div>
-                      <div data-testid="text-freight-derivation">+ 运费 3% → 含运单价 = {f4(gc.exFactoryUnit)} × 1.03 = <b>{f4(gc.withFreightUnit)}</b> {priceUnit} → 总 {f2(gc.withFreightTotal)} 元</div>
-                      <div data-testid="text-tax-derivation">+ 税 9% → 含运含税单价 = {f4(gc.withFreightUnit)} × 1.09 = <b>{f4(gc.withFreightTaxUnit)}</b> {priceUnit} → 总 {f2(gc.withFreightTaxTotal)} 元</div>
-                      <div data-testid="text-plate-derivation">+ 版费分摊 → 含版费单价 = {f4(gc.withFreightTaxUnit)} + ({f2(gc.plateCost)} + {f2(gc.setupFee)}) / {quantity} = <b>{f4(gc.withPlateFreightTaxUnit)}</b> {priceUnit}</div>
-                      <div data-testid="text-final-total">含版费含运含税总价 = <b>{f2(gc.withPlateFreightTaxTotal)} 元</b> ≈ <b>{f2(usd(gc.withPlateFreightTaxTotal))} USD</b></div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+
+                  <div>
+                    <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                      <Badge variant="default" className="text-xs">4</Badge> 制袋成本【公式+数值代入】
+                    </h3>
+                    <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                      {selectedBagType?.makingCostFormula ? (
+                        <>
+                          <div className="flex items-start gap-2 flex-wrap">
+                            <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                            <span>公式：{selectedBagType.makingCostFormula}</span>
+                          </div>
+                          <div className="flex items-start gap-2 flex-wrap">
+                            <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                            <span>代入尺寸：袋宽={toNum(String(dimensions.width)) / 1000}m 袋高={toNum(String(dimensions.height)) / 1000}m
+                              {requiredDimensions.includes("bottomInsert") && ` 底插入=${toNum(String(dimensions.bottomInsert)) / 1000}m`}
+                              {requiredDimensions.includes("sideExpansion") && ` 侧展开=${toNum(String(dimensions.sideExpansion)) / 1000}m`}
+                              {requiredDimensions.includes("backSeal") && ` 背封边=${toNum(String(dimensions.backSeal)) / 1000}m`}
+                            </span>
+                          </div>
+                          <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                            <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                            <span>制袋总成本 = {f4(gc.makingCostPerUnit)} 元/个</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                          <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          <span>未配置制袋公式，制袋 = 0 元/个</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                      <Badge variant="default" className="text-xs">5</Badge> 后加工成本【逐项拆解】
+                    </h3>
+                    <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                      {Object.entries(selectedPostProcessing).filter(([, v]) => v).length === 0 ? (
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>未选择后加工，后加工费 = 0 元/个</span>
+                        </div>
+                      ) : (
+                        Object.entries(selectedPostProcessing).filter(([, v]) => v).map(([id]) => {
+                          const opt = config.postProcessingOptions.find(o => o.id === id);
+                          if (!opt) return null;
+                          const _wM = toNum(String(dimensions.width)) / 1000;
+                          const _cost = calcPostProcessingCost(opt, _wM, gravureCosts.area, selectedBagType?.id, selectedSpecs[id]);
+                          return (
+                            <div key={id} className="flex items-start gap-2 flex-wrap">
+                              <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                              <span>{opt.name}
+                                {opt.pricingType === "specSelection" && selectedSpecs[id] && ` (${selectedSpecs[id]})`}
+                                {opt.pricingType !== "free" && `：${_cost.toFixed(4)} 元/个`}
+                                {opt.pricingType === "free" && "（免费）"}
+                              </span>
+                            </div>
+                          );
+                        })
+                      )}
+                      <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                        <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <span>后加工总成本 = {f4(gc.postProcessingCostPerUnit)} 元/个</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                      <Badge variant="default" className="text-xs">6</Badge> 单价合计与系数调整
+                    </h3>
+                    <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                      <div className="flex items-start gap-2 flex-wrap" data-testid="text-base-cost">
+                        <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                        <span>基础单价 = 材料 + 印刷 + 复合 + 制袋 + 后加工 = {f4(gc.materialCostPerUnit)} + {f4(gc.printCostPerUnit)} + {f4(gc.laminationCostPerUnit)} + {f4(gc.makingCostPerUnit)} + {f4(gc.postProcessingCostPerUnit)} = {f4(gc.baseCostPerUnit)} 元/个</span>
+                      </div>
+                      <div className="flex items-start gap-2 flex-wrap" data-testid="text-waste-coeff">
+                        <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                        <span>× 损耗系数 {gc.wasteCoefficient.toFixed(2)} = {f4(gc.costWithWaste)} 元/个</span>
+                      </div>
+                      <div className="flex items-start gap-2 flex-wrap" data-testid="text-qty-coeff">
+                        <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                        <span>× 数量系数 {gc.quantityCoefficient.toFixed(2)} = {f4(gc.costWithQuantity)} 元/个</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-primary font-medium flex-wrap" data-testid="text-profit-coeff">
+                        <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <span>× 利润系数 {gc.profitMultiplier.toFixed(2)} = {f4(gc.exFactoryUnit)} 元/个（出厂价）</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                      <Badge variant="default" className="text-xs">7</Badge> 版费与上机费
+                    </h3>
+                    <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                      <div className="flex items-start gap-2 flex-wrap" data-testid="text-plate-cost">
+                        <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                        <span>版费 = 版长 {plateConfig.plateLength}cm × 版周 {plateConfig.plateCircumference}cm × {plateConfig.colorCount}色 × {plateConfig.pricePerSqcm} 元/cm² = {f2(gc.plateCost)} 元</span>
+                      </div>
+                      <div className="flex items-start gap-2 flex-wrap" data-testid="text-setup-fee">
+                        <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                        <span>上机费 = {toNum(String(quantity)) >= 10000
+                          ? `数量 ≥ 10,000，免上机费 = 0 元`
+                          : `min(200 × ${plateConfig.colorCount}色, 1800) = ${f2(gc.setupFee)} 元`
+                        }</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                        <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <span>版费合计 = {f2(gc.plateCost)} + {f2(gc.setupFee)} = {f2(gc.plateCost + gc.setupFee)} 元</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t-2 border-destructive pt-4 mt-6">
+                    <h3 className="text-base font-bold text-destructive mb-3 flex items-center gap-2 flex-wrap">
+                      <Sparkles className="w-4 h-4 shrink-0" /> 最终价格推导【完整计算步骤】
+                    </h3>
+                    <div className="border-l-2 border-muted pl-4 space-y-3 text-sm">
+                      <div>
+                        <div className="font-medium mb-1" data-testid="text-exfactory-derivation">► 第一步：出厂单价</div>
+                        <div className="text-primary font-medium">出厂单价 = {f4(gc.exFactoryUnit)} {priceUnit} → 总 {f2(gc.exFactoryTotal)} 元</div>
+                      </div>
+                      <div>
+                        <div className="font-medium mb-1" data-testid="text-freight-derivation">► 第二步：含运价（+3%运费）</div>
+                        <div className="text-muted-foreground">{f4(gc.exFactoryUnit)} × 1.03 = {f4(gc.withFreightUnit)} {priceUnit}</div>
+                        <div className="text-primary font-medium mt-1">含运总价 = {f2(gc.withFreightTotal)} 元</div>
+                      </div>
+                      <div>
+                        <div className="font-medium mb-1" data-testid="text-tax-derivation">► 第三步：含运含税价（+9%税）</div>
+                        <div className="text-muted-foreground">{f4(gc.withFreightUnit)} × 1.09 = {f4(gc.withFreightTaxUnit)} {priceUnit}</div>
+                        <div className="text-primary font-medium mt-1">含运含税总价 = {f2(gc.withFreightTaxTotal)} 元</div>
+                      </div>
+                      <div>
+                        <div className="font-medium mb-1" data-testid="text-plate-derivation">► 第四步：含版费最终价</div>
+                        <div className="text-muted-foreground">{f4(gc.withFreightTaxUnit)} + ({f2(gc.plateCost)} + {f2(gc.setupFee)}) / {quantity} = {f4(gc.withPlateFreightTaxUnit)} {priceUnit}</div>
+                        <div className="text-destructive font-medium mt-1" data-testid="text-final-total">
+                          含版费含运含税总价 = {f2(gc.withPlateFreightTaxTotal)} 元 ≈ {f2(usd(gc.withPlateFreightTaxTotal))} USD
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             );
           })()}
         </div>
