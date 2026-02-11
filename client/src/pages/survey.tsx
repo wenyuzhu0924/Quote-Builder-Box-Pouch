@@ -729,9 +729,9 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                               <TableCell>
                                 <div className="flex flex-wrap gap-1">
                                   {bagType.requiredDimensions.map((dim) => (
-                                    <span key={dim} className="px-2 py-0.5 bg-muted text-xs rounded">
+                                    <Badge key={dim} variant="secondary" className="text-xs">
                                       {dimensionLabels[dim] || dim}
-                                    </span>
+                                    </Badge>
                                   ))}
                                 </div>
                               </TableCell>
@@ -2049,12 +2049,9 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                             <TableCell>
                               <div className="flex flex-wrap gap-1">
                                 {bagType.requiredDimensions.map((dim) => (
-                                  <span
-                                    key={dim}
-                                    className="px-2 py-0.5 bg-muted text-xs rounded"
-                                  >
+                                  <Badge key={dim} variant="secondary" className="text-xs">
                                     {dimensionLabels[dim] || dim}
-                                  </span>
+                                  </Badge>
                                 ))}
                               </div>
                             </TableCell>
