@@ -145,6 +145,7 @@ export interface DigitalPrintMode {
   id: string;
   name: string;
   enabled: boolean;
+  coefficient: number;
 }
 
 export interface DigitalSpecialProcess {
@@ -250,11 +251,9 @@ const defaultDigitalBagTypes: CustomBagType[] = [
   { id: "eightSideWithZip", name: "八边封（有拉链）", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset", "sealEdge"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
   { id: "eightSideDouble", name: "八边封双放", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
   { id: "eightSideSplitBottom", name: "八边封分底", formula: "袋宽 × 袋高 × 2 + 底插入 × 袋高 × 2", requiredDimensions: ["width", "height", "bottomInsert", "sideGusset"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
-  { id: "shapedBag", name: "异形袋", formula: "袋宽 × 袋高 × 面积系数", requiredDimensions: ["width", "height", "areaCoefficient"], wasteCoefficient: 1.0, makingCostFormula: "", isBuiltIn: false, enabled: true },
 ];
 
 const defaultDigitalPrintLayerMaterials: DigitalMaterial[] = [
-  { id: "0", name: "无", thickness: 0, density: 0, price: 0, squarePrice: 0, category: "print", notes: "" },
   { id: "MOPP25", name: "MOPP25", thickness: 25, density: 0.91, price: 18.6, squarePrice: 0.42, category: "print", notes: "八边封袋型不可使用" },
   { id: "哑油MOPP25", name: "哑油MOPP25", thickness: 25, density: 0.91, price: 30, squarePrice: 0.68, category: "print", notes: "" },
   { id: "MOPP40", name: "MOPP40", thickness: 40, density: 0.91, price: 20.0, squarePrice: 0.73, category: "print", notes: "" },
@@ -278,7 +277,6 @@ const defaultDigitalPrintLayerMaterials: DigitalMaterial[] = [
 ];
 
 const defaultDigitalCompositeLayerMaterials: DigitalMaterial[] = [
-  { id: "0", name: "无", thickness: 0, density: 0, price: 0, squarePrice: 0, category: "composite", notes: "" },
   { id: "VMPET普通12", name: "VMPET普通12", thickness: 12, density: 1.41, price: 17, squarePrice: 0.29, category: "composite", notes: "" },
   { id: "VMPET素面镭射", name: "VMPET素面镭射", thickness: 12, density: 1.41, price: 65, squarePrice: 1.10, category: "composite", notes: "" },
   { id: "VMPET/PET阴阳", name: "VMPET/PET阴阳", thickness: 12, density: 1.41, price: 20, squarePrice: 0.34, category: "composite", notes: "一半镀铝一半透明" },
@@ -306,7 +304,6 @@ const defaultDigitalCompositeLayerMaterials: DigitalMaterial[] = [
 ];
 
 const defaultDigitalSealLayerMaterials: DigitalMaterial[] = [
-  { id: "0", name: "无", thickness: 0, density: 0, price: 0, squarePrice: 0, category: "seal", notes: "" },
   { id: "PLA30", name: "PLA30", thickness: 30, density: 1.27, price: 48, squarePrice: 1.83, category: "seal", notes: "" },
   { id: "PLA50", name: "PLA50", thickness: 50, density: 1.27, price: 48, squarePrice: 3.05, category: "seal", notes: "" },
   { id: "PLA60", name: "PLA60", thickness: 60, density: 1.27, price: 48, squarePrice: 3.66, category: "seal", notes: "" },
@@ -336,10 +333,10 @@ const defaultDigitalSealLayerMaterials: DigitalMaterial[] = [
 ];
 
 const defaultDigitalPrintModes: DigitalPrintMode[] = [
-  { id: "none", name: "无印刷", enabled: true },
-  { id: "singleBlack", name: "单黑", enabled: true },
-  { id: "singleWhite", name: "单白", enabled: true },
-  { id: "doubleWhite", name: "双层白", enabled: true },
+  { id: "none", name: "无印刷", enabled: true, coefficient: 0 },
+  { id: "singleBlack", name: "单黑", enabled: true, coefficient: 1 },
+  { id: "singleWhite", name: "单白", enabled: true, coefficient: 1 },
+  { id: "doubleWhite", name: "双层白", enabled: true, coefficient: 2 },
 ];
 
 const defaultDigitalSpecialProcesses: DigitalSpecialProcess[] = [

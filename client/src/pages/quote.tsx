@@ -431,7 +431,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
 
     let printCostPerMeter = 0;
     const selectedMode = digitalConfig.printModes.find(m => m.id === selectedPrintModeId);
-    if (selectedMode && selectedMode.id !== "none") {
+    if (selectedMode && selectedMode.coefficient > 0) {
       for (const tier of digitalConfig.printingTiers) {
         if (totalMeters <= tier.maxMeters) {
           printCostPerMeter = tier.pricePerMeter;
@@ -441,9 +441,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
       if (printCostPerMeter === 0 && digitalConfig.printingTiers.length > 0) {
         printCostPerMeter = digitalConfig.printingTiers[digitalConfig.printingTiers.length - 1].pricePerMeter;
       }
-      if (selectedMode.id === "doubleWhite") {
-        printCostPerMeter *= 2;
-      }
+      printCostPerMeter *= selectedMode.coefficient;
     }
     const printCostTotal = totalMeters * printCostPerMeter;
     const printCostPerUnit = printCostTotal / (_qty * _sku || 1);

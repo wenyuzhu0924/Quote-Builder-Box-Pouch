@@ -11,7 +11,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuote, type CustomMaterial, type PrintingPriceRule, type LaminationPriceRule, type PostProcessingOptionConfig, type PostProcessingPricingType, type PostProcessingCategory, type BagTypePrice, type SpecOption, type QuantityDiscountRule, type CustomBagType, type DigitalMaterial, type DigitalSpecialProcess, type DigitalZipperType, type DigitalValveType, type DigitalAccessory, type DigitalPrintingTier, parseDimensionsFromFormula } from "@/lib/quote-store";
+import { useQuote, type CustomMaterial, type PrintingPriceRule, type LaminationPriceRule, type PostProcessingOptionConfig, type PostProcessingPricingType, type PostProcessingCategory, type BagTypePrice, type SpecOption, type QuantityDiscountRule, type CustomBagType, type DigitalMaterial, type DigitalPrintMode, type DigitalSpecialProcess, type DigitalZipperType, type DigitalValveType, type DigitalAccessory, type DigitalPrintingTier, parseDimensionsFromFormula } from "@/lib/quote-store";
 
 interface SurveyPageProps {
   backPath?: string;
@@ -350,6 +350,42 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
         m.id === id ? { ...m, enabled: !m.enabled } : m
       ),
     });
+  };
+
+  const updateDigitalPrintMode = (id: string, field: keyof DigitalPrintMode, value: string | number | boolean) => {
+    updateDigitalConfig({
+      printModes: digitalConfig.printModes.map((m) =>
+        m.id === id ? { ...m, [field]: value } : m
+      ),
+    });
+  };
+
+  const addDigitalPrintMode = () => {
+    const mode: DigitalPrintMode = {
+      id: `pm_${Date.now()}`,
+      name: "新印刷模式",
+      enabled: true,
+      coefficient: 1,
+    };
+    updateDigitalConfig({ printModes: [...digitalConfig.printModes, mode] });
+  };
+
+  const deleteDigitalPrintMode = (id: string) => {
+    updateDigitalConfig({ printModes: digitalConfig.printModes.filter((m) => m.id !== id) });
+  };
+
+  const addDigitalPrintingTier = () => {
+    const lastTier = digitalConfig.printingTiers[digitalConfig.printingTiers.length - 1];
+    const tier: DigitalPrintingTier = {
+      maxMeters: (lastTier?.maxMeters || 0) + 500,
+      pricePerMeter: lastTier?.pricePerMeter || 0,
+      label: "",
+    };
+    updateDigitalConfig({ printingTiers: [...digitalConfig.printingTiers, tier] });
+  };
+
+  const deleteDigitalPrintingTier = (index: number) => {
+    updateDigitalConfig({ printingTiers: digitalConfig.printingTiers.filter((_, i) => i !== index) });
   };
 
   const toggleDigitalSpecialProcess = (id: string) => {
@@ -1098,6 +1134,8 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                           <TableRow>
                             <TableHead className="w-[50px]">启用</TableHead>
                             <TableHead>印刷模式</TableHead>
+                            <TableHead className="w-[100px]">系数</TableHead>
+                            <TableHead className="w-[60px]"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1110,12 +1148,42 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   data-testid={`digital-printmode-${mode.id}`}
                                 />
                               </TableCell>
-                              <TableCell>{mode.name}</TableCell>
+                              <TableCell>
+                                <Input
+                                  value={mode.name}
+                                  onChange={(e) => updateDigitalPrintMode(mode.id, "name", e.target.value)}
+                                  className="h-8"
+                                  data-testid={`input-printmode-name-${mode.id}`}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={mode.coefficient || ""}
+                                  onChange={(e) => updateDigitalPrintMode(mode.id, "coefficient", Number(e.target.value) || 0)}
+                                  className="h-8"
+                                  data-testid={`input-printmode-coeff-${mode.id}`}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => deleteDigitalPrintMode(mode.id)}
+                                  data-testid={`button-delete-printmode-${mode.id}`}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
                       </Table>
                     </div>
+                    <Button variant="outline" onClick={addDigitalPrintMode} className="gap-2" data-testid="button-add-printmode">
+                      <Plus className="w-4 h-4" /> 添加印刷模式
+                    </Button>
 
                     <div className="mt-4">
                       <p className="font-medium mb-2">印刷阶梯价（按米数）</p>
@@ -1123,14 +1191,32 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>米数范围</TableHead>
+                              <TableHead>标签</TableHead>
+                              <TableHead className="w-[120px]">最大米数</TableHead>
                               <TableHead className="w-[120px]">单价 (元/m)</TableHead>
+                              <TableHead className="w-[60px]"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {digitalConfig.printingTiers.map((tier, index) => (
                               <TableRow key={index}>
-                                <TableCell>{tier.label}</TableCell>
+                                <TableCell>
+                                  <Input
+                                    value={tier.label}
+                                    onChange={(e) => updateDigitalPrintingTier(index, "label", e.target.value)}
+                                    className="h-8"
+                                    data-testid={`input-tier-label-${index}`}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    value={tier.maxMeters || ""}
+                                    onChange={(e) => updateDigitalPrintingTier(index, "maxMeters", Number(e.target.value) || 0)}
+                                    className="h-8"
+                                    data-testid={`input-tier-maxmeters-${index}`}
+                                  />
+                                </TableCell>
                                 <TableCell>
                                   <Input
                                     type="number"
@@ -1138,13 +1224,27 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                     value={tier.pricePerMeter || ""}
                                     onChange={(e) => updateDigitalPrintingTier(index, "pricePerMeter", Number(e.target.value) || 0)}
                                     className="h-8"
+                                    data-testid={`input-tier-price-${index}`}
                                   />
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => deleteDigitalPrintingTier(index)}
+                                    data-testid={`button-delete-tier-${index}`}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
                                 </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
                         </Table>
                       </div>
+                      <Button variant="outline" onClick={addDigitalPrintingTier} className="gap-2 mt-2" data-testid="button-add-tier">
+                        <Plus className="w-4 h-4" /> 添加阶梯
+                      </Button>
                     </div>
                   </div>
                 </AccordionContent>
