@@ -36,6 +36,8 @@ export default function GiftBoxQuotePage({
   const [selectedPaperId, setSelectedPaperId] = useState(config.paperTypes[0]?.id || "");
   const [selectedLinerId, setSelectedLinerId] = useState(config.linerTypes[0]?.id || "");
   const [selectedCraftIds, setSelectedCraftIds] = useState<string[]>([]);
+  const [customerName] = useState(() => localStorage.getItem("customerName") || "");
+  const quoteTitle = customerName ? `${customerName}自动报价器` : "礼盒自动报价器";
 
   useEffect(() => {
     if (!enabledBoxTypes.find(b => b.id === selectedBoxTypeId) && enabledBoxTypes.length > 0) {
@@ -216,7 +218,7 @@ export default function GiftBoxQuotePage({
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
               <h1 className="text-xl font-bold tracking-tight text-foreground" data-testid="text-page-title">
-                礼盒自动报价器
+                {quoteTitle}
               </h1>
               <Badge variant="secondary">礼盒</Badge>
             </div>

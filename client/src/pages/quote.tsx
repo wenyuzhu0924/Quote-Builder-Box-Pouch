@@ -104,6 +104,8 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
 
   const isDigital = state.productType === "pouch" && state.printingMethod === "digital";
   const isGravure = state.productType === "pouch" && state.printingMethod === "gravure";
+  const [customerName] = useState(() => localStorage.getItem("customerName") || "");
+  const quoteTitle = customerName ? `${customerName}自动报价器` : "包装袋自动报价器";
 
   const [selectedBagTypeId, setSelectedBagTypeId] = useState<string>(
     isDigital 
@@ -706,7 +708,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
-                <h1 className="text-xl font-bold text-foreground tracking-tight">包装袋自动报价器</h1>
+                <h1 className="text-xl font-bold text-foreground tracking-tight">{quoteTitle}</h1>
                 <Badge variant="secondary">数码印刷</Badge>
               </div>
               <div className="flex items-center gap-2">
@@ -1468,7 +1470,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold tracking-tight text-foreground">包装袋自动报价器</h1>
+              <h1 className="text-xl font-bold tracking-tight text-foreground">{quoteTitle}</h1>
               <Badge variant="secondary">凹版印刷</Badge>
             </div>
             <div className="flex items-center gap-2">
