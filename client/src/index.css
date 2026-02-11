@@ -217,6 +217,65 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+
+  .section-title {
+    position: relative;
+    display: inline-block;
+  }
+  .section-title::after {
+    content: "";
+    display: block;
+    width: 40px;
+    height: 3px;
+    background: #F05A0E;
+    margin-top: 8px;
+    border-radius: 2px;
+  }
+
+  .form-group {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 8px;
+    padding: 24px;
+    transition: box-shadow 200ms ease;
+  }
+  .form-group:hover {
+    box-shadow: 0 8px 20px rgba(0,0,0,0.04);
+  }
+
+  .summary-panel {
+    background: hsl(var(--card));
+    border-left: 4px solid #F05A0E;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+    border-radius: 12px;
+    padding: 24px;
+  }
+
+  .price-main {
+    font-size: 2.4rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: hsl(var(--foreground));
+    line-height: 1.1;
+  }
+
+  .price-unit {
+    font-size: 0.9rem;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    font-size: 0.95rem;
+  }
+
+  .breakdown-divider {
+    height: 1px;
+    background: hsl(var(--border));
+    margin: 12px 0;
+  }
 }
 
 /**
