@@ -2580,7 +2580,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
             </AccordionItem>
 
             {(["additionalProcess", "surfaceTreatment"] as PostProcessingCategory[]).map((cat) => {
-              const catLabel = cat === "additionalProcess" ? "附加工艺" : "表面处理";
+              const catLabel = cat === "additionalProcess" ? "附加工艺费用" : "表面处理费用";
               const catIcon = cat === "additionalProcess" ? Scissors : Layers;
               const CatIcon = catIcon;
               const catOptions = config.postProcessingOptions.filter(o => (o.category || "additionalProcess") === cat);
@@ -2855,7 +2855,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                 <div className="flex items-center gap-3">
                   <Grid3X3 className="w-5 h-5 text-primary" />
                   <div className="text-left">
-                    <div className="font-semibold">制版</div>
+                    <div className="font-semibold">制版费用</div>
                     <div className="text-sm text-muted-foreground">
                       制版费用说明（在报价器中填写）
                     </div>

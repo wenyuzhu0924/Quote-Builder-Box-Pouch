@@ -280,7 +280,7 @@ export default function GiftBoxSurveyPage({
                 <div className="flex items-center gap-3">
                   <Package className="w-5 h-5 text-primary" />
                   <div className="text-left">
-                    <div className="font-semibold">盒型配置</div>
+                    <div className="font-semibold">盒型</div>
                     <div className="text-sm text-muted-foreground">
                       选择或添加盒型，配置展开面积公式（已选 {enabledBoxCount}/{config.boxTypes.length} 种）
                     </div>
@@ -812,7 +812,7 @@ export default function GiftBoxSurveyPage({
                 <div className="flex items-center gap-3">
                   <Sparkles className="w-5 h-5 text-primary" />
                   <div className="text-left">
-                    <div className="font-semibold">特殊工艺</div>
+                    <div className="font-semibold">特殊工艺费用</div>
                     <div className="text-sm text-muted-foreground">
                       配置工艺选项及定价（已启用 {enabledCraftCount}/{config.crafts.length} 种）
                     </div>
