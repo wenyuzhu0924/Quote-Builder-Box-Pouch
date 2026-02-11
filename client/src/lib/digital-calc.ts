@@ -70,6 +70,37 @@ export interface DigitalCalcQuote {
   withTax: { unit: number; total: number; unitUSD: number; totalUSD: number };
 }
 
+export interface BreakdownDetails {
+  laminationLayers: number;
+  singleLamCost: number;
+  laminationUnitPrice: number;
+  laminationPerMeter: number;
+  printModeName: string;
+  printModeCoefficient: number;
+  printTierPrice: number;
+  isDoublePrint: boolean;
+  bagTypeName: string;
+  bagMakingCoefficient: number;
+  bagMakingMinPrice: number;
+  bagMakingBaseCost: number;
+  zipperCost: number;
+  zipperName: string;
+  valveCost: number;
+  valveName: string;
+  spoutCost: number;
+  spoutName: string;
+  stackableAccessoryCosts: { name: string; cost: number }[];
+  specialProcessItems: { name: string; cost: number }[];
+  shapedBagCost: number;
+  moldCost: number;
+  plateCost: number;
+  skuCount: number;
+  quantity: number;
+  taxRate: number;
+  exchangeRate: number;
+  slittingCost: number;
+}
+
 export interface DigitalCalcResult {
   processData: DigitalCalcProcessData;
   costBreakdown: DigitalCalcCostBreakdown;
@@ -78,6 +109,7 @@ export interface DigitalCalcResult {
   materialSquarePriceTotal: number;
   isDoubleBag: boolean;
   isEightSide: boolean;
+  breakdownDetails: BreakdownDetails;
   eightSideCalc?: {
     bagBody: { L_exp: number; W_exp: number; N_circ: number; N_row: number; L_rev: number; R_order: number; R_loss: number; M_total: number };
     bagSide: { L_exp: number; W_exp: number; N_circ: number; N_row: number; L_rev: number; R_order: number; R_loss: number; M_total: number };
@@ -215,6 +247,16 @@ export function calculateDigital(
 
   const { maxPrintWidth, maxPrintCircumference, skuWaste, adjustmentWaste, idleMaterialMin } = config.systemConstants;
 
+  const emptyBreakdown: BreakdownDetails = {
+    laminationLayers: 0, singleLamCost: 0, laminationUnitPrice: 0, laminationPerMeter: 0,
+    printModeName: "", printModeCoefficient: 0, printTierPrice: 0, isDoublePrint: false,
+    bagTypeName: "", bagMakingCoefficient: 0, bagMakingMinPrice: 0, bagMakingBaseCost: 0,
+    zipperCost: 0, zipperName: "无", valveCost: 0, valveName: "无",
+    spoutCost: 0, spoutName: "无", stackableAccessoryCosts: [], specialProcessItems: [],
+    shapedBagCost: 0, moldCost: 0, plateCost: 0, skuCount: sku, quantity: qty,
+    taxRate: vatRate, exchangeRate: exr, slittingCost: 0,
+  };
+
   if (qty <= 0) {
     const zero: DigitalCalcResult = {
       processData: {
@@ -227,6 +269,7 @@ export function calculateDigital(
       costBreakdown: { material: 0, lamination: 0, print: 0, bagMaking: 0, accessories: 0, specialProcess: 0, custom: 0, fileFee: 0, total: 0, totalWithTax: 0 },
       quote: { exFactory: { unit: 0, total: 0, unitUSD: 0, totalUSD: 0 }, withTax: { unit: 0, total: 0, unitUSD: 0, totalUSD: 0 } },
       materialDetails: [], materialSquarePriceTotal: 0, isDoubleBag: false, isEightSide: false,
+      breakdownDetails: emptyBreakdown,
     };
     return zero;
   }
@@ -291,29 +334,42 @@ export function calculateDigital(
   const C_bag = Math.max(bagMakingBase, bagMakingRule.minPrice);
 
   let C_accessories = 0;
+  let det_zipperCost = 0, det_zipperName = "无";
+  let det_valveCost = 0, det_valveName = "无";
+  let det_spoutCost = 0, det_spoutName = "无";
+  const det_stackableCosts: { name: string; cost: number }[] = [];
+  let det_slittingCost = 0;
+
   if (zipperId !== "none") {
     const zipper = config.zipperTypes.find(z => z.id === zipperId);
     if (zipper) {
-      C_accessories += N_row * (M_order + M_loss) * zipper.pricePerMeter;
+      det_zipperCost = N_row * (M_order + M_loss) * zipper.pricePerMeter;
+      det_zipperName = zipper.name;
+      C_accessories += det_zipperCost;
     }
   }
   if (valveId !== "none") {
     const valve = config.valveTypes.find(v => v.id === valveId);
     if (valve) {
-      C_accessories += qty * valve.pricePerUnit;
+      det_valveCost = qty * valve.pricePerUnit;
+      det_valveName = valve.name;
+      C_accessories += det_valveCost;
     }
   }
   if (spoutId) {
     const spout = config.accessories.find(a => a.id === spoutId);
     if (spout) {
-      C_accessories += spout.price * qty;
+      det_spoutCost = spout.price * qty;
+      det_spoutName = spout.name;
+      C_accessories += det_spoutCost;
     }
   }
   selectedAccessoryIds.forEach(id => {
     const acc = config.accessories.find(a => a.id === id);
     if (!acc) return;
+    let accCost = 0;
     if (acc.price > 0) {
-      C_accessories += acc.price * qty;
+      accCost = acc.price * qty;
     } else if (acc.name.includes("束口条")) {
       const w = d.width;
       let tinPrice = 0;
@@ -321,14 +377,20 @@ export function calculateDigital(
       else if (w <= 200) tinPrice = 0.6;
       else if (w <= 250) tinPrice = 0.7;
       else tinPrice = 0.8;
-      C_accessories += tinPrice * qty;
+      accCost = tinPrice * qty;
     } else if (acc.name.includes("激光易撕线")) {
-      C_accessories += 0.35 * M_total;
+      accCost = 0.35 * M_total;
+      det_slittingCost = accCost;
     }
+    det_stackableCosts.push({ name: acc.name, cost: accCost });
+    C_accessories += accCost;
   });
 
   let C_special = 0;
+  const det_specialItems: { name: string; cost: number }[] = [];
+  let det_shapedBagCost = 0;
   selectedSpecialProcessIds.forEach(id => {
+    if (id === "doubleSide" || id === "shapedBag") return;
     const process = config.specialProcesses.find(p => p.id === id);
     if (!process) return;
 
@@ -344,10 +406,12 @@ export function calculateDigital(
     if (process.minPrice > 0 && cost < process.minPrice) {
       cost = process.minPrice;
     }
+    det_specialItems.push({ name: process.name, cost });
     C_special += cost;
   });
 
   if (selectedSpecialProcessIds.includes("shapedBag")) {
+    det_shapedBagCost = 300;
     C_special += 300;
   }
 
@@ -359,6 +423,8 @@ export function calculateDigital(
   const taxMultiplier = 1 + vatRate / 100;
   const finalUnitVAT = finalUnit * taxMultiplier;
   const finalTotalVAT = finalTotal * taxMultiplier;
+
+  const selectedBagType = config.customBagTypes.find(b => b.id === bagTypeId);
 
   return {
     processData: {
@@ -389,6 +455,36 @@ export function calculateDigital(
     materialSquarePriceTotal: totalSqPrice,
     isDoubleBag,
     isEightSide: false,
+    breakdownDetails: {
+      laminationLayers: lamLayers,
+      singleLamCost,
+      laminationUnitPrice: config.laminationUnitPrice ?? 200,
+      laminationPerMeter: config.laminationPerMeter ?? 0.25,
+      printModeName: selectedMode?.name ?? "无印刷",
+      printModeCoefficient: modeCoefficient,
+      printTierPrice: printUnitPrice,
+      isDoublePrint,
+      bagTypeName: selectedBagType?.name ?? bagTypeId,
+      bagMakingCoefficient: bagMakingRule.coefficient,
+      bagMakingMinPrice: bagMakingRule.minPrice,
+      bagMakingBaseCost: bagMakingBase,
+      zipperCost: det_zipperCost,
+      zipperName: det_zipperName,
+      valveCost: det_valveCost,
+      valveName: det_valveName,
+      spoutCost: det_spoutCost,
+      spoutName: det_spoutName,
+      stackableAccessoryCosts: det_stackableCosts,
+      specialProcessItems: det_specialItems,
+      shapedBagCost: det_shapedBagCost,
+      moldCost: moldFee,
+      plateCost: plateFee,
+      skuCount: sku,
+      quantity: qty,
+      taxRate: vatRate,
+      exchangeRate: exr,
+      slittingCost: det_slittingCost,
+    },
   };
 }
 
@@ -489,29 +585,42 @@ function calcEightSide(
   const C_bag = Math.max(bagMakingBaseCost, bagMakingRule.minPrice);
 
   let C_accessories = 0;
+  let det_zipperCost = 0, det_zipperName = "无";
+  let det_valveCost = 0, det_valveName = "无";
+  let det_spoutCost = 0, det_spoutName = "无";
+  const det_stackableCosts: { name: string; cost: number }[] = [];
+  let det_slittingCost = 0;
+
   if (zipperId !== "none") {
     const zipper = config.zipperTypes.find(z => z.id === zipperId);
     if (zipper) {
-      C_accessories += bagBody_N_row * totalMeter * zipper.pricePerMeter;
+      det_zipperCost = bagBody_N_row * totalMeter * zipper.pricePerMeter;
+      det_zipperName = zipper.name;
+      C_accessories += det_zipperCost;
     }
   }
   if (valveId !== "none") {
     const valve = config.valveTypes.find(v => v.id === valveId);
     if (valve) {
-      C_accessories += qty * valve.pricePerUnit;
+      det_valveCost = qty * valve.pricePerUnit;
+      det_valveName = valve.name;
+      C_accessories += det_valveCost;
     }
   }
   if (spoutId) {
     const spout = config.accessories.find(a => a.id === spoutId);
     if (spout) {
-      C_accessories += spout.price * qty;
+      det_spoutCost = spout.price * qty;
+      det_spoutName = spout.name;
+      C_accessories += det_spoutCost;
     }
   }
   selectedAccessoryIds.forEach(id => {
     const acc = config.accessories.find(a => a.id === id);
     if (!acc) return;
+    let accCost = 0;
     if (acc.price > 0) {
-      C_accessories += acc.price * qty;
+      accCost = acc.price * qty;
     } else if (acc.name.includes("束口条")) {
       const w = safeW;
       let tinPrice = 0;
@@ -519,14 +628,20 @@ function calcEightSide(
       else if (w <= 200) tinPrice = 0.6;
       else if (w <= 250) tinPrice = 0.7;
       else tinPrice = 0.8;
-      C_accessories += tinPrice * qty;
+      accCost = tinPrice * qty;
     } else if (acc.name.includes("激光易撕线")) {
-      C_accessories += 0.35 * totalMeter;
+      accCost = 0.35 * totalMeter;
+      det_slittingCost = accCost;
     }
+    det_stackableCosts.push({ name: acc.name, cost: accCost });
+    C_accessories += accCost;
   });
 
   let C_special = 0;
+  const det_specialItems: { name: string; cost: number }[] = [];
+  let det_shapedBagCost = 0;
   selectedSpecialProcessIds.forEach(id => {
+    if (id === "doubleSide" || id === "shapedBag") return;
     const process = config.specialProcesses.find(p => p.id === id);
     if (!process) return;
     let cost = 0;
@@ -540,9 +655,11 @@ function calcEightSide(
     if (process.minPrice > 0 && cost < process.minPrice) {
       cost = process.minPrice;
     }
+    det_specialItems.push({ name: process.name, cost });
     C_special += cost;
   });
   if (selectedSpecialProcessIds.includes("shapedBag")) {
+    det_shapedBagCost = 300;
     C_special += 300;
   }
 
@@ -554,6 +671,9 @@ function calcEightSide(
   const taxMultiplier = 1 + vatRate / 100;
   const finalUnitVAT = finalUnit * taxMultiplier;
   const finalTotalVAT = finalTotal * taxMultiplier;
+
+  const selectedMode = config.printModes.find(m => m.id === input.printModeId);
+  const selectedBagType = config.customBagTypes.find(b => b.id === input.bagTypeId);
 
   return {
     processData: {
@@ -590,6 +710,36 @@ function calcEightSide(
     materialSquarePriceTotal: totalSqPrice,
     isDoubleBag,
     isEightSide: true,
+    breakdownDetails: {
+      laminationLayers: lamLayers,
+      singleLamCost: singleLamCost8,
+      laminationUnitPrice: config.laminationUnitPrice ?? 200,
+      laminationPerMeter: config.laminationPerMeter ?? 0.25,
+      printModeName: selectedMode?.name ?? "无印刷",
+      printModeCoefficient: modeCoefficient,
+      printTierPrice: printUnitPrice,
+      isDoublePrint,
+      bagTypeName: selectedBagType?.name ?? input.bagTypeId,
+      bagMakingCoefficient: bagMakingRule.coefficient,
+      bagMakingMinPrice: bagMakingRule.minPrice,
+      bagMakingBaseCost: bagMakingBaseCost,
+      zipperCost: det_zipperCost,
+      zipperName: det_zipperName,
+      valveCost: det_valveCost,
+      valveName: det_valveName,
+      spoutCost: det_spoutCost,
+      spoutName: det_spoutName,
+      stackableAccessoryCosts: det_stackableCosts,
+      specialProcessItems: det_specialItems,
+      shapedBagCost: det_shapedBagCost,
+      moldCost: moldFee,
+      plateCost: plateFee,
+      skuCount: sku,
+      quantity: qty,
+      taxRate: vatRate,
+      exchangeRate: exr,
+      slittingCost: det_slittingCost,
+    },
     eightSideCalc: {
       bagBody: { L_exp: bagBody_L_exp, W_exp: bagBody_W_exp, N_circ: bagBody_N_circ, N_row: bagBody_N_row, L_rev: bagBody_L_rev, R_order: bagBody_R_order, R_loss: bagBody_R_loss, M_total: bagBody_M_total },
       bagSide: { L_exp: bagSide_L_exp, W_exp: bagSide_W_exp, N_circ: bagSide_N_circ, N_row: bagSide_N_row, L_rev: bagSide_L_rev, R_order: bagSide_R_order, R_loss: bagSide_R_loss, M_total: bagSide_M_total },

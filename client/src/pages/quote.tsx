@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Edit, RefreshCw, Plus, Trash2, Check, X } from "lucide-react";
+import { ArrowLeft, Edit, RefreshCw, Plus, Trash2, Check, X, CheckCircle2, Sparkles, ChevronRight, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -1146,108 +1146,310 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg">中间过程数据（核对用）</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 text-sm">
-                  <div><strong>展开尺寸：</strong>长度 {digitalCalcResult.processData.expandSize.L_exp.toFixed(2)} mm，宽度 {digitalCalcResult.processData.expandSize.W_exp.toFixed(2)} mm</div>
-                  <div><strong>排版参数：</strong>横排 {digitalCalcResult.processData.layout.N_row} 个，周排 {digitalCalcResult.processData.layout.N_circ} 个，每转产出 {digitalCalcResult.processData.layout.N_rev} 个</div>
-                  <div><strong>转数：</strong>订单转数 {digitalCalcResult.processData.rotation.R_order.toFixed(2)} 转，损耗转数 {digitalCalcResult.processData.rotation.R_loss.toFixed(2)} 转</div>
-                  <div><strong>米数：</strong>订单 {digitalCalcResult.processData.meterage.M_order.toFixed(2)} m，损耗 {digitalCalcResult.processData.meterage.M_loss.toFixed(2)} m，闲置 {digitalCalcResult.processData.meterage.M_idle.toFixed(2)} m，总投料 {digitalCalcResult.processData.meterage.M_total.toFixed(2)} m</div>
-                  <div><strong>材料幅宽：</strong>{digitalCalcResult.processData.materialWidth} mm</div>
-                  <div><strong>投料面积：</strong>{digitalCalcResult.processData.feedArea.toFixed(2)} ㎡</div>
-                  {digitalCalcResult.isDoubleBag && <div className="text-primary font-medium">双放袋型，总价 ×2</div>}
-                  {digitalCalcResult.isEightSide && digitalCalcResult.eightSideCalc && (
-                    <>
-                      <div className="pt-2 border-t mt-2"><strong>八边封分体计算：</strong></div>
-                      <div className="pl-4">袋体展开：{digitalCalcResult.eightSideCalc.bagBody.L_exp.toFixed(1)} × {digitalCalcResult.eightSideCalc.bagBody.W_exp.toFixed(1)} mm，排版 {digitalCalcResult.eightSideCalc.bagBody.N_row}×{digitalCalcResult.eightSideCalc.bagBody.N_circ}，转数 {digitalCalcResult.eightSideCalc.bagBody.R_order.toFixed(1)}+{digitalCalcResult.eightSideCalc.bagBody.R_loss.toFixed(1)}</div>
-                      <div className="pl-4">侧面展开：{digitalCalcResult.eightSideCalc.bagSide.L_exp.toFixed(1)} × {digitalCalcResult.eightSideCalc.bagSide.W_exp.toFixed(1)} mm，排版 {digitalCalcResult.eightSideCalc.bagSide.N_row}×{digitalCalcResult.eightSideCalc.bagSide.N_circ}，转数 {digitalCalcResult.eightSideCalc.bagSide.R_order.toFixed(1)}+{digitalCalcResult.eightSideCalc.bagSide.R_loss.toFixed(1)}</div>
-                      <div className="pl-4">合计米数：{digitalCalcResult.eightSideCalc.totalMeter.toFixed(2)} m</div>
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            {(() => {
+              const bd = digitalCalcResult.breakdownDetails;
+              const cb = digitalCalcResult.costBreakdown;
+              const q = digitalCalcResult.quote;
+              const pd = digitalCalcResult.processData;
+              const f = (v: number) => v.toFixed(2);
+              const f4 = (v: number) => v.toFixed(4);
+              const qtyNum = toNum(String(quantity));
 
-            <Card className="border-primary bg-primary/5">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg">成本明细</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                  <div className="p-4 bg-background rounded-lg" data-testid="cost-material">
-                    <div className="text-sm text-muted-foreground">材料成本</div>
-                    <div className="text-xl font-semibold">{digitalCalcResult.costBreakdown.material.toFixed(2)} 元</div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {digitalCalcResult.materialSquarePriceTotal.toFixed(4)} 元/㎡ × {digitalCalcResult.processData.feedArea.toFixed(2)} ㎡
+              return (
+                <div className="space-y-0" data-testid="calculation-breakdown">
+                  <div className="border-b-2 border-primary pb-4 mb-6">
+                    <h2 className="text-xl font-bold text-primary flex items-center gap-2 flex-wrap">
+                      <CheckCircle2 className="w-5 h-5 text-primary" /> 报价汇总 & 完整成本计算明细（每笔费用分步展示）
+                    </h2>
+
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      <div className="p-4 border rounded-lg">
+                        <div className="text-sm text-muted-foreground mb-1">不含税报价</div>
+                        <div className="font-bold">单价：{f4(q.exFactory.unit)} 元/个 ≈ {f4(q.exFactory.unitUSD)} USD/pc</div>
+                        <div className="font-bold">总价：{f(q.exFactory.total)} 元 ≈ {f(q.exFactory.totalUSD)} USD</div>
+                      </div>
+                      <div className="p-4 border-2 border-primary rounded-lg bg-primary/5">
+                        <div className="text-sm text-primary mb-1 font-medium">含税报价（含{bd.taxRate}%增值税）</div>
+                        <div className="font-bold text-primary">单价：{f4(q.withTax.unit)} 元/个 ≈ {f4(q.withTax.unitUSD)} USD/pc</div>
+                        <div className="font-bold text-primary">总价：{f(q.withTax.total)} 元 ≈ {f(q.withTax.totalUSD)} USD</div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 text-sm font-medium text-destructive flex items-center gap-1 flex-wrap">
+                      <Sparkles className="w-4 h-4" /> 核心计算规则：所有费用累加 = 总成本 → 总成本 ÷ 总数量 = 单价 → 单价 × (1+税率) = 含税单价
                     </div>
                   </div>
-                  <div className="p-4 bg-background rounded-lg" data-testid="cost-lamination">
-                    <div className="text-sm text-muted-foreground">复合成本</div>
-                    <div className="text-xl font-semibold">{digitalCalcResult.costBreakdown.lamination.toFixed(2)} 元</div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {digitalCalcResult.materialDetails.length > 0 ? `${Math.max(0, digitalCalcResult.materialDetails.length - 1)} 层复合` : "无复合"}
+
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                        <Badge variant="default" className="text-xs">1</Badge> 材料成本【精准分步计算】
+                      </h3>
+                      <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>材料层明细（已过滤无材料项）：
+                            {digitalCalcResult.materialDetails.length > 0 
+                              ? digitalCalcResult.materialDetails.map(m => `${m.name}(${f4(m.sqPrice)}元/㎡)`).join(" + ")
+                              : "无"}
+                          </span>
+                        </div>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>材料平方价合计 = {f4(digitalCalcResult.materialSquarePriceTotal)} 元/㎡</span>
+                        </div>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>总投料面积 = {f(pd.feedArea)} ㎡</span>
+                        </div>
+                        <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                          <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          <span>材料总成本计算公式：材料合计平方价 × 总投料面积</span>
+                        </div>
+                        <div className="text-primary font-medium pl-6">
+                          → {f4(digitalCalcResult.materialSquarePriceTotal)} × {f(pd.feedArea)} = {f(cb.material)} 元
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                        <Badge variant="default" className="text-xs">2</Badge> 复合成本【精准分步计算】
+                      </h3>
+                      <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>复合层数规则：有效材料层数量 - 1 层（N层材料需要N-1次复合）</span>
+                        </div>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>当前有效材料层：{digitalCalcResult.materialDetails.length} 层 → 复合层数 = {bd.laminationLayers} 层</span>
+                        </div>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>单层复合计价规则：max({f(bd.laminationUnitPrice)}元【最低起步价】, {bd.laminationPerMeter} × 总投料米数)</span>
+                        </div>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>单层复合费用 = max({f(bd.laminationUnitPrice)}, {bd.laminationPerMeter} × {f(pd.meterage.M_total)}) = {f(bd.singleLamCost)} 元</span>
+                        </div>
+                        <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                          <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          <span>复合总成本计算公式：单层复合费用 × 复合层数</span>
+                        </div>
+                        <div className="text-primary font-medium pl-6">
+                          → {f(bd.singleLamCost)} × {bd.laminationLayers} = {f(cb.lamination)} 元
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                        <Badge variant="default" className="text-xs">3</Badge> 印刷成本【分袋型精准分步计算 无印刷/有印刷/双面印刷全适配】
+                      </h3>
+                      <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>当前袋型：{bd.bagTypeName} 印刷规则</span>
+                        </div>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>印刷模式：{bd.printModeName}</span>
+                        </div>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>印刷倍率：{bd.printModeCoefficient}倍{bd.isDoublePrint ? "（双面印刷 ×2）" : ""}</span>
+                        </div>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>订单转数：{f(pd.rotation.R_order)} 转 | 损耗转数：{f(pd.rotation.R_loss)} 转</span>
+                        </div>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>印刷阶梯单价：{bd.printTierPrice} 元/转 (损耗部分固定4元/转)</span>
+                        </div>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>文件费：{cb.fileFee}元{cb.fileFee > 0 ? ` (SKU ${bd.skuCount} > 5, (${bd.skuCount}-5)×50)` : ""}</span>
+                        </div>
+                        {bd.printModeCoefficient === 0 ? (
+                          <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                            <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                            <span>无印刷模式 印刷总成本 = 损耗转数×4 + 文件费 = {f(pd.rotation.R_loss)}×4 + {cb.fileFee} = {f(cb.print)} 元</span>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                              <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                              <span>普通袋印刷总成本 = (订单转数×阶梯价 + 损耗转数×4) × 倍率{bd.isDoublePrint ? " × 双面系数" : ""} + 文件费</span>
+                            </div>
+                            <div className="text-primary font-medium pl-6">
+                              → ({f(pd.rotation.R_order)}×{bd.printTierPrice} + {f(pd.rotation.R_loss)}×4) × {bd.printModeCoefficient}{bd.isDoublePrint ? " × 2" : ""} + {cb.fileFee} = {f(cb.print)} 元
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                        <Badge variant="default" className="text-xs">4</Badge> 制袋成本【分袋型精准公式+数值代入】
+                      </h3>
+                      <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>当前袋型：{bd.bagTypeName}</span>
+                        </div>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>制袋计算公式：s=&gt;{bd.bagMakingCoefficient}*s.L_rev*(s.R_order+s.R_loss)*s.N_row</span>
+                        </div>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>公式代入数值：
+                            L_rev={f(pd.meterage.L_rev)}，
+                            R_order={f(pd.rotation.R_order)}，
+                            R_loss={f(pd.rotation.R_loss)}，
+                            N_row={pd.layout.N_row}，
+                            M_order={f(pd.meterage.M_order)}
+                          </span>
+                        </div>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>制袋基础费用 = {f(bd.bagMakingBaseCost)} 元</span>
+                        </div>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>制袋最低起步价：{f(bd.bagMakingMinPrice)} 元</span>
+                        </div>
+                        <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                          <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          <span>制袋总成本计算公式：max(制袋基础费用, 最低起步价)</span>
+                        </div>
+                        <div className="text-primary font-medium pl-6">
+                          → max({f(bd.bagMakingBaseCost)}, {f(bd.bagMakingMinPrice)}) = {f(cb.bagMaking)} 元
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                        <Badge variant="default" className="text-xs">5</Badge> 配件成本【逐项拆解 无隐藏费用】
+                      </h3>
+                      <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>拉链费用：{f(bd.zipperCost)}元{bd.zipperName !== "无" ? ` (${bd.zipperName})` : ""}</span>
+                        </div>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>气阀费用：{f(bd.valveCost)}元{bd.valveName !== "无" ? ` (${bd.valveName})` : ""}</span>
+                        </div>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>其他附件：{bd.spoutCost > 0 ? `${bd.spoutName} ${f(bd.spoutCost)}元` : "0元"}</span>
+                        </div>
+                        {bd.stackableAccessoryCosts.length > 0 && bd.stackableAccessoryCosts.map((item, i) => (
+                          <div key={i} className="flex items-start gap-2 flex-wrap">
+                            <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                            <span>{item.name}：{f(item.cost)}元</span>
+                          </div>
+                        ))}
+                        {bd.slittingCost > 0 && (
+                          <div className="flex items-start gap-2 flex-wrap">
+                            <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                            <span>卷膜分切费：{f(bd.slittingCost)}元</span>
+                          </div>
+                        )}
+                        <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                          <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          <span>配件总成本 = 拉链+气阀+其他附件+额外选项+分切费 = {f(cb.accessories)} 元</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                        <Badge variant="default" className="text-xs">6</Badge> 特殊工艺+自定义成本【逐项列出】
+                      </h3>
+                      <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>已选特殊工艺：{bd.specialProcessItems.length > 0 ? bd.specialProcessItems.map(p => p.name).join("、") : "无"}</span>
+                        </div>
+                        {bd.specialProcessItems.map((item, i) => (
+                          <div key={i} className="flex items-start gap-2 flex-wrap">
+                            <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                            <span>{item.name}费用：{f(item.cost)}元</span>
+                          </div>
+                        ))}
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>异形袋模具费：{f(bd.shapedBagCost)} 元</span>
+                        </div>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>模具费（自定义）：{f(bd.moldCost)} 元</span>
+                        </div>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                          <span>版费（自定义）：{f(bd.plateCost)} 元</span>
+                        </div>
+                        <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                          <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          <span>特殊工艺总成本 = {f(cb.specialProcess)} 元</span>
+                        </div>
+                        <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                          <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          <span>自定义总成本 = {f(bd.moldCost)} + {f(bd.plateCost)} = {f(cb.custom)} 元</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t-2 border-destructive pt-4 mt-6">
+                      <h3 className="text-base font-bold text-destructive mb-3 flex items-center gap-2 flex-wrap">
+                        <Sparkles className="w-4 h-4 shrink-0" /> 最终总成本 & 单价 完整计算步骤【无删减 无隐藏】
+                      </h3>
+                      <div className="border-l-2 border-muted pl-4 space-y-3 text-sm">
+                        <div>
+                          <div className="font-medium mb-1">► 第一步：不含税总成本累加</div>
+                          <div className="text-muted-foreground">
+                            材料成本 {f(cb.material)} + 复合成本 {f(cb.lamination)} + 印刷成本 {f(cb.print)} + 制袋成本 {f(cb.bagMaking)} + 配件成本 {f(cb.accessories)} + 特殊工艺 {f(cb.specialProcess)} + 自定义成本 {f(cb.custom)}
+                            {digitalCalcResult.isDoubleBag && " (×2 双放袋)"}
+                          </div>
+                          <div className="text-primary font-medium mt-1">= {f(q.exFactory.total)} 元 (不含税总成本)</div>
+                        </div>
+
+                        <div>
+                          <div className="font-medium mb-1">► 第二步：不含税单价计算</div>
+                          <div className="text-muted-foreground">不含税总成本 ÷ 总数量 = {f(q.exFactory.total)} ÷ {qtyNum} = {f4(q.exFactory.unit)} 元/个</div>
+                        </div>
+
+                        <div>
+                          <div className="font-medium mb-1">► 第三步：含税金额计算（税率{bd.taxRate}%）</div>
+                          <div className="text-muted-foreground">
+                            含税单价 = 不含税单价 × (1 + {bd.taxRate}%) = {f4(q.exFactory.unit)} × {f4(1 + bd.taxRate / 100)} = {f4(q.withTax.unit)} 元/个
+                          </div>
+                          <div className="text-primary font-medium mt-1">
+                            含税总成本 = 不含税总成本 × (1 + {bd.taxRate}%) = {f(q.exFactory.total)} × {f4(1 + bd.taxRate / 100)} = {f(q.withTax.total)} 元
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="font-medium mb-1">► 第四步：美金换算（汇率 {bd.exchangeRate}）</div>
+                          <div className="text-destructive font-medium">
+                            不含税美金单价：{f4(q.exFactory.unit)} ÷ {bd.exchangeRate} = {f4(q.exFactory.unitUSD)} USD/pc
+                          </div>
+                          <div className="text-destructive font-medium">
+                            含税美金单价：{f4(q.withTax.unit)} ÷ {bd.exchangeRate} = {f4(q.withTax.unitUSD)} USD/pc
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="p-4 bg-background rounded-lg" data-testid="cost-print">
-                    <div className="text-sm text-muted-foreground">印刷成本</div>
-                    <div className="text-xl font-semibold">{digitalCalcResult.costBreakdown.print.toFixed(2)} 元</div>
-                    {digitalCalcResult.costBreakdown.fileFee > 0 && (
-                      <div className="text-xs text-muted-foreground mt-1">含文件费 {digitalCalcResult.costBreakdown.fileFee} 元</div>
-                    )}
-                  </div>
-                  <div className="p-4 bg-background rounded-lg" data-testid="cost-bagmaking">
-                    <div className="text-sm text-muted-foreground">制袋成本</div>
-                    <div className="text-xl font-semibold">{digitalCalcResult.costBreakdown.bagMaking.toFixed(2)} 元</div>
-                  </div>
-                  <div className="p-4 bg-background rounded-lg" data-testid="cost-accessories">
-                    <div className="text-sm text-muted-foreground">附件成本</div>
-                    <div className="text-xl font-semibold">{digitalCalcResult.costBreakdown.accessories.toFixed(2)} 元</div>
-                  </div>
-                  <div className="p-4 bg-background rounded-lg" data-testid="cost-special">
-                    <div className="text-sm text-muted-foreground">特殊工艺成本</div>
-                    <div className="text-xl font-semibold">{digitalCalcResult.costBreakdown.specialProcess.toFixed(2)} 元</div>
-                  </div>
                 </div>
-
-                {digitalCalcResult.costBreakdown.custom > 0 && (
-                  <div className="mb-6 p-3 bg-muted/50 rounded-lg text-sm">
-                    <strong>自定义费用：</strong>模具费 {toNum(String(moldCost)).toFixed(2)} 元 + 特殊工艺版费 {toNum(String(specialProcessPlateCost)).toFixed(2)} 元 = {digitalCalcResult.costBreakdown.custom.toFixed(2)} 元
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="p-4 bg-background rounded-lg">
-                    <div className="text-sm text-muted-foreground">成本总计（不含税）</div>
-                    <div className="text-xl font-semibold">{digitalCalcResult.quote.exFactory.total.toFixed(2)} 元</div>
-                  </div>
-                  <div className="p-4 bg-background rounded-lg">
-                    <div className="text-sm text-muted-foreground">单价（不含税）</div>
-                    <div className="text-xl font-semibold">{digitalCalcResult.quote.exFactory.unit.toFixed(4)} 元/个</div>
-                    <div className="text-xs text-muted-foreground mt-1">${digitalCalcResult.quote.exFactory.unitUSD.toFixed(4)} /pc</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-4 p-6 bg-primary text-primary-foreground rounded-lg flex-wrap">
-                  <div>
-                    <div className="text-sm opacity-80">含税单价（{taxRate}%增值税）</div>
-                    <div className="text-3xl font-bold">¥{digitalCalcResult.quote.withTax.unit.toFixed(4)}/个</div>
-                    <div className="text-sm opacity-80 mt-1">
-                      ${digitalCalcResult.quote.withTax.unitUSD.toFixed(4)}/pc
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm opacity-80">含税总价（{toNum(String(quantity)).toLocaleString()} 个）</div>
-                    <div className="text-3xl font-bold">¥{digitalCalcResult.quote.withTax.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                    <div className="text-sm opacity-80 mt-1">
-                      ${digitalCalcResult.quote.withTax.totalUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              );
+            })()}
 
           </div>
         </main>
