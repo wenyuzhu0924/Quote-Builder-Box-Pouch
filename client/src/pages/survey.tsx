@@ -1101,7 +1101,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                   <div className="flex items-center gap-3">
                     <Printer className="w-5 h-5 text-primary" />
                     <div className="text-left">
-                      <div className="font-semibold">印刷模式</div>
+                      <div className="font-semibold">印刷费用</div>
                       <div className="text-sm text-muted-foreground">
                         配置印刷模式（已启用 {digitalConfig.printModes.filter((m) => m.enabled).length} 种）
                       </div>
@@ -1241,7 +1241,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                   <div className="flex items-center gap-3">
                     <Zap className="w-5 h-5 text-primary" />
                     <div className="text-left">
-                      <div className="font-semibold">特殊工艺</div>
+                      <div className="font-semibold">特殊工艺费用</div>
                       <div className="text-sm text-muted-foreground">
                         配置特殊工艺选项（已启用 {digitalConfig.specialProcesses.filter((p) => p.enabled).length} 种）
                       </div>
@@ -1411,7 +1411,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                   <div className="flex items-center gap-3">
                     <Scissors className="w-5 h-5 text-primary" />
                     <div className="text-left">
-                      <div className="font-semibold">附件配置</div>
+                      <div className="font-semibold">附加工艺费用</div>
                       <div className="text-sm text-muted-foreground">
                         配置拉链、气阀、吸嘴和其他附件
                       </div>
@@ -1768,15 +1768,6 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4 pt-4 border-t">
-                      <Label>默认税率 (%)</Label>
-                      <Input
-                        type="number"
-                        value={digitalConfig.vatRate || ""}
-                        onChange={(e) => updateDigitalConfig({ vatRate: Number(e.target.value) || 0 })}
-                        className="w-24 h-8"
-                      />
-                    </div>
                   </div>
                 </AccordionContent>
               </AccordionItem>
