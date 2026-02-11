@@ -788,7 +788,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {digitalConfig.printLayerMaterials.slice(0, 10).map((material) => (
+                          {digitalConfig.printLayerMaterials.map((material) => (
                             <TableRow key={material.id}>
                               <TableCell>
                                 <Input
@@ -855,11 +855,6 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                         </TableBody>
                       </Table>
                     </div>
-                    {digitalConfig.printLayerMaterials.length > 10 && (
-                      <p className="text-sm text-muted-foreground">
-                        还有 {digitalConfig.printLayerMaterials.length - 10} 种材料未显示...
-                      </p>
-                    )}
                     <div className="flex justify-between">
                       <Button variant="outline" onClick={() => addDigitalMaterial("print")} className="gap-2" data-testid="button-addPrintMaterial">
                         <Plus className="w-4 h-4" />
@@ -906,7 +901,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {digitalConfig.compositeLayerMaterials.slice(0, 10).map((material) => (
+                          {digitalConfig.compositeLayerMaterials.map((material) => (
                             <TableRow key={material.id}>
                               <TableCell>
                                 <Input
@@ -973,11 +968,6 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                         </TableBody>
                       </Table>
                     </div>
-                    {digitalConfig.compositeLayerMaterials.length > 10 && (
-                      <p className="text-sm text-muted-foreground">
-                        还有 {digitalConfig.compositeLayerMaterials.length - 10} 种材料未显示...
-                      </p>
-                    )}
                     <div className="flex justify-between">
                       <Button variant="outline" onClick={() => addDigitalMaterial("composite")} className="gap-2" data-testid="button-addCompositeMaterial">
                         <Plus className="w-4 h-4" />
@@ -1024,7 +1014,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {digitalConfig.sealLayerMaterials.slice(0, 10).map((material) => (
+                          {digitalConfig.sealLayerMaterials.map((material) => (
                             <TableRow key={material.id}>
                               <TableCell>
                                 <Input
@@ -1091,11 +1081,6 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                         </TableBody>
                       </Table>
                     </div>
-                    {digitalConfig.sealLayerMaterials.length > 10 && (
-                      <p className="text-sm text-muted-foreground">
-                        还有 {digitalConfig.sealLayerMaterials.length - 10} 种材料未显示...
-                      </p>
-                    )}
                     <div className="flex justify-between">
                       <Button variant="outline" onClick={() => addDigitalMaterial("seal")} className="gap-2" data-testid="button-addSealMaterial">
                         <Plus className="w-4 h-4" />
