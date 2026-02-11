@@ -317,7 +317,7 @@ export default function GiftBoxSurveyPage({
                               <Input
                                 value={box.areaFormula}
                                 onChange={(e) => updateBoxFormula(box.id, e.target.value)}
-                                className="h-8"
+                                className="h-9"
                                 data-testid={`boxtype-formula-${box.id}`}
                               />
                             </TableCell>
@@ -350,7 +350,7 @@ export default function GiftBoxSurveyPage({
                               value={newBoxType.name}
                               onChange={(e) => setNewBoxType({ ...newBoxType, name: e.target.value })}
                               placeholder="新盒型名称"
-                              className="h-8"
+                              className="h-9"
                               data-testid="new-boxtype-name"
                             />
                           </TableCell>
@@ -359,7 +359,7 @@ export default function GiftBoxSurveyPage({
                               value={newBoxType.formula}
                               onChange={(e) => setNewBoxType({ ...newBoxType, formula: e.target.value })}
                               placeholder="例如：(长+高×2)×(宽+高×2)×2"
-                              className="h-8"
+                              className="h-9"
                               data-testid="new-boxtype-formula"
                             />
                           </TableCell>
@@ -436,7 +436,7 @@ export default function GiftBoxSurveyPage({
                                     type="number"
                                     value={l.minQty || ""}
                                     onChange={(e) => updateBoxLadder(box.id, i, "minQty", Number(e.target.value) || 0)}
-                                    className="h-8"
+                                    className="h-9"
                                     data-testid={`box-ladder-min-${box.id}-${i}`}
                                   />
                                 </TableCell>
@@ -445,7 +445,7 @@ export default function GiftBoxSurveyPage({
                                     type="number"
                                     value={l.maxQty === Infinity ? "" : (l.maxQty || "")}
                                     onChange={(e) => updateBoxLadder(box.id, i, "maxQty", e.target.value === "" ? Infinity : (Number(e.target.value) || 0))}
-                                    className="h-8"
+                                    className="h-9"
                                     placeholder="不限"
                                     data-testid={`box-ladder-max-${box.id}-${i}`}
                                   />
@@ -456,7 +456,7 @@ export default function GiftBoxSurveyPage({
                                     step={0.1}
                                     value={l.price || ""}
                                     onChange={(e) => updateBoxLadder(box.id, i, "price", Number(e.target.value) || 0)}
-                                    className="h-8"
+                                    className="h-9"
                                     data-testid={`box-ladder-price-${box.id}-${i}`}
                                   />
                                 </TableCell>
@@ -465,7 +465,7 @@ export default function GiftBoxSurveyPage({
                                     type="number"
                                     value={l.minPrice || ""}
                                     onChange={(e) => updateBoxLadder(box.id, i, "minPrice", Number(e.target.value) || 0)}
-                                    className="h-8"
+                                    className="h-9"
                                     placeholder="无"
                                   />
                                 </TableCell>
@@ -571,7 +571,7 @@ export default function GiftBoxSurveyPage({
                                 <Input
                                   value={paper.name}
                                   onChange={(e) => updatePaperField(paper.id, "name", e.target.value)}
-                                  className="h-8"
+                                  className="h-9"
                                   data-testid={`paper-name-${paper.id}`}
                                 />
                               </TableCell>
@@ -581,7 +581,7 @@ export default function GiftBoxSurveyPage({
                                   step={0.1}
                                   value={paper.pricePerSqm || ""}
                                   onChange={(e) => updatePaperField(paper.id, "pricePerSqm", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                   data-testid={`paper-price-${paper.id}`}
                                 />
                               </TableCell>
@@ -603,7 +603,7 @@ export default function GiftBoxSurveyPage({
                                 value={newPaper.name}
                                 onChange={(e) => setNewPaper({ ...newPaper, name: e.target.value })}
                                 placeholder="新面纸名称"
-                                className="h-8"
+                                className="h-9"
                                 data-testid="new-paper-name"
                               />
                             </TableCell>
@@ -613,7 +613,7 @@ export default function GiftBoxSurveyPage({
                                 step={0.1}
                                 value={newPaper.pricePerSqm || ""}
                                 onChange={(e) => setNewPaper({ ...newPaper, pricePerSqm: Number(e.target.value) || 0 })}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -636,8 +636,8 @@ export default function GiftBoxSurveyPage({
                             <TableHead>内衬名称</TableHead>
                             <TableHead className="w-[100px]">计算方式</TableHead>
                             <TableHead className="w-[100px]">体积单价(元/m³)</TableHead>
-                            <TableHead className="w-[80px]">起步价(元)</TableHead>
-                            <TableHead className="w-[80px]">加工费(元/个)</TableHead>
+                            <TableHead className="w-[100px]">起步价(元)</TableHead>
+                            <TableHead className="w-[100px]">加工费(元/个)</TableHead>
                             <TableHead className="w-[60px]"></TableHead>
                           </TableRow>
                         </TableHeader>
@@ -648,7 +648,7 @@ export default function GiftBoxSurveyPage({
                                 <Input
                                   value={liner.name}
                                   onChange={(e) => updateLinerField(liner.id, "name", e.target.value)}
-                                  className="h-8"
+                                  className="h-9"
                                   data-testid={`liner-name-${liner.id}`}
                                 />
                               </TableCell>
@@ -657,7 +657,7 @@ export default function GiftBoxSurveyPage({
                                   value={liner.calcMethod}
                                   onValueChange={(v) => updateLinerField(liner.id, "calcMethod", v)}
                                 >
-                                  <SelectTrigger className="h-8">
+                                  <SelectTrigger className="h-9">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -671,7 +671,7 @@ export default function GiftBoxSurveyPage({
                                   type="number"
                                   value={liner.pricePerCubicM || ""}
                                   onChange={(e) => updateLinerField(liner.id, "pricePerCubicM", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                   disabled={liner.calcMethod === "halfBoard"}
                                 />
                               </TableCell>
@@ -680,7 +680,7 @@ export default function GiftBoxSurveyPage({
                                   type="number"
                                   value={liner.minCost || ""}
                                   onChange={(e) => updateLinerField(liner.id, "minCost", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -689,7 +689,7 @@ export default function GiftBoxSurveyPage({
                                   step={0.1}
                                   value={liner.baseProcessFee || ""}
                                   onChange={(e) => updateLinerField(liner.id, "baseProcessFee", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -710,7 +710,7 @@ export default function GiftBoxSurveyPage({
                                 value={newLiner.name}
                                 onChange={(e) => setNewLiner({ ...newLiner, name: e.target.value })}
                                 placeholder="新内衬名称"
-                                className="h-8"
+                                className="h-9"
                                 data-testid="new-liner-name"
                               />
                             </TableCell>
@@ -719,7 +719,7 @@ export default function GiftBoxSurveyPage({
                                 value={newLiner.calcMethod}
                                 onValueChange={(v: "volume" | "halfBoard") => setNewLiner({ ...newLiner, calcMethod: v })}
                               >
-                                <SelectTrigger className="h-8">
+                                <SelectTrigger className="h-9">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -733,7 +733,7 @@ export default function GiftBoxSurveyPage({
                                 type="number"
                                 value={newLiner.pricePerCubicM || ""}
                                 onChange={(e) => setNewLiner({ ...newLiner, pricePerCubicM: Number(e.target.value) || 0 })}
-                                className="h-8"
+                                className="h-9"
                                 disabled={newLiner.calcMethod === "halfBoard"}
                               />
                             </TableCell>
@@ -742,7 +742,7 @@ export default function GiftBoxSurveyPage({
                                 type="number"
                                 value={newLiner.minCost || ""}
                                 onChange={(e) => setNewLiner({ ...newLiner, minCost: Number(e.target.value) || 0 })}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -751,7 +751,7 @@ export default function GiftBoxSurveyPage({
                                 step={0.1}
                                 value={newLiner.baseProcessFee || ""}
                                 onChange={(e) => setNewLiner({ ...newLiner, baseProcessFee: Number(e.target.value) || 0 })}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -816,8 +816,8 @@ export default function GiftBoxSurveyPage({
                           <TableHead className="w-[50px]">启用</TableHead>
                           <TableHead>工艺名称</TableHead>
                           <TableHead className="w-[100px]">计价方式</TableHead>
-                          <TableHead className="w-[90px]">单价</TableHead>
-                          <TableHead className="w-[90px]">起步价(元)</TableHead>
+                          <TableHead className="w-[100px]">单价</TableHead>
+                          <TableHead className="w-[100px]">起步价(元)</TableHead>
                           <TableHead>说明</TableHead>
                           <TableHead className="w-[60px]"></TableHead>
                         </TableRow>
@@ -836,7 +836,7 @@ export default function GiftBoxSurveyPage({
                               <Input
                                 value={craft.name}
                                 onChange={(e) => updateCraftField(craft.id, "name", e.target.value)}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -844,7 +844,7 @@ export default function GiftBoxSurveyPage({
                                 value={craft.calcType}
                                 onValueChange={(v) => updateCraftField(craft.id, "calcType", v)}
                               >
-                                <SelectTrigger className="h-8">
+                                <SelectTrigger className="h-9">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -859,7 +859,7 @@ export default function GiftBoxSurveyPage({
                                 step={0.1}
                                 value={craft.price || ""}
                                 onChange={(e) => updateCraftField(craft.id, "price", Number(e.target.value) || 0)}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -867,14 +867,14 @@ export default function GiftBoxSurveyPage({
                                 type="number"
                                 value={craft.startPrice || ""}
                                 onChange={(e) => updateCraftField(craft.id, "startPrice", Number(e.target.value) || 0)}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
                               <Input
                                 value={craft.desc}
                                 onChange={(e) => updateCraftField(craft.id, "desc", e.target.value)}
-                                className="h-8"
+                                className="h-9"
                                 placeholder="说明"
                               />
                             </TableCell>
@@ -897,7 +897,7 @@ export default function GiftBoxSurveyPage({
                               value={newCraft.name}
                               onChange={(e) => setNewCraft({ ...newCraft, name: e.target.value })}
                               placeholder="新工艺名称"
-                              className="h-8"
+                              className="h-9"
                               data-testid="new-craft-name"
                             />
                           </TableCell>
@@ -906,7 +906,7 @@ export default function GiftBoxSurveyPage({
                               value={newCraft.calcType}
                               onValueChange={(v: "perUnit" | "perArea") => setNewCraft({ ...newCraft, calcType: v })}
                             >
-                              <SelectTrigger className="h-8">
+                              <SelectTrigger className="h-9">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -921,7 +921,7 @@ export default function GiftBoxSurveyPage({
                               step={0.1}
                               value={newCraft.price || ""}
                               onChange={(e) => setNewCraft({ ...newCraft, price: Number(e.target.value) || 0 })}
-                              className="h-8"
+                              className="h-9"
                             />
                           </TableCell>
                           <TableCell>
@@ -929,7 +929,7 @@ export default function GiftBoxSurveyPage({
                               type="number"
                               value={newCraft.startPrice || ""}
                               onChange={(e) => setNewCraft({ ...newCraft, startPrice: Number(e.target.value) || 0 })}
-                              className="h-8"
+                              className="h-9"
                             />
                           </TableCell>
                           <TableCell>
@@ -937,7 +937,7 @@ export default function GiftBoxSurveyPage({
                               value={newCraft.desc}
                               onChange={(e) => setNewCraft({ ...newCraft, desc: e.target.value })}
                               placeholder="说明"
-                              className="h-8"
+                              className="h-9"
                             />
                           </TableCell>
                           <TableCell>
@@ -991,7 +991,7 @@ export default function GiftBoxSurveyPage({
                                 type="number"
                                 value={rule.minQty || ""}
                                 onChange={(e) => updateMoldRule(i, "minQty", Number(e.target.value) || 0)}
-                                className="h-8"
+                                className="h-9"
                                 data-testid={`mold-min-${i}`}
                               />
                             </TableCell>
@@ -1000,7 +1000,7 @@ export default function GiftBoxSurveyPage({
                                 type="number"
                                 value={rule.maxQty === Infinity ? "" : (rule.maxQty || "")}
                                 onChange={(e) => updateMoldRule(i, "maxQty", e.target.value === "" ? Infinity : (Number(e.target.value) || 0))}
-                                className="h-8"
+                                className="h-9"
                                 placeholder="不限"
                                 data-testid={`mold-max-${i}`}
                               />
@@ -1011,7 +1011,7 @@ export default function GiftBoxSurveyPage({
                                 step={0.1}
                                 value={rule.price || ""}
                                 onChange={(e) => updateMoldRule(i, "price", Number(e.target.value) || 0)}
-                                className="h-8"
+                                className="h-9"
                                 data-testid={`mold-price-${i}`}
                               />
                             </TableCell>
@@ -1019,7 +1019,7 @@ export default function GiftBoxSurveyPage({
                               <Input
                                 value={rule.desc}
                                 onChange={(e) => updateMoldRule(i, "desc", e.target.value)}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -1041,7 +1041,7 @@ export default function GiftBoxSurveyPage({
                               type="number"
                               value={newMoldRule.minQty || ""}
                               onChange={(e) => setNewMoldRule({ ...newMoldRule, minQty: Number(e.target.value) || 0 })}
-                              className="h-8"
+                              className="h-9"
                               placeholder="最小"
                               data-testid="new-mold-min"
                             />
@@ -1051,7 +1051,7 @@ export default function GiftBoxSurveyPage({
                               type="number"
                               value={newMoldRule.maxQty || ""}
                               onChange={(e) => setNewMoldRule({ ...newMoldRule, maxQty: Number(e.target.value) || 0 })}
-                              className="h-8"
+                              className="h-9"
                               placeholder="最大"
                               data-testid="new-mold-max"
                             />
@@ -1062,7 +1062,7 @@ export default function GiftBoxSurveyPage({
                               step={0.1}
                               value={newMoldRule.price || ""}
                               onChange={(e) => setNewMoldRule({ ...newMoldRule, price: Number(e.target.value) || 0 })}
-                              className="h-8"
+                              className="h-9"
                               placeholder="单价"
                             />
                           </TableCell>
@@ -1070,7 +1070,7 @@ export default function GiftBoxSurveyPage({
                             <Input
                               value={newMoldRule.desc}
                               onChange={(e) => setNewMoldRule({ ...newMoldRule, desc: e.target.value })}
-                              className="h-8"
+                              className="h-9"
                               placeholder="说明"
                             />
                           </TableCell>

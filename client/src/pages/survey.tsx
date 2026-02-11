@@ -688,7 +688,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                         ),
                                       });
                                     }}
-                                    className="h-8"
+                                    className="h-9"
                                   />
                                 )}
                               </TableCell>
@@ -722,7 +722,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 value={newBagType.name}
                                 onChange={(e) => setNewBagType({ ...newBagType, name: e.target.value })}
                                 placeholder="新袋型名称"
-                                className="h-8"
+                                className="h-9"
                                 data-testid="digital-new-bagtype-name"
                               />
                             </TableCell>
@@ -731,7 +731,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 value={newBagType.formula}
                                 onChange={(e) => setNewBagType({ ...newBagType, formula: e.target.value })}
                                 placeholder="例如：袋宽 × 袋高 × 2"
-                                className="h-8"
+                                className="h-9"
                                 data-testid="digital-new-bagtype-formula"
                               />
                             </TableCell>
@@ -799,7 +799,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 <Input
                                   value={material.name}
                                   onChange={(e) => updateDigitalMaterial("print", material.id, "name", e.target.value)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -807,7 +807,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   type="number"
                                   value={material.thickness || ""}
                                   onChange={(e) => updateDigitalMaterial("print", material.id, "thickness", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -816,7 +816,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   step="0.01"
                                   value={material.density || ""}
                                   onChange={(e) => updateDigitalMaterial("print", material.id, "density", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -825,7 +825,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   step="0.1"
                                   value={material.price || ""}
                                   onChange={(e) => updateDigitalMaterial("print", material.id, "price", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -834,14 +834,14 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   step="0.01"
                                   value={material.squarePrice || ""}
                                   onChange={(e) => updateDigitalMaterial("print", material.id, "squarePrice", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
                                 <Input
                                   value={material.notes}
                                   onChange={(e) => updateDigitalMaterial("print", material.id, "notes", e.target.value)}
-                                  className="h-8"
+                                  className="h-9"
                                   placeholder="备注"
                                 />
                               </TableCell>
@@ -912,7 +912,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 <Input
                                   value={material.name}
                                   onChange={(e) => updateDigitalMaterial("composite", material.id, "name", e.target.value)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -920,7 +920,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   type="number"
                                   value={material.thickness || ""}
                                   onChange={(e) => updateDigitalMaterial("composite", material.id, "thickness", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -929,7 +929,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   step="0.01"
                                   value={material.density || ""}
                                   onChange={(e) => updateDigitalMaterial("composite", material.id, "density", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -938,7 +938,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   step="0.1"
                                   value={material.price || ""}
                                   onChange={(e) => updateDigitalMaterial("composite", material.id, "price", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -947,14 +947,14 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   step="0.01"
                                   value={material.squarePrice || ""}
                                   onChange={(e) => updateDigitalMaterial("composite", material.id, "squarePrice", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
                                 <Input
                                   value={material.notes}
                                   onChange={(e) => updateDigitalMaterial("composite", material.id, "notes", e.target.value)}
-                                  className="h-8"
+                                  className="h-9"
                                   placeholder="备注"
                                 />
                               </TableCell>
@@ -1025,7 +1025,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 <Input
                                   value={material.name}
                                   onChange={(e) => updateDigitalMaterial("seal", material.id, "name", e.target.value)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -1033,7 +1033,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   type="number"
                                   value={material.thickness || ""}
                                   onChange={(e) => updateDigitalMaterial("seal", material.id, "thickness", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -1042,7 +1042,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   step="0.01"
                                   value={material.density || ""}
                                   onChange={(e) => updateDigitalMaterial("seal", material.id, "density", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -1051,7 +1051,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   step="0.1"
                                   value={material.price || ""}
                                   onChange={(e) => updateDigitalMaterial("seal", material.id, "price", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -1060,14 +1060,14 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   step="0.01"
                                   value={material.squarePrice || ""}
                                   onChange={(e) => updateDigitalMaterial("seal", material.id, "squarePrice", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
                                 <Input
                                   value={material.notes}
                                   onChange={(e) => updateDigitalMaterial("seal", material.id, "notes", e.target.value)}
-                                  className="h-8"
+                                  className="h-9"
                                   placeholder="备注"
                                 />
                               </TableCell>
@@ -1142,7 +1142,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 <Input
                                   value={mode.name}
                                   onChange={(e) => updateDigitalPrintMode(mode.id, "name", e.target.value)}
-                                  className="h-8"
+                                  className="h-9"
                                   data-testid={`input-printmode-name-${mode.id}`}
                                 />
                               </TableCell>
@@ -1152,7 +1152,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   step="0.1"
                                   value={mode.coefficient || ""}
                                   onChange={(e) => updateDigitalPrintMode(mode.id, "coefficient", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                   data-testid={`input-printmode-coeff-${mode.id}`}
                                 />
                               </TableCell>
@@ -1194,7 +1194,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   <Input
                                     value={tier.label}
                                     onChange={(e) => updateDigitalPrintingTier(index, "label", e.target.value)}
-                                    className="h-8"
+                                    className="h-9"
                                     data-testid={`input-tier-label-${index}`}
                                   />
                                 </TableCell>
@@ -1203,7 +1203,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                     type="number"
                                     value={tier.maxRevolutions || ""}
                                     onChange={(e) => updateDigitalPrintingTier(index, "maxRevolutions", Number(e.target.value) || 0)}
-                                    className="h-8"
+                                    className="h-9"
                                     data-testid={`input-tier-maxmeters-${index}`}
                                   />
                                 </TableCell>
@@ -1213,7 +1213,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                     step="0.01"
                                     value={tier.pricePerRevolution || ""}
                                     onChange={(e) => updateDigitalPrintingTier(index, "pricePerRevolution", Number(e.target.value) || 0)}
-                                    className="h-8"
+                                    className="h-9"
                                     data-testid={`input-tier-price-${index}`}
                                   />
                                 </TableCell>
@@ -1282,7 +1282,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                       ),
                                     });
                                   }}
-                                  className="h-8"
+                                  className="h-9"
                                   data-testid={`input-making-coeff-${bagType.id}`}
                                 />
                               </TableCell>
@@ -1298,7 +1298,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                       ),
                                     });
                                   }}
-                                  className="h-8"
+                                  className="h-9"
                                   data-testid={`input-making-minprice-${bagType.id}`}
                                 />
                               </TableCell>
@@ -1399,7 +1399,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 <Input
                                   value={process.name}
                                   onChange={(e) => updateDigitalSpecialProcess(process.id, "name", e.target.value)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -1408,7 +1408,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   step="0.01"
                                   value={process.unitPrice || ""}
                                   onChange={(e) => updateDigitalSpecialProcess(process.id, "unitPrice", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -1416,7 +1416,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   value={process.calcBasis}
                                   onValueChange={(v) => updateDigitalSpecialProcess(process.id, "calcBasis", v)}
                                 >
-                                  <SelectTrigger className="h-8">
+                                  <SelectTrigger className="h-9">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -1431,14 +1431,14 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   type="number"
                                   value={process.minPrice || ""}
                                   onChange={(e) => updateDigitalSpecialProcess(process.id, "minPrice", Number(e.target.value) || 0)}
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
                                 <Input
                                   value={process.notes}
                                   onChange={(e) => updateDigitalSpecialProcess(process.id, "notes", e.target.value)}
-                                  className="h-8"
+                                  className="h-9"
                                   placeholder="备注"
                                 />
                               </TableCell>
@@ -1461,7 +1461,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 value={newSpecialProcess.name}
                                 onChange={(e) => setNewSpecialProcess({ ...newSpecialProcess, name: e.target.value })}
                                 placeholder="新工艺名称"
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -1471,7 +1471,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 value={newSpecialProcess.unitPrice || ""}
                                 onChange={(e) => setNewSpecialProcess({ ...newSpecialProcess, unitPrice: Number(e.target.value) || 0 })}
                                 placeholder="单价"
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -1479,7 +1479,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 value={newSpecialProcess.calcBasis}
                                 onValueChange={(v) => setNewSpecialProcess({ ...newSpecialProcess, calcBasis: v as DigitalSpecialCalcBasis })}
                               >
-                                <SelectTrigger className="h-8">
+                                <SelectTrigger className="h-9">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1495,7 +1495,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 value={newSpecialProcess.minPrice || ""}
                                 onChange={(e) => setNewSpecialProcess({ ...newSpecialProcess, minPrice: Number(e.target.value) || 0 })}
                                 placeholder="起步价"
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -1503,7 +1503,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 value={newSpecialProcess.notes}
                                 onChange={(e) => setNewSpecialProcess({ ...newSpecialProcess, notes: e.target.value })}
                                 placeholder="备注"
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -1563,7 +1563,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   <Input
                                     value={zipper.name}
                                     onChange={(e) => updateDigitalZipper(zipper.id, "name", e.target.value)}
-                                    className="h-8"
+                                    className="h-9"
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -1572,7 +1572,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                     step="0.01"
                                     value={zipper.pricePerMeter || ""}
                                     onChange={(e) => updateDigitalZipper(zipper.id, "pricePerMeter", Number(e.target.value) || 0)}
-                                    className="h-8"
+                                    className="h-9"
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -1594,7 +1594,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   value={newZipper.name}
                                   onChange={(e) => setNewZipper({ ...newZipper, name: e.target.value })}
                                   placeholder="新拉链名称"
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -1604,7 +1604,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   value={newZipper.pricePerMeter || ""}
                                   onChange={(e) => setNewZipper({ ...newZipper, pricePerMeter: Number(e.target.value) || 0 })}
                                   placeholder="单价"
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -1648,7 +1648,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   <Input
                                     value={valve.name}
                                     onChange={(e) => updateDigitalValve(valve.id, "name", e.target.value)}
-                                    className="h-8"
+                                    className="h-9"
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -1657,7 +1657,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                     step="0.01"
                                     value={valve.pricePerUnit || ""}
                                     onChange={(e) => updateDigitalValve(valve.id, "pricePerUnit", Number(e.target.value) || 0)}
-                                    className="h-8"
+                                    className="h-9"
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -1679,7 +1679,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   value={newValve.name}
                                   onChange={(e) => setNewValve({ ...newValve, name: e.target.value })}
                                   placeholder="新气阀名称"
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -1689,7 +1689,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   value={newValve.pricePerUnit || ""}
                                   onChange={(e) => setNewValve({ ...newValve, pricePerUnit: Number(e.target.value) || 0 })}
                                   placeholder="单价"
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -1734,7 +1734,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   <Input
                                     value={accessory.name}
                                     onChange={(e) => updateDigitalAccessory(accessory.id, "name", e.target.value)}
-                                    className="h-8"
+                                    className="h-9"
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -1743,7 +1743,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                     step="0.01"
                                     value={accessory.price || ""}
                                     onChange={(e) => updateDigitalAccessory(accessory.id, "price", Number(e.target.value) || 0)}
-                                    className="h-8"
+                                    className="h-9"
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -1771,7 +1771,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   value={newAccessory.name}
                                   onChange={(e) => setNewAccessory({ ...newAccessory, name: e.target.value })}
                                   placeholder="新附件名称"
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -1781,7 +1781,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                   value={newAccessory.price || ""}
                                   onChange={(e) => setNewAccessory({ ...newAccessory, price: Number(e.target.value) || 0 })}
                                   placeholder="单价"
-                                  className="h-8"
+                                  className="h-9"
                                 />
                               </TableCell>
                               <TableCell>
@@ -1836,7 +1836,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                           type="number"
                           value={digitalConfig.systemConstants.maxPrintWidth || ""}
                           onChange={(e) => updateSystemConstant("maxPrintWidth", Number(e.target.value) || 0)}
-                          className="h-8"
+                          className="h-9"
                         />
                       </div>
                       <div className="space-y-1">
@@ -1845,7 +1845,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                           type="number"
                           value={digitalConfig.systemConstants.maxPrintCircumference || ""}
                           onChange={(e) => updateSystemConstant("maxPrintCircumference", Number(e.target.value) || 0)}
-                          className="h-8"
+                          className="h-9"
                         />
                       </div>
                       <div className="space-y-1">
@@ -1854,7 +1854,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                           type="number"
                           value={digitalConfig.systemConstants.materialWidth || ""}
                           onChange={(e) => updateSystemConstant("materialWidth", Number(e.target.value) || 0)}
-                          className="h-8"
+                          className="h-9"
                         />
                       </div>
                       <div className="space-y-1">
@@ -1863,7 +1863,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                           type="number"
                           value={digitalConfig.systemConstants.skuWaste || ""}
                           onChange={(e) => updateSystemConstant("skuWaste", Number(e.target.value) || 0)}
-                          className="h-8"
+                          className="h-9"
                         />
                       </div>
                       <div className="space-y-1">
@@ -1872,7 +1872,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                           type="number"
                           value={digitalConfig.systemConstants.adjustmentWaste || ""}
                           onChange={(e) => updateSystemConstant("adjustmentWaste", Number(e.target.value) || 0)}
-                          className="h-8"
+                          className="h-9"
                         />
                       </div>
                       <div className="space-y-1">
@@ -1881,7 +1881,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                           type="number"
                           value={digitalConfig.systemConstants.idleMaterialMin || ""}
                           onChange={(e) => updateSystemConstant("idleMaterialMin", Number(e.target.value) || 0)}
-                          className="h-8"
+                          className="h-9"
                         />
                       </div>
                     </div>
@@ -2001,7 +2001,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                     ),
                                   });
                                 }}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -2030,7 +2030,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                     ),
                                   });
                                 }}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -2055,7 +2055,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                               value={newBagType.name}
                               onChange={(e) => setNewBagType({ ...newBagType, name: e.target.value })}
                               placeholder="新袋型名称"
-                              className="h-8"
+                              className="h-9"
                               data-testid="new-bagtype-name"
                             />
                           </TableCell>
@@ -2064,7 +2064,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                               value={newBagType.formula}
                               onChange={(e) => setNewBagType({ ...newBagType, formula: e.target.value })}
                               placeholder="例如：袋宽 × 袋高 × 2"
-                              className="h-8"
+                              className="h-9"
                               data-testid="new-bagtype-formula"
                             />
                           </TableCell>
@@ -2081,7 +2081,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                               step="0.01"
                               value={newBagType.wasteCoefficient || ""}
                               onChange={(e) => setNewBagType({ ...newBagType, wasteCoefficient: Number(e.target.value) || 0 })}
-                              className="h-8"
+                              className="h-9"
                             />
                           </TableCell>
                           <TableCell>
@@ -2150,7 +2150,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                               <Input
                                 value={material.name}
                                 onChange={(e) => updateMaterialField(material.id, "name", e.target.value)}
-                                className="h-8"
+                                className="h-9"
                                 data-testid={`material-name-${material.id}`}
                               />
                             </TableCell>
@@ -2159,7 +2159,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 type="number"
                                 value={material.thickness || ""}
                                 onChange={(e) => updateMaterialField(material.id, "thickness", Number(e.target.value) || 0)}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -2168,7 +2168,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 step="0.01"
                                 value={material.density || ""}
                                 onChange={(e) => updateMaterialField(material.id, "density", Number(e.target.value) || 0)}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -2177,7 +2177,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 step="0.1"
                                 value={material.grammage || ""}
                                 onChange={(e) => updateMaterialField(material.id, "grammage", Number(e.target.value) || 0)}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -2186,14 +2186,14 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 step="0.1"
                                 value={material.price || ""}
                                 onChange={(e) => updateMaterialField(material.id, "price", Number(e.target.value) || 0)}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
                               <Input
                                 value={material.notes}
                                 onChange={(e) => updateMaterialField(material.id, "notes", e.target.value)}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -2215,7 +2215,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                               value={newMaterial.name}
                               onChange={(e) => setNewMaterial({ ...newMaterial, name: e.target.value })}
                               placeholder="新材料名"
-                              className="h-8"
+                              className="h-9"
                               data-testid="new-material-name"
                             />
                           </TableCell>
@@ -2225,7 +2225,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                               value={newMaterial.thickness || ""}
                               onChange={(e) => setNewMaterial({ ...newMaterial, thickness: Number(e.target.value) || 0 })}
                               placeholder="厚度"
-                              className="h-8"
+                              className="h-9"
                             />
                           </TableCell>
                           <TableCell>
@@ -2235,7 +2235,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                               value={newMaterial.density || ""}
                               onChange={(e) => setNewMaterial({ ...newMaterial, density: Number(e.target.value) || 0 })}
                               placeholder="密度"
-                              className="h-8"
+                              className="h-9"
                             />
                           </TableCell>
                           <TableCell>
@@ -2245,7 +2245,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                               value={newMaterial.grammage || ""}
                               onChange={(e) => setNewMaterial({ ...newMaterial, grammage: Number(e.target.value) || 0 })}
                               placeholder="克重"
-                              className="h-8"
+                              className="h-9"
                             />
                           </TableCell>
                           <TableCell>
@@ -2255,7 +2255,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                               value={newMaterial.price || ""}
                               onChange={(e) => setNewMaterial({ ...newMaterial, price: Number(e.target.value) || 0 })}
                               placeholder="价格"
-                              className="h-8"
+                              className="h-9"
                             />
                           </TableCell>
                           <TableCell>
@@ -2263,7 +2263,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                               value={newMaterial.notes}
                               onChange={(e) => setNewMaterial({ ...newMaterial, notes: e.target.value })}
                               placeholder="备注"
-                              className="h-8"
+                              className="h-9"
                             />
                           </TableCell>
                           <TableCell>
@@ -2326,7 +2326,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 type="number"
                                 value={rule.coverage || ""}
                                 onChange={(e) => updatePrintingPrice(index, "coverage", Number(e.target.value) || 0)}
-                                className="h-8"
+                                className="h-9"
                                 data-testid={`input-printing-coverage-${index}`}
                               />
                             </TableCell>
@@ -2334,7 +2334,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                               <Input
                                 value={rule.label}
                                 onChange={(e) => updatePrintingPrice(index, "label", e.target.value)}
-                                className="h-8"
+                                className="h-9"
                                 data-testid={`input-printing-label-${index}`}
                               />
                             </TableCell>
@@ -2344,7 +2344,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 step="0.01"
                                 value={rule.pricePerSqm || ""}
                                 onChange={(e) => updatePrintingPrice(index, "pricePerSqm", Number(e.target.value) || 0)}
-                                className="h-8"
+                                className="h-9"
                                 data-testid={`input-printing-price-${index}`}
                               />
                             </TableCell>
@@ -2411,7 +2411,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                               <Input
                                 value={rule.name}
                                 onChange={(e) => updateLaminationPrice(index, "name", e.target.value)}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -2420,7 +2420,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 step="0.001"
                                 value={rule.pricePerSqm || ""}
                                 onChange={(e) => updateLaminationPrice(index, "pricePerSqm", Number(e.target.value) || 0)}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -2442,7 +2442,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                               value={newLamination.name}
                               onChange={(e) => setNewLamination({ ...newLamination, name: e.target.value })}
                               placeholder="新复合类型名称"
-                              className="h-8"
+                              className="h-9"
                               data-testid="new-lamination-name"
                             />
                           </TableCell>
@@ -2453,7 +2453,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                               value={newLamination.pricePerSqm || ""}
                               onChange={(e) => setNewLamination({ ...newLamination, pricePerSqm: Number(e.target.value) || 0 })}
                               placeholder="单价"
-                              className="h-8"
+                              className="h-9"
                             />
                           </TableCell>
                           <TableCell>
@@ -2913,7 +2913,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 type="number"
                                 value={discount.minQuantity}
                                 onChange={(e) => updateQuantityDiscount(index, "minQuantity", Number(e.target.value) || 0)}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
@@ -2922,14 +2922,14 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 step="0.01"
                                 value={discount.coefficient}
                                 onChange={(e) => updateQuantityDiscount(index, "coefficient", Number(e.target.value) || 0)}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
                               <Input
                                 value={discount.label}
                                 onChange={(e) => updateQuantityDiscount(index, "label", e.target.value)}
-                                className="h-8"
+                                className="h-9"
                               />
                             </TableCell>
                             <TableCell>
