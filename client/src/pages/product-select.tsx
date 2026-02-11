@@ -179,18 +179,15 @@ export default function ProductSelectPage() {
             </div>
           )}
 
-          {canProceed && (
+          {selectedProduct && (
             <div className="space-y-3">
               <h3 className="text-center text-base font-semibold text-foreground" data-testid="text-name-title">
-                请输入客户名称
+                请输入您的公司名称
               </h3>
-              <p className="text-center text-sm text-muted-foreground">
-                名称将显示在报价器标题中，例如"顺发自动报价器"
-              </p>
               <div className="max-w-xs mx-auto">
                 <Input
                   data-testid="input-customer-name"
-                  placeholder="请输入客户名称"
+                  placeholder="请输入您的公司名称"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                   className="text-center"
