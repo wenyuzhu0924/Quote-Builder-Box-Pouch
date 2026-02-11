@@ -210,8 +210,8 @@ export default function GiftBoxQuotePage({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50/50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 flex flex-col">
-      <header className="border-b border-orange-100 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm sticky top-0 z-50">
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="border-b bg-card sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <Button
@@ -302,12 +302,12 @@ export default function GiftBoxQuotePage({
             <CardTitle className="text-base font-semibold text-primary">订单信息</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 p-3 rounded-md bg-orange-50/50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30">
+            <div className="grid grid-cols-2 gap-3 p-3 rounded-md bg-primary/5 border border-primary/20">
               <div>
                 <div className="text-xs text-muted-foreground mb-1">当前阶梯价格</div>
                 <div>
                   <div className="text-xs text-muted-foreground">当前单价</div>
-                  <div className="text-xl font-bold text-orange-600 dark:text-orange-400">¥{calc.finalBoxPrice}</div>
+                  <div className="text-xl font-bold text-primary">¥{calc.finalBoxPrice}</div>
                   <div className="text-xs text-muted-foreground">（数量：{calc.validQty}个）</div>
                 </div>
               </div>
@@ -345,7 +345,7 @@ export default function GiftBoxQuotePage({
                 <div>
                   <Label className="text-xs text-muted-foreground mb-1 block">
                     自定义单价
-                    <span className="text-orange-500 ml-1">（上万可议价）</span>
+                    <span className="text-primary ml-1">（上万可议价）</span>
                   </Label>
                   <Input
                     type="number"

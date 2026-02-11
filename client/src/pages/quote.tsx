@@ -716,11 +716,11 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
   if (isDigital) {
     return (
       <div className="min-h-screen bg-background">
-        <header className="border-b bg-card sticky top-0 z-10">
+        <header className="border-b bg-card sticky top-0 z-50">
           <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
-                <h1 className="text-xl font-semibold text-foreground">包装袋自动报价器</h1>
+                <h1 className="text-xl font-bold text-foreground tracking-tight">包装袋自动报价器</h1>
                 <Badge variant="secondary">数码印刷</Badge>
               </div>
               <div className="flex items-center gap-2">
@@ -739,8 +739,8 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
           </div>
         </header>
 
-        <main className="container mx-auto px-4 py-6">
-          <div className="max-w-5xl mx-auto space-y-6">
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-5xl mx-auto space-y-8">
             <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="text-lg">袋型与尺寸</CardTitle>
@@ -859,7 +859,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                     variant="default" 
                     size="sm" 
                     onClick={() => addDigitalLayer("composite")}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    className=""
                     data-testid="add-composite-layer"
                   >
                     + 复合层
@@ -868,7 +868,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                     variant="default" 
                     size="sm" 
                     onClick={() => addDigitalLayer("seal")}
-                    className="bg-green-600 hover:bg-green-700"
+                    className=""
                     data-testid="add-seal-layer"
                   >
                     + 热封层
@@ -1157,26 +1157,28 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
 
               return (
                 <div className="space-y-0" data-testid="calculation-breakdown">
-                  <div className="border-b-2 border-primary pb-4 mb-6">
-                    <h2 className="text-xl font-bold text-primary flex items-center gap-2 flex-wrap">
-                      <CheckCircle2 className="w-5 h-5 text-primary" /> 报价汇总 & 完整成本计算明细（每笔费用分步展示）
+                  <div className="p-6 mb-8 bg-card border border-card-border" style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.06)", borderRadius: "10px" }}>
+                    <h2 className="text-xl font-bold text-foreground flex items-center gap-2 flex-wrap tracking-tight">
+                      <CheckCircle2 className="w-5 h-5 text-primary" /> 报价汇总 & 完整成本计算明细
                     </h2>
 
-                    <div className="grid grid-cols-2 gap-4 mt-4">
-                      <div className="p-4 border rounded-lg">
-                        <div className="text-sm text-muted-foreground mb-1">不含税报价</div>
-                        <div className="font-bold">单价：{f4(q.exFactory.unit)} 元/个 ≈ {f4(q.exFactory.unitUSD)} USD/pc</div>
-                        <div className="font-bold">总价：{f(q.exFactory.total)} 元 ≈ {f(q.exFactory.totalUSD)} USD</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                      <div className="p-5 border rounded-lg">
+                        <div className="text-sm text-muted-foreground mb-2 font-semibold uppercase tracking-wide">不含税报价</div>
+                        <div className="text-2xl font-bold text-foreground">{f4(q.exFactory.unit)} 元/个</div>
+                        <div className="text-sm text-muted-foreground mt-1">≈ {f4(q.exFactory.unitUSD)} USD/pc</div>
+                        <div className="text-sm text-muted-foreground mt-2 font-medium">总价：{f(q.exFactory.total)} 元 ≈ {f(q.exFactory.totalUSD)} USD</div>
                       </div>
-                      <div className="p-4 border-2 border-primary rounded-lg bg-primary/5">
-                        <div className="text-sm text-primary mb-1 font-medium">含税报价（含{bd.taxRate}%增值税）</div>
-                        <div className="font-bold text-primary">单价：{f4(q.withTax.unit)} 元/个 ≈ {f4(q.withTax.unitUSD)} USD/pc</div>
-                        <div className="font-bold text-primary">总价：{f(q.withTax.total)} 元 ≈ {f(q.withTax.totalUSD)} USD</div>
+                      <div className="p-5 border-2 border-primary rounded-lg bg-primary/5">
+                        <div className="text-sm text-primary mb-2 font-semibold uppercase tracking-wide">含税报价（含{bd.taxRate}%增值税）</div>
+                        <div className="text-2xl font-bold text-foreground">{f4(q.withTax.unit)} 元/个</div>
+                        <div className="text-sm text-primary mt-1 font-medium">≈ {f4(q.withTax.unitUSD)} USD/pc</div>
+                        <div className="text-sm text-primary mt-2 font-medium">总价：{f(q.withTax.total)} 元 ≈ {f(q.withTax.totalUSD)} USD</div>
                       </div>
                     </div>
 
-                    <div className="mt-4 text-sm font-medium text-destructive flex items-center gap-1 flex-wrap">
-                      <Sparkles className="w-4 h-4" /> 核心计算规则：所有费用累加 = 总成本 → 总成本 ÷ 总数量 = 单价 → 单价 × (1+税率) = 含税单价
+                    <div className="mt-5 text-sm font-medium text-muted-foreground flex items-center gap-1 flex-wrap">
+                      <Sparkles className="w-4 h-4 text-primary" /> 核心计算规则：所有费用累加 = 总成本 → 总成本 ÷ 总数量 = 单价 → 单价 × (1+税率) = 含税单价
                     </div>
                   </div>
 
@@ -1474,11 +1476,11 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card sticky top-0 z-10">
+      <header className="border-b bg-card sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-semibold text-foreground">包装袋自动报价器</h1>
+              <h1 className="text-xl font-bold tracking-tight text-foreground">包装袋自动报价器</h1>
               <Badge variant="secondary">凹版印刷</Badge>
             </div>
             <div className="flex items-center gap-2">

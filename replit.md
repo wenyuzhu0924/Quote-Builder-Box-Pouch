@@ -141,3 +141,17 @@ Preferred communication style: Simple, everyday language.
   - `laminationUnitPrice`/`laminationPerMeter` for lamination cost config
 - **Survey Page**: Added bag-making cost configuration UI (coefficient + min price per digital bag type), lamination price configuration section
 - **Quote Page**: Uses `calculateDigital()` from digital-calc.ts; displays comprehensive cost breakdown (material, lamination, print, bag-making, accessories, special process, custom costs, file fees, with/without tax totals in CNY and USD)
+
+### February 11, 2026 - Design System Refinement (Precision Swiss Upgrade)
+- **Primary Color**: Changed from golden yellow to orange (#F05A0E / HSL 20 89% 50%), with white foreground
+- **Background**: Warm neutral #F8F8F6 (HSL 60 14% 97%), cards pure white
+- **Muted/Section**: Beige tone #E9DDCC (HSL 35 40% 86%) for section backgrounds
+- **Neutral Scale**: neutral-900 (#111827) for headings, neutral-500 (#6B7280) for muted text, neutral-300 (#D1D5DB) for borders
+- **Typography**: Inter font, font-bold (700) for headings with tracking-tight, font-semibold (600) for labels/buttons
+- **Inputs**: 44px height (h-11), 1px neutral-300 border, 6px radius, orange focus ring (ring-2)
+- **Buttons**: min-h-11, px-5 py-3, font-semibold, 200ms transition, orange primary bg
+- **Cards**: rounded-lg (6px), consistent padding
+- **Summary Panel**: 10px border-radius, box-shadow: 0 8px 24px rgba(0,0,0,0.06), price display text-2xl font-bold
+- **Dark Mode**: Updated to match orange primary, neutral dark backgrounds (220 hue family)
+- **Cleanup**: All hardcoded bg-orange-*, bg-blue-*, bg-green-* replaced with semantic tokens (bg-primary, text-primary, etc.)
+- **Sticky Headers**: All page headers use z-50 for proper stacking

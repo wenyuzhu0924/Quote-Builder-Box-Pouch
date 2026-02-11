@@ -603,9 +603,9 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
   if (isDigital) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <header className="border-b bg-card sticky top-0 z-10">
+        <header className="border-b bg-card sticky top-0 z-50">
           <div className="container mx-auto px-4 py-4">
-            <h1 className="text-xl font-semibold text-foreground">报价器生成器 - 数码印刷</h1>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">报价器生成器 - 数码印刷</h1>
           </div>
         </header>
 
@@ -1921,9 +1921,9 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="border-b bg-card sticky top-0 z-10">
+      <header className="border-b bg-card sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
-          <h1 className="text-xl font-semibold text-foreground">报价器生成器 - 凹版印刷</h1>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">报价器生成器 - 凹版印刷</h1>
         </div>
       </header>
 

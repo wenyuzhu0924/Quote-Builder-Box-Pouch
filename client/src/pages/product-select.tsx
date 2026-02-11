@@ -63,8 +63,8 @@ export default function ProductSelectPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50/50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 flex flex-col">
-      <header className="border-b border-orange-100 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm">
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <h1 className="text-xl font-bold tracking-tight text-foreground" data-testid="text-app-title">
             报价器生成器
@@ -93,21 +93,21 @@ export default function ProductSelectPage() {
                   data-testid={`card-product-${product.id}`}
                   className={`relative group rounded-md p-6 flex flex-col items-center gap-4 transition-all duration-200 cursor-pointer border-2 ${
                     isSelected
-                      ? "border-orange-500 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-400"
-                      : "border-transparent bg-white dark:bg-neutral-800/60 hover:border-orange-200 dark:hover:border-orange-800"
+                      ? "border-primary bg-primary/5"
+                      : "border-transparent bg-card hover:border-primary/30"
                   } shadow-sm hover:shadow-md`}
                   onClick={() => handleProductSelect(product.id)}
                 >
                   {isSelected && (
-                    <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-orange-500 dark:bg-orange-400 flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white" />
+                    <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                      <Check className="w-3 h-3 text-primary-foreground" />
                     </div>
                   )}
                   <div
                     className={`flex items-center justify-center w-16 h-16 rounded-md transition-colors ${
                       isSelected
-                        ? "bg-orange-500 text-white dark:bg-orange-400"
-                        : "bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300 group-hover:bg-orange-200 dark:group-hover:bg-orange-900/60"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-primary/10 text-primary"
                     }`}
                   >
                     <Icon className="w-8 h-8" />
@@ -115,7 +115,7 @@ export default function ProductSelectPage() {
                   <span
                     className={`text-lg font-semibold transition-colors ${
                       isSelected
-                        ? "text-orange-700 dark:text-orange-300"
+                        ? "text-primary"
                         : "text-foreground"
                     }`}
                   >
@@ -141,21 +141,21 @@ export default function ProductSelectPage() {
                       data-testid={`card-printing-${method.id}`}
                       className={`relative group rounded-md p-5 flex flex-col items-center gap-3 transition-all duration-200 cursor-pointer border-2 ${
                         isSelected
-                          ? "border-orange-500 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-400"
-                          : "border-transparent bg-white dark:bg-neutral-800/60 hover:border-orange-200 dark:hover:border-orange-800"
+                          ? "border-primary bg-primary/5"
+                          : "border-transparent bg-card hover:border-primary/30"
                       } shadow-sm hover:shadow-md`}
                       onClick={() => handlePrintingSelect(method.id)}
                     >
                       {isSelected && (
-                        <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-orange-500 dark:bg-orange-400 flex items-center justify-center">
-                          <Check className="w-3 h-3 text-white" />
+                        <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                          <Check className="w-3 h-3 text-primary-foreground" />
                         </div>
                       )}
                       <div
                         className={`flex items-center justify-center w-12 h-12 rounded-md transition-colors ${
                           isSelected
-                            ? "bg-orange-500 text-white dark:bg-orange-400"
-                            : "bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300 group-hover:bg-orange-200 dark:group-hover:bg-orange-900/60"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-primary/10 text-primary"
                         }`}
                       >
                         <Icon className="w-6 h-6" />
@@ -163,7 +163,7 @@ export default function ProductSelectPage() {
                       <span
                         className={`text-base font-semibold transition-colors ${
                           isSelected
-                            ? "text-orange-700 dark:text-orange-300"
+                            ? "text-primary"
                             : "text-foreground"
                         }`}
                       >
@@ -181,7 +181,7 @@ export default function ProductSelectPage() {
               data-testid="button-next"
               onClick={handleNext}
               disabled={!canProceed}
-              className="gap-2 px-8 bg-orange-500 hover:bg-orange-600 text-white border-orange-600 dark:bg-orange-500 dark:hover:bg-orange-600 dark:border-orange-600 dark:text-white disabled:opacity-40 no-default-hover-elevate no-default-active-elevate"
+              className="gap-2 px-8"
             >
               下一步
               <ArrowRight className="w-4 h-4" />
