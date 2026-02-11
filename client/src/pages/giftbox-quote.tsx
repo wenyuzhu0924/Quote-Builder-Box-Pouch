@@ -249,7 +249,7 @@ export default function GiftBoxQuotePage({
       <main className="flex-1 container mx-auto px-4 py-6 max-w-4xl space-y-6">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold text-primary">盒型与尺寸</CardTitle>
+            <CardTitle className="text-base font-semibold section-title">盒型与尺寸</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-4 gap-3">
@@ -299,7 +299,7 @@ export default function GiftBoxQuotePage({
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold text-primary">订单信息</CardTitle>
+            <CardTitle className="text-base font-semibold section-title">订单信息</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-3 p-3 rounded-md bg-primary/5 border border-primary/20">
@@ -401,7 +401,7 @@ export default function GiftBoxQuotePage({
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold text-primary">材料配置</CardTitle>
+            <CardTitle className="text-base font-semibold section-title">材料配置</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -460,7 +460,7 @@ export default function GiftBoxQuotePage({
         {enabledCrafts.length > 0 && (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold text-primary">特殊工艺</CardTitle>
+              <CardTitle className="text-base font-semibold section-title">特殊工艺</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -506,7 +506,7 @@ export default function GiftBoxQuotePage({
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">费用明细</CardTitle>
+            <CardTitle className="text-base section-title">费用明细</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <CostRow

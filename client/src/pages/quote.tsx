@@ -743,7 +743,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
           <div className="max-w-5xl mx-auto space-y-8">
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">袋型与尺寸</CardTitle>
+                <CardTitle className="text-lg section-title">袋型与尺寸</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -792,7 +792,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
 
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">订单信息配置</CardTitle>
+                <CardTitle className="text-lg section-title">订单信息配置</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-3 gap-4">
@@ -830,7 +830,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
 
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">材料层结构</CardTitle>
+                <CardTitle className="text-lg section-title">材料层结构</CardTitle>
               </CardHeader>
               <CardContent>
                 {!hasValidStructure && (
@@ -940,7 +940,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
 
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">印刷工艺</CardTitle>
+                <CardTitle className="text-lg section-title">印刷工艺</CardTitle>
               </CardHeader>
               <CardContent>
                 <div>
@@ -963,7 +963,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
 
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">特殊工艺（可多选）</CardTitle>
+                <CardTitle className="text-lg section-title">特殊工艺（可多选）</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1014,7 +1014,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
 
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">附件配置</CardTitle>
+                <CardTitle className="text-lg section-title">附件配置</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
@@ -1120,7 +1120,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
 
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">自定义成本设置</CardTitle>
+                <CardTitle className="text-lg section-title">自定义成本设置</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
@@ -1157,23 +1157,25 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
 
               return (
                 <div className="space-y-0" data-testid="calculation-breakdown">
-                  <div className="p-6 mb-8 bg-card border border-card-border" style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.06)", borderRadius: "10px" }}>
+                  <div className="summary-panel mb-8">
                     <h2 className="text-xl font-bold text-foreground flex items-center gap-2 flex-wrap tracking-tight">
                       <CheckCircle2 className="w-5 h-5 text-primary" /> 报价汇总 & 完整成本计算明细
                     </h2>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                      <div className="p-5 border rounded-lg">
+                      <div className="p-5 border rounded-[10px]">
                         <div className="text-sm text-muted-foreground mb-2 font-semibold uppercase tracking-wide">不含税报价</div>
-                        <div className="text-2xl font-bold text-foreground">{f4(q.exFactory.unit)} 元/个</div>
-                        <div className="text-sm text-muted-foreground mt-1">≈ {f4(q.exFactory.unitUSD)} USD/pc</div>
-                        <div className="text-sm text-muted-foreground mt-2 font-medium">总价：{f(q.exFactory.total)} 元 ≈ {f(q.exFactory.totalUSD)} USD</div>
+                        <div className="price-main">{f4(q.exFactory.unit)} <span className="text-lg">元/个</span></div>
+                        <div className="price-unit mt-2">≈ {f4(q.exFactory.unitUSD)} USD/pc</div>
+                        <div className="breakdown-divider"></div>
+                        <div className="price-unit font-medium">总价：{f(q.exFactory.total)} 元 ≈ {f(q.exFactory.totalUSD)} USD</div>
                       </div>
-                      <div className="p-5 border-2 border-primary rounded-lg bg-primary/5">
+                      <div className="p-5 border-2 border-primary rounded-[10px] bg-primary/5">
                         <div className="text-sm text-primary mb-2 font-semibold uppercase tracking-wide">含税报价（含{bd.taxRate}%增值税）</div>
-                        <div className="text-2xl font-bold text-foreground">{f4(q.withTax.unit)} 元/个</div>
-                        <div className="text-sm text-primary mt-1 font-medium">≈ {f4(q.withTax.unitUSD)} USD/pc</div>
-                        <div className="text-sm text-primary mt-2 font-medium">总价：{f(q.withTax.total)} 元 ≈ {f(q.withTax.totalUSD)} USD</div>
+                        <div className="price-main">{f4(q.withTax.unit)} <span className="text-lg">元/个</span></div>
+                        <div className="price-unit mt-2 text-primary font-medium">≈ {f4(q.withTax.unitUSD)} USD/pc</div>
+                        <div className="breakdown-divider"></div>
+                        <div className="price-unit text-primary font-medium">总价：{f(q.withTax.total)} 元 ≈ {f(q.withTax.totalUSD)} USD</div>
                       </div>
                     </div>
 
@@ -1503,7 +1505,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
         <div className="max-w-5xl mx-auto space-y-6">
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg">袋型</CardTitle>
+              <CardTitle className="text-lg section-title">袋型</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1573,7 +1575,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
           <Card>
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <CardTitle className="text-lg">
+                <CardTitle className="text-lg section-title">
                   {isEightSideDiff ? "正背底面材料层" : "材料层结构"}（{materialLayers.length}层，自动{Math.max(0, materialLayers.length - 1)}次复合）
                 </CardTitle>
                 <div className="flex items-center gap-2">
@@ -1812,7 +1814,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
           {laminationSteps.length > 0 && (
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">
+                <CardTitle className="text-lg section-title">
                   {isEightSideDiff ? "正背底面复合工艺" : "复合工艺"}（自动{laminationSteps.length}次复合）
                 </CardTitle>
               </CardHeader>
@@ -1847,7 +1849,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
             <Card>
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <CardTitle className="text-lg">八边封侧面材料层（{sideMaterialLayers.length}层）</CardTitle>
+                  <CardTitle className="text-lg section-title">八边封侧面材料层（{sideMaterialLayers.length}层）</CardTitle>
                   <Button variant="outline" size="sm" onClick={addSideMaterialLayer} disabled={sideMaterialLayers.length >= 5} data-testid="add-side-material-layer">
                     <Plus className="w-4 h-4" />
                     添加侧面层
@@ -2005,7 +2007,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
             return (
               <Card key={cat}>
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">{label}</CardTitle>
+                  <CardTitle className="text-lg section-title">{label}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -2120,7 +2122,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">{isEightSideDiff ? "正背底面印刷" : "印刷"}（按覆盖率选择）</CardTitle>
+                <CardTitle className="text-lg section-title">{isEightSideDiff ? "正背底面印刷" : "印刷"}（按覆盖率选择）</CardTitle>
               </CardHeader>
               <CardContent>
                 <Select
@@ -2143,7 +2145,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
 
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">版费（与袋子单价分开结算）</CardTitle>
+                <CardTitle className="text-lg section-title">版费（与袋子单价分开结算）</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
@@ -2203,7 +2205,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
 
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg">利润率 & 汇率</CardTitle>
+              <CardTitle className="text-lg section-title">利润率 & 汇率</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-end gap-6">
@@ -2248,7 +2250,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
             return (
               <Card>
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg" data-testid="text-quote-result-title">报价结果</CardTitle>
+                  <CardTitle className="text-lg section-title" data-testid="text-quote-result-title">报价结果</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
