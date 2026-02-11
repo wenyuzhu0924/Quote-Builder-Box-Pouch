@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getBoxPriceByQty, getMoldFeeInfo, evaluateGiftBoxAreaFormula } from "@/lib/giftbox-config";
+import { getBoxPriceByQty, getMoldFeeInfo, evaluateGiftBoxAreaFormula, isValidGiftBoxFormula } from "@/lib/giftbox-config";
 import { useGiftBox } from "@/lib/giftbox-store";
 
 interface GiftBoxQuotePageProps {
@@ -575,10 +575,17 @@ export default function GiftBoxQuotePage({
                 <Badge variant="default" className="text-xs">1</Badge> 展开面积计算
               </h3>
               <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
-                <div className="flex items-start gap-2 flex-wrap">
-                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                  <span>公式：{selectedBoxType.areaFormula}</span>
-                </div>
+                {isValidGiftBoxFormula(selectedBoxType.areaFormula) ? (
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                    <span>公式：{selectedBoxType.areaFormula}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2 text-destructive flex-wrap">
+                    <ChevronRight className="w-3 h-3 mt-1 shrink-0" />
+                    <span>公式格式无效，请返回配置页修改</span>
+                  </div>
+                )}
                 <div className="flex items-start gap-2 flex-wrap">
                   <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
                   <span>展开面积 = {fmt(calc.areaCm2)} cm² = {fmt(calc.totalBoardArea, 4)} m²</span>

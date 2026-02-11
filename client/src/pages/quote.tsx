@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuote, type CustomMaterial, type CustomBagType, type DigitalMaterial, type PostProcessingOptionConfig } from "@/lib/quote-store";
+import { useQuote, type CustomMaterial, type CustomBagType, type DigitalMaterial, type PostProcessingOptionConfig, isValidBagFormula, isValidMakingFormula, safeEvalMakingFormula } from "@/lib/quote-store";
 import { calculateDigital, type DigitalCalcResult } from "@/lib/digital-calc";
 
 function calcPostProcessingCost(
@@ -398,22 +398,8 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
   };
 
   const parseMakingCostFormula = (formula: string, dims: { width: number; height: number; bottomInsert: number; sideExpansion: number; backSeal: number }): number => {
-    try {
-      let expr = formula
-        .replace(/min\(袋宽[,，]袋高\)/gi, String(Math.min(dims.width, dims.height)))
-        .replace(/min\(袋高[,，]袋宽\)/gi, String(Math.min(dims.width, dims.height)))
-        .replace(/袋宽/g, String(dims.width))
-        .replace(/袋高/g, String(dims.height))
-        .replace(/底插入|底琴/g, String(dims.bottomInsert))
-        .replace(/侧面展开|侧琴/g, String(dims.sideExpansion))
-        .replace(/背封边/g, String(dims.backSeal))
-        .replace(/×/g, '*')
-        .replace(/÷/g, '/');
-      const result = new Function('return ' + expr)();
-      return typeof result === 'number' && !isNaN(result) ? result : 0;
-    } catch {
-      return 0;
-    }
+    if (!isValidMakingFormula(formula)) return 0;
+    return safeEvalMakingFormula(formula, dims);
   };
 
   const getUnfoldedDimensions = (dims: typeof dimensions, bagType: typeof selectedBagType) => {
@@ -2552,7 +2538,7 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                       <Badge variant="default" className="text-xs">4</Badge> 制袋成本【公式+数值代入】
                     </h3>
                     <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
-                      {selectedBagType?.makingCostFormula ? (
+                      {selectedBagType?.makingCostFormula && isValidMakingFormula(selectedBagType.makingCostFormula) ? (
                         <>
                           <div className="flex items-start gap-2 flex-wrap">
                             <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />

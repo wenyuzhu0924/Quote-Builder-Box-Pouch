@@ -58,6 +58,15 @@ export const giftBoxDimensionLabels: Record<string, string> = {
   height: "高",
 };
 
+export function isValidGiftBoxFormula(formula: string): boolean {
+  if (!formula || !formula.trim()) return false;
+  const dimKeywords = ["长", "宽", "高"];
+  const hasDim = dimKeywords.some(k => formula.includes(k));
+  const hasOperator = /[×*÷/+\-]/.test(formula);
+  const hasNumber = /\d/.test(formula);
+  return hasDim && hasOperator && hasNumber;
+}
+
 export function parseGiftBoxDimensionsFromFormula(formula: string): string[] {
   const dims: string[] = [];
   if (formula.includes("长")) dims.push("length");

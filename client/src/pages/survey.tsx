@@ -11,7 +11,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuote, type CustomMaterial, type PrintingPriceRule, type LaminationPriceRule, type PostProcessingOptionConfig, type PostProcessingPricingType, type PostProcessingCategory, type BagTypePrice, type SpecOption, type QuantityDiscountRule, type CustomBagType, type DigitalMaterial, type DigitalPrintMode, type DigitalSpecialProcess, type DigitalSpecialCalcBasis, type DigitalZipperType, type DigitalValveType, type DigitalAccessory, type DigitalPrintingTier, parseDimensionsFromFormula } from "@/lib/quote-store";
+import { useQuote, type CustomMaterial, type PrintingPriceRule, type LaminationPriceRule, type PostProcessingOptionConfig, type PostProcessingPricingType, type PostProcessingCategory, type BagTypePrice, type SpecOption, type QuantityDiscountRule, type CustomBagType, type DigitalMaterial, type DigitalPrintMode, type DigitalSpecialProcess, type DigitalSpecialCalcBasis, type DigitalZipperType, type DigitalValveType, type DigitalAccessory, type DigitalPrintingTier, parseDimensionsFromFormula, isValidBagFormula, isValidMakingFormula } from "@/lib/quote-store";
 
 interface SurveyPageProps {
   backPath?: string;
@@ -78,6 +78,10 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
 
   const addCustomBagType = () => {
     if (!newBagType.name || !newBagType.formula) return;
+    if (!isValidBagFormula(newBagType.formula)) {
+      toast({ title: "公式无效", description: "请输入包含数字、运算符和尺寸关键词的有效公式", variant: "destructive" });
+      return;
+    }
     const dimensions = parseDimensionsFromFormula(newBagType.formula || "");
     const bagType: CustomBagType = {
       id: `custom_${Date.now()}`,
@@ -265,6 +269,10 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
 
   const addDigitalBagType = () => {
     if (!newBagType.name || !newBagType.formula) return;
+    if (!isValidBagFormula(newBagType.formula)) {
+      toast({ title: "公式无效", description: "请输入包含数字、运算符和尺寸关键词的有效公式", variant: "destructive" });
+      return;
+    }
     const dimensions = parseDimensionsFromFormula(newBagType.formula || "");
     const bagType: CustomBagType = {
       id: `custom_${Date.now()}`,
@@ -676,20 +684,25 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                                 {bagType.isBuiltIn ? (
                                   <span className="text-sm text-muted-foreground">{bagType.formula}</span>
                                 ) : (
-                                  <Input
-                                    value={bagType.formula}
-                                    onChange={(e) => {
-                                      const dims = parseDimensionsFromFormula(e.target.value);
-                                      updateDigitalConfig({
-                                        customBagTypes: digitalConfig.customBagTypes.map((b) =>
-                                          b.id === bagType.id
-                                            ? { ...b, formula: e.target.value, requiredDimensions: dims }
-                                            : b
-                                        ),
-                                      });
-                                    }}
-                                    className="h-9"
-                                  />
+                                  <div className="space-y-1">
+                                    <Input
+                                      value={bagType.formula}
+                                      onChange={(e) => {
+                                        const dims = parseDimensionsFromFormula(e.target.value);
+                                        updateDigitalConfig({
+                                          customBagTypes: digitalConfig.customBagTypes.map((b) =>
+                                            b.id === bagType.id
+                                              ? { ...b, formula: e.target.value, requiredDimensions: dims }
+                                              : b
+                                          ),
+                                        });
+                                      }}
+                                      className={`h-9 ${bagType.formula && !isValidBagFormula(bagType.formula) ? "border-destructive" : ""}`}
+                                    />
+                                    {bagType.formula && !isValidBagFormula(bagType.formula) && (
+                                      <p className="text-xs text-destructive">请输入有效公式，需包含数字、运算符和尺寸关键词</p>
+                                    )}
+                                  </div>
                                 )}
                               </TableCell>
                               <TableCell>
@@ -727,17 +740,22 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                               />
                             </TableCell>
                             <TableCell>
-                              <Input
-                                value={newBagType.formula}
-                                onChange={(e) => setNewBagType({ ...newBagType, formula: e.target.value })}
-                                placeholder="例如：袋宽 × 袋高 × 2"
-                                className="h-9"
-                                data-testid="digital-new-bagtype-formula"
-                              />
+                              <div className="space-y-1">
+                                <Input
+                                  value={newBagType.formula}
+                                  onChange={(e) => setNewBagType({ ...newBagType, formula: e.target.value })}
+                                  placeholder="例如：2 × (袋宽 + 袋高)"
+                                  className={`h-9 ${newBagType.formula && !isValidBagFormula(newBagType.formula) ? "border-destructive" : ""}`}
+                                  data-testid="digital-new-bagtype-formula"
+                                />
+                                {newBagType.formula && !isValidBagFormula(newBagType.formula) && (
+                                  <p className="text-xs text-destructive">需包含数字、运算符和尺寸关键词</p>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell>
                               <span className="text-xs text-muted-foreground">
-                                {newBagType.formula
+                                {newBagType.formula && isValidBagFormula(newBagType.formula)
                                   ? parseDimensionsFromFormula(newBagType.formula).map((d) => dimensionLabels[d] || d).join("、") || "无匹配"
                                   : "自动匹配"}
                               </span>
@@ -1989,20 +2007,25 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                               <span className="font-medium">{bagType.name}</span>
                             </TableCell>
                             <TableCell>
-                              <Input
-                                value={bagType.formula}
-                                onChange={(e) => {
-                                  const dims = parseDimensionsFromFormula(e.target.value);
-                                  updateConfig({
-                                    customBagTypes: config.customBagTypes.map((b) =>
-                                      b.id === bagType.id
-                                        ? { ...b, formula: e.target.value, requiredDimensions: dims }
-                                        : b
-                                    ),
-                                  });
-                                }}
-                                className="h-9"
-                              />
+                              <div className="space-y-1">
+                                <Input
+                                  value={bagType.formula}
+                                  onChange={(e) => {
+                                    const dims = parseDimensionsFromFormula(e.target.value);
+                                    updateConfig({
+                                      customBagTypes: config.customBagTypes.map((b) =>
+                                        b.id === bagType.id
+                                          ? { ...b, formula: e.target.value, requiredDimensions: dims }
+                                          : b
+                                      ),
+                                    });
+                                  }}
+                                  className={`h-9 ${bagType.formula && !isValidBagFormula(bagType.formula) ? "border-destructive" : ""}`}
+                                />
+                                {bagType.formula && !isValidBagFormula(bagType.formula) && (
+                                  <p className="text-xs text-destructive">请输入有效公式</p>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-wrap gap-1">
@@ -2060,17 +2083,22 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                             />
                           </TableCell>
                           <TableCell>
-                            <Input
-                              value={newBagType.formula}
-                              onChange={(e) => setNewBagType({ ...newBagType, formula: e.target.value })}
-                              placeholder="例如：袋宽 × 袋高 × 2"
-                              className="h-9"
-                              data-testid="new-bagtype-formula"
-                            />
+                            <div className="space-y-1">
+                              <Input
+                                value={newBagType.formula}
+                                onChange={(e) => setNewBagType({ ...newBagType, formula: e.target.value })}
+                                placeholder="例如：2 × (袋宽 + 袋高)"
+                                className={`h-9 ${newBagType.formula && !isValidBagFormula(newBagType.formula) ? "border-destructive" : ""}`}
+                                data-testid="new-bagtype-formula"
+                              />
+                              {newBagType.formula && !isValidBagFormula(newBagType.formula) && (
+                                <p className="text-xs text-destructive">需包含数字、运算符和尺寸关键词</p>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <span className="text-xs text-muted-foreground">
-                              {newBagType.formula
+                              {newBagType.formula && isValidBagFormula(newBagType.formula)
                                 ? parseDimensionsFromFormula(newBagType.formula).map((d) => dimensionLabels[d] || d).join("、") || "无匹配"
                                 : "自动匹配"}
                             </span>
@@ -2504,7 +2532,9 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                       <div key={bagType.id} className="border rounded-lg p-4 space-y-3" data-testid={`making-cost-${bagType.id}`}>
                         <div className="flex items-center gap-3">
                           <Badge variant="secondary" className="shrink-0">{bagType.name}</Badge>
-                          <span className="text-xs text-muted-foreground truncate">展开面积: {bagType.formula}</span>
+                          {isValidBagFormula(bagType.formula) && (
+                            <span className="text-xs text-muted-foreground truncate">展开面积: {bagType.formula}</span>
+                          )}
                         </div>
                         <div className="space-y-2">
                           <Label className="text-sm">制袋公式</Label>
@@ -2520,12 +2550,15 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                               });
                             }}
                             placeholder="例如：0.09 × 袋宽"
-                            className="text-base"
+                            className={`text-base ${bagType.makingCostFormula && !isValidMakingFormula(bagType.makingCostFormula) ? "border-destructive" : ""}`}
                             data-testid={`making-formula-${bagType.id}`}
                           />
+                          {bagType.makingCostFormula && !isValidMakingFormula(bagType.makingCostFormula) && (
+                            <p className="text-xs text-destructive mt-1">请输入有效制袋公式，格式如：0.09 × 袋宽</p>
+                          )}
                         </div>
                         <div className="bg-muted/50 rounded-md px-3 py-2">
-                          {bagType.makingCostFormula && /[\d.]+\s*[×*]\s*[\u4e00-\u9fff(min|max]/.test(bagType.makingCostFormula) ? (
+                          {bagType.makingCostFormula && isValidMakingFormula(bagType.makingCostFormula) ? (
                             <>
                               <span className="text-xs text-muted-foreground">公式预览：</span>
                               <span className="text-sm font-mono ml-2">{bagType.makingCostFormula}</span>

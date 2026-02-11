@@ -665,6 +665,98 @@ export function useQuote() {
   return context;
 }
 
+export function isValidBagFormula(formula: string): boolean {
+  if (!formula || !formula.trim()) return false;
+  const dimKeywords = ["袋宽", "袋高", "底插入", "底部插入", "底插", "侧面展开", "背封边", "侧琴", "封边"];
+  const hasDim = dimKeywords.some(k => formula.includes(k));
+  const hasOperator = /[×*÷/+\-]/.test(formula);
+  const hasNumber = /\d/.test(formula);
+  return hasDim && hasOperator && hasNumber;
+}
+
+export function isValidMakingFormula(formula: string): boolean {
+  if (!formula || !formula.trim()) return false;
+  return /[\d.]+\s*[×*]\s*[\u4e00-\u9fff(]/.test(formula) || /min|max/i.test(formula) && /[\d.]/.test(formula);
+}
+
+export function safeEvalMakingFormula(formula: string, dims: { width: number; height: number; bottomInsert: number; sideExpansion: number; backSeal: number }): number {
+  try {
+    let expr = formula
+      .replace(/min\(袋宽[,，]袋高\)/gi, String(Math.min(dims.width, dims.height)))
+      .replace(/min\(袋高[,，]袋宽\)/gi, String(Math.min(dims.width, dims.height)))
+      .replace(/max\(袋宽[,，]袋高\)/gi, String(Math.max(dims.width, dims.height)))
+      .replace(/max\(袋高[,，]袋宽\)/gi, String(Math.max(dims.width, dims.height)))
+      .replace(/袋宽/g, String(dims.width))
+      .replace(/袋高/g, String(dims.height))
+      .replace(/底插入|底琴/g, String(dims.bottomInsert))
+      .replace(/侧面展开|侧琴/g, String(dims.sideExpansion))
+      .replace(/背封边/g, String(dims.backSeal))
+      .replace(/×/g, '*')
+      .replace(/÷/g, '/');
+    const allowedChars = /^[\d\s+\-*/().]+$/;
+    if (!allowedChars.test(expr)) return 0;
+    const tokens: Array<{ type: "num"; value: number } | { type: "op"; value: string } | { type: "paren"; value: string }> = [];
+    let i = 0;
+    while (i < expr.length) {
+      const ch = expr[i];
+      if (/\s/.test(ch)) { i++; continue; }
+      if (/[0-9.]/.test(ch)) {
+        let num = "";
+        while (i < expr.length && /[0-9.]/.test(expr[i])) { num += expr[i]; i++; }
+        const val = parseFloat(num);
+        if (isNaN(val)) return 0;
+        tokens.push({ type: "num", value: val });
+        continue;
+      }
+      if ("+-*/".includes(ch)) { tokens.push({ type: "op", value: ch }); i++; continue; }
+      if ("()".includes(ch)) { tokens.push({ type: "paren", value: ch }); i++; continue; }
+      return 0;
+    }
+    const pos = { i: 0 };
+    function pExpr(): number | null {
+      let left = pTerm();
+      if (left === null) return null;
+      while (pos.i < tokens.length && tokens[pos.i].type === "op" && (tokens[pos.i].value === "+" || tokens[pos.i].value === "-")) {
+        const op = tokens[pos.i].value; pos.i++;
+        const right = pTerm();
+        if (right === null) return null;
+        left = op === "+" ? left + right : left - right;
+      }
+      return left;
+    }
+    function pTerm(): number | null {
+      let left = pFactor();
+      if (left === null) return null;
+      while (pos.i < tokens.length && tokens[pos.i].type === "op" && (tokens[pos.i].value === "*" || tokens[pos.i].value === "/")) {
+        const op = tokens[pos.i].value; pos.i++;
+        const right = pFactor();
+        if (right === null) return null;
+        left = op === "*" ? left * right : (right !== 0 ? left / right : 0);
+      }
+      return left;
+    }
+    function pFactor(): number | null {
+      if (pos.i >= tokens.length) return null;
+      const t = tokens[pos.i];
+      if (t.type === "num") { pos.i++; return t.value; }
+      if (t.type === "paren" && t.value === "(") {
+        pos.i++;
+        const val = pExpr();
+        if (val === null) return null;
+        if (pos.i >= tokens.length || tokens[pos.i].type !== "paren" || tokens[pos.i].value !== ")") return null;
+        pos.i++;
+        return val;
+      }
+      return null;
+    }
+    const result = pExpr();
+    if (result === null || pos.i !== tokens.length) return 0;
+    return isFinite(result) && result >= 0 ? result : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export function parseDimensionsFromFormula(formula: string): string[] {
   const dimensionMap: Record<string, string> = {
     "袋宽": "width",

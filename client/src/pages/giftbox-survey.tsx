@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import {
   type BoxTypeConfig, type PaperTypeConfig, type LinerTypeConfig, type CraftConfig, type MoldFeeRule,
-  parseGiftBoxDimensionsFromFormula, giftBoxDimensionLabels,
+  parseGiftBoxDimensionsFromFormula, giftBoxDimensionLabels, isValidGiftBoxFormula,
 } from "@/lib/giftbox-config";
 import { useGiftBox } from "@/lib/giftbox-store";
 
@@ -80,6 +80,10 @@ export default function GiftBoxSurveyPage({
 
   const addBoxType = () => {
     if (!newBoxType.name || !newBoxType.formula) return;
+    if (!isValidGiftBoxFormula(newBoxType.formula)) {
+      toast({ title: "公式无效", description: "请输入包含数字、运算符和尺寸关键词(长/宽/高)的有效公式", variant: "destructive" });
+      return;
+    }
     const dims = parseGiftBoxDimensionsFromFormula(newBoxType.formula);
     const box: BoxTypeConfig = {
       id: `box_${Date.now()}`,
@@ -314,12 +318,17 @@ export default function GiftBoxSurveyPage({
                               <span className="font-medium">{box.name}</span>
                             </TableCell>
                             <TableCell>
-                              <Input
-                                value={box.areaFormula}
-                                onChange={(e) => updateBoxFormula(box.id, e.target.value)}
-                                className="h-9"
-                                data-testid={`boxtype-formula-${box.id}`}
-                              />
+                              <div className="space-y-1">
+                                <Input
+                                  value={box.areaFormula}
+                                  onChange={(e) => updateBoxFormula(box.id, e.target.value)}
+                                  className={`h-9 ${box.areaFormula && !isValidGiftBoxFormula(box.areaFormula) ? "border-destructive" : ""}`}
+                                  data-testid={`boxtype-formula-${box.id}`}
+                                />
+                                {box.areaFormula && !isValidGiftBoxFormula(box.areaFormula) && (
+                                  <p className="text-xs text-destructive">请输入有效公式，需包含数字、运算符和尺寸关键词(长/宽/高)</p>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-wrap gap-1">
@@ -355,17 +364,22 @@ export default function GiftBoxSurveyPage({
                             />
                           </TableCell>
                           <TableCell>
-                            <Input
-                              value={newBoxType.formula}
-                              onChange={(e) => setNewBoxType({ ...newBoxType, formula: e.target.value })}
-                              placeholder="例如：(长+高×2)×(宽+高×2)×2"
-                              className="h-9"
-                              data-testid="new-boxtype-formula"
-                            />
+                            <div className="space-y-1">
+                              <Input
+                                value={newBoxType.formula}
+                                onChange={(e) => setNewBoxType({ ...newBoxType, formula: e.target.value })}
+                                placeholder="例如：(长+高×2)×(宽+高×2)×2"
+                                className={`h-9 ${newBoxType.formula && !isValidGiftBoxFormula(newBoxType.formula) ? "border-destructive" : ""}`}
+                                data-testid="new-boxtype-formula"
+                              />
+                              {newBoxType.formula && !isValidGiftBoxFormula(newBoxType.formula) && (
+                                <p className="text-xs text-destructive">需包含数字、运算符和尺寸关键词(长/宽/高)</p>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <span className="text-xs text-muted-foreground">
-                              {newBoxType.formula
+                              {newBoxType.formula && isValidGiftBoxFormula(newBoxType.formula)
                                 ? parseGiftBoxDimensionsFromFormula(newBoxType.formula).map(d => giftBoxDimensionLabels[d] || d).join("、") || "无匹配"
                                 : "自动匹配"}
                             </span>
@@ -414,7 +428,9 @@ export default function GiftBoxSurveyPage({
                     <div key={box.id} className="border rounded-lg p-4 space-y-3">
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{box.name}</span>
-                        <span className="text-xs text-muted-foreground">公式：{box.areaFormula}</span>
+                        {isValidGiftBoxFormula(box.areaFormula) && (
+                          <span className="text-xs text-muted-foreground">公式：{box.areaFormula}</span>
+                        )}
                       </div>
 
                       <div className="border rounded-lg overflow-hidden">
