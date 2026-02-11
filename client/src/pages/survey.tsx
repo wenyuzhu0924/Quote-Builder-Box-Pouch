@@ -1260,7 +1260,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                           <TableRow>
                             <TableHead className="w-[50px]">启用</TableHead>
                             <TableHead className="w-[180px]">工艺名称</TableHead>
-                            <TableHead className="w-[100px]">单价 (元)</TableHead>
+                            <TableHead className="w-[110px]">单价 (元)/倍数</TableHead>
                             <TableHead className="w-[150px]">计算方式</TableHead>
                             <TableHead className="w-[110px]">起步价 (元)</TableHead>
                             <TableHead>备注</TableHead>
