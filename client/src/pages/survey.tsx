@@ -13,31 +13,48 @@ import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuote, type CustomMaterial, type PrintingPriceRule, type LaminationPriceRule, type PostProcessingOptionConfig, type PostProcessingPricingType, type PostProcessingCategory, type BagTypePrice, type SpecOption, type QuantityDiscountRule, type CustomBagType, type DigitalMaterial, type DigitalPrintMode, type DigitalSpecialProcess, type DigitalSpecialCalcBasis, type DigitalZipperType, type DigitalValveType, type DigitalAccessory, type DigitalPrintingTier, parseDimensionsFromFormula, isValidBagFormula, isValidMakingFormula } from "@/lib/quote-store";
 
-function annotateMakingFormula(formula: string): string {
+function annotateMakingFormula(formula: string): React.ReactNode {
   const dimNames = ["袋宽", "袋高", "底插入", "底琴", "侧面展开", "侧琴", "背封边"];
   const dimPattern = new RegExp(`(${dimNames.join("|")})`, "g");
-  let result = formula.replace(dimPattern, "$1（米）");
-  const tokens = result.split(/([\d.]+)/);
-  const out: string[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    const tok = tokens[i];
-    if (/^[\d.]+$/.test(tok)) {
-      const after = tokens.slice(i + 1).join("");
-      const before = tokens.slice(0, i).join("");
+  const parts: Array<{ text: string; isUnit: boolean }> = [];
+  const annotated = formula.replace(dimPattern, "$1\u0000（米）\u0000");
+  const segments = annotated.split(/([\d.]+)/);
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    if (/^[\d.]+$/.test(seg)) {
+      const after = segments.slice(i + 1).join("");
+      const before = segments.slice(0, i).join("");
       const nextHasMultiply = /^\s*[×*]/.test(after);
       const prevHasMultiply = /[×*]\s*$/.test(before);
+      parts.push({ text: seg, isUnit: false });
       if (nextHasMultiply && !prevHasMultiply) {
-        out.push(tok + "（元/米）");
+        parts.push({ text: "（元/米）", isUnit: true });
       } else if (!nextHasMultiply && !prevHasMultiply) {
-        out.push(tok + "（元）");
-      } else {
-        out.push(tok);
+        parts.push({ text: "（元）", isUnit: true });
       }
     } else {
-      out.push(tok);
+      const subs = seg.split("\u0000");
+      for (const s of subs) {
+        if (!s) continue;
+        if (s.startsWith("（") && s.endsWith("）")) {
+          parts.push({ text: s, isUnit: true });
+        } else {
+          parts.push({ text: s, isUnit: false });
+        }
+      }
     }
   }
-  return out.join("");
+  return (
+    <>
+      {parts.map((p, i) =>
+        p.isUnit ? (
+          <span key={i} className="text-xs text-muted-foreground">{p.text}</span>
+        ) : (
+          <span key={i}>{p.text}</span>
+        )
+      )}
+    </>
+  );
 }
 
 function SectionSaveButton({ section, label, onSave }: { section: string; label: string; onSave: () => void }) {
