@@ -1331,8 +1331,13 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                 <AccordionContent className="pb-4">
                   <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
-                      制袋费 = max(最低起步价, 制袋系数 × 总米数)
+                      制袋费 = max(最低起步价, 制袋系数 × 每转周长<span className="text-xs text-muted-foreground">（米）</span> × (订单转数 + 损耗转数) × 排数)
                     </p>
+                    <div className="text-xs text-muted-foreground space-y-0.5">
+                      <p>每转周长 = 周向排数 × 袋宽展开尺寸 ÷ 1000</p>
+                      <p>订单转数 = 订单数量 ÷ (周向排数 × 横向排数)</p>
+                      <p>损耗转数 = SKU数 × 单SKU损耗转数 + 调试损耗转数</p>
+                    </div>
                     <div className="border rounded-lg overflow-hidden">
                       <Table>
                         <TableHeader>
