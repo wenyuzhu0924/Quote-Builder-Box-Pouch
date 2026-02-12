@@ -676,12 +676,12 @@ export default function GiftBoxSurveyPage({
                         <TableHeader>
                           <TableRow>
                             <TableHead>内衬名称</TableHead>
-                            <TableHead className="w-[100px]">计算方式</TableHead>
-                            <TableHead className="w-[100px]">体积单价(元/m³)</TableHead>
-                            <TableHead className="w-[100px]">灰板面积系数</TableHead>
-                            <TableHead className="w-[100px]">起步价(元)</TableHead>
-                            <TableHead className="w-[100px]">加工费(元/个)</TableHead>
-                            <TableHead className="w-[60px]"></TableHead>
+                            <TableHead className="w-[130px]">计算方式</TableHead>
+                            <TableHead className="w-[110px]">体积单价(元/m³)</TableHead>
+                            <TableHead className="w-[110px]">灰板面积系数</TableHead>
+                            <TableHead className="w-[90px]">起步价(元)</TableHead>
+                            <TableHead className="w-[90px]">加工费(元/个)</TableHead>
+                            <TableHead className="w-[50px]"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
