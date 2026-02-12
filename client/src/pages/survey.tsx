@@ -13,6 +13,33 @@ import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuote, type CustomMaterial, type PrintingPriceRule, type LaminationPriceRule, type PostProcessingOptionConfig, type PostProcessingPricingType, type PostProcessingCategory, type BagTypePrice, type SpecOption, type QuantityDiscountRule, type CustomBagType, type DigitalMaterial, type DigitalPrintMode, type DigitalSpecialProcess, type DigitalSpecialCalcBasis, type DigitalZipperType, type DigitalValveType, type DigitalAccessory, type DigitalPrintingTier, parseDimensionsFromFormula, isValidBagFormula, isValidMakingFormula } from "@/lib/quote-store";
 
+function annotateMakingFormula(formula: string): string {
+  const dimNames = ["袋宽", "袋高", "底插入", "底琴", "侧面展开", "侧琴", "背封边"];
+  const dimPattern = new RegExp(`(${dimNames.join("|")})`, "g");
+  let result = formula.replace(dimPattern, "$1（米）");
+  const tokens = result.split(/([\d.]+)/);
+  const out: string[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const tok = tokens[i];
+    if (/^[\d.]+$/.test(tok)) {
+      const after = tokens.slice(i + 1).join("");
+      const before = tokens.slice(0, i).join("");
+      const nextHasMultiply = /^\s*[×*]/.test(after);
+      const prevHasMultiply = /[×*]\s*$/.test(before);
+      if (nextHasMultiply && !prevHasMultiply) {
+        out.push(tok + "（元/米）");
+      } else if (!nextHasMultiply && !prevHasMultiply) {
+        out.push(tok + "（元）");
+      } else {
+        out.push(tok);
+      }
+    } else {
+      out.push(tok);
+    }
+  }
+  return out.join("");
+}
+
 function SectionSaveButton({ section, label, onSave }: { section: string; label: string; onSave: () => void }) {
   return (
     <div className="flex justify-end pt-3">
@@ -2514,7 +2541,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                   <div className="text-left">
                     <div className="font-semibold">制袋费用</div>
                     <div className="text-sm text-muted-foreground">
-                      已自动匹配 {config.customBagTypes.filter(b => b.enabled).length} 种已启用袋型的制袋公式
+                      已自动匹配 {config.customBagTypes.filter(b => b.enabled).length} 种已启用袋型的制袋费用公式
                     </div>
                   </div>
                 </div>
@@ -2535,7 +2562,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                           )}
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-sm">制袋公式</Label>
+                          <Label className="text-sm">制袋费用公式</Label>
                           <Input
                             value={bagType.makingCostFormula}
                             onChange={(e) => {
@@ -2552,15 +2579,14 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                             data-testid={`making-formula-${bagType.id}`}
                           />
                           {bagType.makingCostFormula && !isValidMakingFormula(bagType.makingCostFormula) && (
-                            <p className="text-xs text-destructive mt-1">请输入有效制袋公式，格式如：0.09 × 袋宽</p>
+                            <p className="text-xs text-destructive mt-1">请输入有效制袋费用公式，格式如：0.09 × 袋宽</p>
                           )}
                         </div>
                         <div className="bg-muted/50 rounded-md px-3 py-2">
                           {bagType.makingCostFormula && isValidMakingFormula(bagType.makingCostFormula) ? (
                             <>
                               <span className="text-xs text-muted-foreground">公式预览：</span>
-                              <span className="text-sm font-mono ml-2">{bagType.makingCostFormula}</span>
-                              <span className="text-xs text-muted-foreground ml-2">（尺寸单位：米）</span>
+                              <span className="text-sm font-mono ml-2">{annotateMakingFormula(bagType.makingCostFormula)}</span>
                             </>
                           ) : (
                             <span className="text-xs text-muted-foreground">制袋费用计算公式</span>
