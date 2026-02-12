@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { Package, ShoppingBag, ArrowRight, Printer, Cpu, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useQuote, type ProductType, type PrintingMethod } from "@/lib/quote-store";
 
 const products = [
@@ -36,8 +35,6 @@ export default function ProductSelectPage() {
   const { state, setProductType, setPrintingMethod } = useQuote();
   const [selectedProduct, setSelectedProduct] = useState<ProductType>(state.productType);
   const [selectedPrinting, setSelectedPrinting] = useState<PrintingMethod>(state.printingMethod);
-  const [customerName, setCustomerName] = useState(() => localStorage.getItem("customerName") || "");
-
   const handleProductSelect = (productId: ProductType) => {
     setSelectedProduct(productId);
     if (productId !== "pouch") {
@@ -53,7 +50,6 @@ export default function ProductSelectPage() {
 
   const handleNext = () => {
     if (canProceed) {
-      localStorage.setItem("customerName", customerName.trim());
       setProductType(selectedProduct);
       if (selectedProduct === "box") {
         setPrintingMethod(null);
@@ -175,23 +171,6 @@ export default function ProductSelectPage() {
                     </button>
                   );
                 })}
-              </div>
-            </div>
-          )}
-
-          {selectedProduct && (
-            <div className="space-y-3">
-              <h3 className="text-center text-base font-semibold text-foreground" data-testid="text-name-title">
-                请输入您的公司名称
-              </h3>
-              <div className="max-w-xs mx-auto">
-                <Input
-                  data-testid="input-customer-name"
-                  placeholder="请输入您的公司名称"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  className="text-center"
-                />
               </div>
             </div>
           )}
