@@ -1405,6 +1405,9 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                     <p className="text-sm text-muted-foreground">
                       复合费 = max(最低价, 单价/米 × 总米数) × 复合层数
                     </p>
+                    <p className="text-xs text-muted-foreground">
+                      复合层数 = 材料层数 - 1
+                    </p>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>单层复合最低价 (元)</Label>
