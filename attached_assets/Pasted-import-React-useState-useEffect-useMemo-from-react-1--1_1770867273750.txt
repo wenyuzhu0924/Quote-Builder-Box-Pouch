@@ -1,0 +1,1772 @@
+import React, { useState, useEffect, useMemo } from "react";
+
+// ===================== 1. 基础常量 + 类型定义 =====================
+const BAG_TYPES = [
+  "三边封", "三边封双放", "自立袋", "自立袋双放", "自立袋分底",
+  "中封袋", "侧封袋", "风琴袋", "八边封", "八边封双放", "八边封分底",
+  "卷膜", "异形袋"
+] as const;
+type BagType = typeof BAG_TYPES[number];
+
+const PRINTING_MODES = ["无印刷", "单黑", "单白", "双层白"] as const;
+type PrintingMode = typeof PRINTING_MODES[number];
+
+const NO_PRINT_MIN_PRICE: Record<BagType, number> = {
+  "三边封": 0, "三边封双放": 0, "自立袋": 0, "自立袋双放":0, "自立袋分底":0,
+  "中封袋":0, "侧封袋":0, "风琴袋":0, "八边封":0, "八边封双放":0, "八边封分底":0,
+  "卷膜":0, "异形袋":0
+};
+
+const ZIPPER_TYPES = ["无", "普通拉链", "单边易撕拉链", "防儿童拉链", "PLA拉链", "可降易撕拉链", "PLA防儿童拉链", "点状拉链"] as const;
+type ZipperType = typeof ZIPPER_TYPES[number];
+
+const VALVE_TYPES = ["无", "PE气阀", "PLA气阀"] as const;
+type ValveType = typeof VALVE_TYPES[number];
+
+const OTHER_ACCESSORIES = ["大吸嘴@16", "小吸嘴@8.6"] as const;
+type OtherAccessory = typeof OTHER_ACCESSORIES[number];
+
+const SPECIAL_PROCESSES = [
+  "双面印刷", "异形袋", "可变码", "一袋一图", "条形窗", "异形窗",
+  "烫金", "数码局部UV", "数码烫金/银", "强凸感局部UV", "镭射烫金/银",
+  "普通+强凸感局部UV(UV幅宽<=320)", "普通+强凸感局部UV(UV幅宽>=320)",
+  "局部UV+烫金", "强凸感烫镭射金/银"
+] as const;
+type SpecialProcess = typeof SPECIAL_PROCESSES[number];
+
+const EXTRA_OPTIONS = ["手提扣", "束口条", "激光易撕线"] as const;
+type ExtraOption = typeof EXTRA_OPTIONS[number];
+
+// 制袋成本配置
+const BAG_MAKING_CONFIG: Record<BagType, { formula: (params: any) => number; minPrice: number }> = {
+  "三边封": { formula: (params) => 0.25 * params.L_rev * (params.R_order + params.R_loss) * params.N_row, minPrice: 300 },
+  "三边封双放": { formula: (params) => 0.25 * params.L_rev * (params.R_order + params.R_loss) * params.N_row, minPrice: 300 },
+  "自立袋": { formula: (params) => 0.25 * params.L_rev * (params.R_order + params.R_loss) * params.N_row, minPrice: 300 },
+  "自立袋双放": { formula: (params) => 0.25 * params.L_rev * (params.R_order + params.R_loss) * params.N_row, minPrice: 300 },
+  "自立袋分底": { formula: (params) => 0.25 * params.L_rev * (params.R_order + params.R_loss) * params.N_row, minPrice: 300 },
+  "中封袋": { formula: (params) => 0.25 * params.L_rev * (params.R_order + params.R_loss) * params.N_row, minPrice: 300 },
+  "侧封袋": { formula: (params) => 0.25 * params.L_rev * (params.R_order + params.R_loss) * params.N_row, minPrice: 300 },
+  "风琴袋": { formula: (params) => 0.4 * params.L_rev * (params.R_order + params.R_loss) * params.N_row, minPrice: 300 },
+  "八边封": { formula: (params) => params.M_order, minPrice: 1800 },
+  "八边封双放": { formula: (params) => params.M_order, minPrice: 1800 },
+  "八边封分底": { formula: (params) => params.M_order, minPrice: 1800 },
+  "卷膜": { formula: () => 0, minPrice: 0 },
+  "异形袋": { formula: (params) => 0.25 * params.L_rev * (params.R_order + params.R_loss) * params.N_row, minPrice: 300 }
+};
+
+// 通用印刷参数
+const MAX_PRINT_WIDTH = 740;
+const MAX_PRINT_PERIMETER = 1120;
+const MIN_IDLE_MATERIAL = 50;
+const PER_SKU_LOSS = 30;
+const DEBUG_LOSS_REV = 80;
+
+// ===================== 2. 八边封专属常量 =====================
+const OCTAGON_MAX_PRINT_WIDTH = 740;
+const OCTAGON_MAX_PRINT_CIRC = 1120;
+const OCTAGON_MIN_IDLE = 50;
+
+// ===================== 3. 卷膜专属常量 =====================
+const ROLL_FILM_QUICK_PRICE = [
+  { meterRange: [1,5], onlyPrint: 300, normalMaterial: 600, specialMaterial: 900 },
+  { meterRange: [6,100], onlyPrint: 600, normalMaterial: 900, specialMaterial: 1200 },
+  { meterRange: [101,200], onlyPrint: 900, normalMaterial: 1200, specialMaterial: 1500 },
+];
+const ROLL_FILM_PRINT_LADDER = [
+  { maxRev: 500, price: 4.5 }, { maxRev: 1000, price: 4.25 },
+  { maxRev: 2000, price: 4.0 }, { maxRev: 5000, price: 3.75 },
+  { maxRev: Infinity, price: 3.5 },
+];
+const ROLL_FILM_NORMAL_MATERIALS = ["25BOPP","MOPP","12PET","VMPET12","PE40","PE60","PE80","PE100"];
+const ROLL_FILM_SLITTING_FEE = 100;
+type RollFilmUnit = "个" | "米" | "转";
+
+// ===================== 4. 印刷价格阶梯 =====================
+const PRINT_PRICE_LADDER = [
+  { max: 500, price: 6 },    // ≤500 转 → 6元/转
+  { max: 1000, price: 5 },   // ≤1000 转 → 5元/转
+  { max: 2000, price: 4.5 }, // ≤2000 转 → 4.5元/转
+  { max: 5000, price: 4.25 },// ≤5000 转 → 4.25元/转
+  { max: Infinity, price: 4 },// >5000 转 → 4元/转
+];
+// ===================== 5. 15项特殊工艺完整配置【核心】 =====================
+const SPECIAL_PROCESS_CONFIG: Record<SpecialProcess, (params: {printMeter: number, totalQty: number, hasPaper: boolean}) => number> = {
+  "双面印刷": () => 0,
+  "异形袋": ({totalQty}) => 0.05 * totalQty,
+  "可变码": ({totalQty}) => Math.max(300, 0.05 * totalQty),
+  "一袋一图": ({totalQty}) => Math.max(300, 0.05 * totalQty),
+  "条形窗": ({totalQty}) => Math.max(300, 0.2 * totalQty),
+  "异形窗": ({totalQty}) => Math.max(800, 0.2 * totalQty),
+  "烫金": () => 0,
+  "数码局部UV": ({printMeter}) => Math.max(400, 1 * printMeter),
+  "数码烫金/银": ({printMeter}) => Math.max(600, 1.5 * printMeter),
+  "强凸感局部UV": ({printMeter}) => Math.max(400, 1.3 * printMeter),
+  "镭射烫金/银": ({printMeter}) => Math.max(800, 2 * printMeter),
+  "普通+强凸感局部UV(UV幅宽<=320)": ({printMeter}) => Math.max(600, 1.6 * printMeter),
+  "普通+强凸感局部UV(UV幅宽>=320)": ({printMeter}) => Math.max(600, 2 * printMeter),
+  "局部UV+烫金": ({printMeter}) => Math.max(1000, 2 * printMeter),
+  "强凸感烫镭射金/银": ({printMeter}) => Math.max(1000, 2.3 * printMeter)
+};
+const SPECIAL_SHAPE_MOLD_FEE = 300; // 异形袋固定模具费
+
+// ===================== 6. 配件价格配置 =====================
+const ACCESSORY_PRICE = {
+  zipper: {
+    "无": 0, "普通拉链": 0.2, "单边易撕拉链": 0.35, "防儿童拉链": 0.5,
+    "PLA拉链": 0.85, "可降易撕拉链": 1.6, "PLA防儿童拉链": 3.3, "点状拉链": 0.7
+  } as Record<ZipperType, number>,
+  valve: { "无": 0, "PE气阀": 0.5, "PLA气阀": 1 } as Record<ValveType, number>,
+  other: {
+    "吸嘴": 0, "大吸嘴@16": 0.8, "小吸嘴@8.6": 0.5, "手挽": 1, "易撕角": 0
+  } as Record<OtherAccessory, number>,
+  tinStrip: (length: number) => {
+    if (length <= 0) return 0;
+    if (length <= 140) return 0.5;
+    if (length <= 200) return 0.6;
+    if (length <= 250) return 0.7;
+    return 0.8;
+  },
+  laserTearLine: 0.35,
+  extraOptions: { "手提扣": 1, "束口条": 0, "CTP印刷": 0, "激光易撕线": 0 } as Record<ExtraOption, number>
+};
+
+// ===================== 7. 材料层+冲突规则【完整无遗漏 核心】 =====================
+export const LAYER_TYPES = { PRINT: 'printLayer', COMPOUND: 'compoundLayer', HEAT_SEAL: 'heatSealLayer' } as const;
+export const MATERIAL_LIBRARY = {
+  [LAYER_TYPES.PRINT]: [
+    { id: '0', name: '无', thickness: 0, density: 0, price: 0, sqPrice: 0, stockMeter: 0, feature: '' },
+    { id: 'MOPP25', name: 'MOPP25', thickness:25, density:0.91, price:18.6, sqPrice:0.42, stockMeter:0, feature:'八边封袋型不可使用' },
+    { id: '哑油MOPP25', name: '哑油MOPP25', thickness:25, density:0.91, price:30, sqPrice:0.68, stockMeter:0, feature:'' },
+    { id: 'MOPP40', name: 'MOPP40', thickness:40, density:0.91, price:20.0, sqPrice:0.73, stockMeter:0, feature:'' },
+    { id: 'BOPP25', name: 'BOPP25', thickness:25, density:0.93, price:15, sqPrice:0.35, stockMeter:0, feature:'' },
+    { id: 'BOPP38', name: 'BOPP38', thickness:38, density:0.93, price:15, sqPrice:0.53, stockMeter:0, feature:'' },
+    { id: 'PET12', name: 'PET12', thickness:12, density:1.41, price:17, sqPrice:0.29, stockMeter:0, feature:'不建议与VMPET复合，容易产生气泡白点，建议改材料为BOPP' },
+    { id: 'PET25', name: 'PET25', thickness:25, density:1.41, price:17, sqPrice:0.60, stockMeter:0, feature:'不建议与VMPET复合，容易产生气泡白点，建议改材料为BOPP' },
+    { id: '哑油PET12', name: '哑油PET12', thickness:12, density:1.41, price:48, sqPrice:0.81, stockMeter:0, feature:'不建议与VMPET复合，容易产生气泡白点，建议改材料为BOPP' },
+    { id: '哑油MDOPE50', name: '哑油MDOPE50', thickness:50, density:0.95, price:48, sqPrice:2.28, stockMeter:0, feature:'' },
+    { id: 'NY/BOPA', name: 'NY/BOPA', thickness:15, density:1.14, price:35, sqPrice:0.60, stockMeter:0, feature:'' },
+    { id: 'PE(印刷用)', name: 'PE(印刷用)', thickness:50, density:0.95, price:45, sqPrice:2.14, stockMeter:0, feature:'' },
+    { id: '哑油PE(印刷用)', name: '哑油PE(印刷用)', thickness:32, density:0.95, price:45, sqPrice:1.37, stockMeter:0, feature:'' },
+    { id: '触感膜MOPP', name: '触感膜MOPP', thickness:27, density:0.91, price:60, sqPrice:1.47, stockMeter:0, feature:'' },
+    { id: '黄牛皮纸50', name: '黄牛皮纸50', thickness:50, density:1, price:20, sqPrice:1.00, stockMeter:0, feature:'' },
+    { id: '白牛皮纸50', name: '白牛皮纸50', thickness:50, density:1, price:20, sqPrice:1.00, stockMeter:0, feature:'' },
+    { id: '黄牛70', name: '黄牛70', thickness:70, density:1, price:20, sqPrice:1.40, stockMeter:0, feature:'' },
+    { id: '白牛60', name: '白牛60', thickness:60, density:1, price:20, sqPrice:1.20, stockMeter:0, feature:'' },
+    { id: '白牛80', name: '白牛80', thickness:80, density:1, price:20, sqPrice:1.60, stockMeter:0, feature:'' },
+    { id: '黑牛80', name: '黑牛80', thickness:80, density:1, price:25, sqPrice:2.00, stockMeter:0, feature:'' },
+    { id: '客料', name: '客料', thickness:0, density:0, price:0, sqPrice:0, stockMeter:0, feature:'' },
+  ],
+  [LAYER_TYPES.COMPOUND]: [
+    { id: '0', name: '无', thickness:0, density:0, price:0, sqPrice:0, stockMeter:0, feature:'' },
+    { id: 'VMPET普通12', name: 'VMPET普通12', thickness:12, density:1.41, price:17, sqPrice:0.29, stockMeter:0, feature:'' },
+    { id: 'VMPET素面镭射', name: 'VMPET素面镭射', thickness:12, density:1.41, price:65, sqPrice:1.10, stockMeter:0, feature:'' },
+    { id: 'VMPET/PET阴阳', name: 'VMPET/PET阴阳', thickness:12, density:1.41, price:20, sqPrice:0.34, stockMeter:0, feature:'一半镀铝一半透明' },
+    { id: 'AL', name: 'AL', thickness:7, density:2.7, price:40, sqPrice:0.76, stockMeter:0, feature:'建议在AL前加PET，不建议与印刷层直接复合' },
+    { id: 'PET', name: 'PET', thickness:12, density:1.41, price:15, sqPrice:0.25, stockMeter:0, feature:'' },
+    { id: 'NY', name: 'NY', thickness:15, density:1.14, price:35, sqPrice:0.60, stockMeter:0, feature:'' },
+    { id: '黄牛50', name: '黄牛50', thickness:50, density:1, price:20, sqPrice:1.00, stockMeter:0, feature:'表层仅BOPP/MOPP/PET' },
+    { id: '白牛50', name: '白牛50', thickness:50, density:1, price:20, sqPrice:1.00, stockMeter:0, feature:'表层仅BOPP/MOPP/PET' },
+    { id: '黄牛70', name: '黄牛70', thickness:70, density:1, price:20, sqPrice:1.40, stockMeter:0, feature:'表层仅BOPP/MOPP/PET' },
+    { id: '白牛60', name: '白牛60', thickness:60, density:1, price:20, sqPrice:1.20, stockMeter:0, feature:'表层仅BOPP/MOPP/PET' },
+    { id: '白牛80', name: '白牛80', thickness:80, density:1, price:20, sqPrice:1.60, stockMeter:0, feature:'' },
+    { id: 'EVOH PE40', name: 'EVOH PE40', thickness:40, density:0.95, price:45, sqPrice:1.71, stockMeter:0, feature:'厚度不够时使用' },
+    { id: 'EVOH PE65', name: 'EVOH PE65', thickness:65, density:0.95, price:45, sqPrice:2.78, stockMeter:0, feature:'' },
+    { id: 'CPP30', name: 'CPP30', thickness:30, density:0.91, price:16.5, sqPrice:0.45, stockMeter:0, feature:'' },
+    { id: 'CPP60', name: 'CPP60', thickness:60, density:0.91, price:16.5, sqPrice:0.90, stockMeter:0, feature:'' },
+    { id: 'VMCPP25', name: 'VMCPP25', thickness:25, density:0.91, price:20, sqPrice:0.46, stockMeter:0, feature:'' },
+    { id: 'VMPLA', name: 'VMPLA', thickness:15, density:1.27, price:120, sqPrice:2.29, stockMeter:0, feature:'' },
+    { id: 'VMPE40', name: 'VMPE40', thickness:40, density:0.95, price:48, sqPrice:1.82, stockMeter:0, feature:'PE可回收袋使用' },
+    { id: 'PLA透明高阻隔', name: 'PLA透明高阻隔', thickness:60, density:1.3, price:75, sqPrice:5.85, stockMeter:0, feature:'' },
+    { id: 'MENK镀铝', name: 'MENK镀铝', thickness:20, density:1.45, price:260, sqPrice:7.54, stockMeter:0, feature:'表层仅牛皮纸' },
+    { id: 'PCR PE40', name: 'PCR PE40', thickness:40, density:0.95, price:40, sqPrice:1.52, stockMeter:0, feature:'' },
+    { id: 'PE40', name: 'PE40', thickness:40, density:0.93, price:16.5, sqPrice:0.61, stockMeter:0, feature:'厚度不够时使用' },
+    { id: '奶白PE40', name: '奶白PE40', thickness:40, density:0.93, price:20, sqPrice:0.74, stockMeter:0, feature:'厚度不够时使用' },
+    { id: '客料', name: '客料', thickness:0, density:0, price:0, sqPrice:0, stockMeter:0, feature:'' },
+  ],
+  [LAYER_TYPES.HEAT_SEAL]: [
+    { id: '0', name: '无', thickness:0, density:0, price:0, sqPrice:0, stockMeter:0, feature:'' },
+    { id: 'PLA30', name: 'PLA30', thickness:30, density:1.27, price:48, sqPrice:1.83, stockMeter:0, feature:'' },
+    { id: 'PLA50', name: 'PLA50', thickness:50, density:1.27, price:48, sqPrice:3.05, stockMeter:0, feature:'' },
+    { id: 'PLA60', name: 'PLA60', thickness:60, density:1.27, price:48, sqPrice:3.66, stockMeter:0, feature:'' },
+    { id: 'PE40', name: 'PE40', thickness:40, density:0.93, price:16.5, sqPrice:0.61, stockMeter:0, feature:'' },
+    { id: 'PE60', name: 'PE60', thickness:60, density:0.93, price:16.5, sqPrice:0.92, stockMeter:0, feature:'' },
+    { id: 'PE50', name: 'PE50', thickness:50, density:0.93, price:16.5, sqPrice:0.77, stockMeter:0, feature:'' },
+    { id: 'PE80', name: 'PE80', thickness:80, density:0.93, price:16.5, sqPrice:1.23, stockMeter:0, feature:'' },
+    { id: 'PE90', name: 'PE90', thickness:90, density:0.93, price:16.5, sqPrice:1.38, stockMeter:0, feature:'' },
+    { id: 'PE100', name: 'PE100', thickness:100, density:0.93, price:16.5, sqPrice:1.53, stockMeter:0, feature:'' },
+    { id: 'PE120', name: 'PE120', thickness:120, density:0.93, price:16.5, sqPrice:1.84, stockMeter:0, feature:'' },
+    { id: 'EVOH PE50', name: 'EVOH PE50', thickness:50, density:0.95, price:45, sqPrice:2.14, stockMeter:0, feature:'' },
+    { id: 'EVOH PE65', name: 'EVOH PE65', thickness:65, density:0.95, price:45, sqPrice:2.78, stockMeter:0, feature:'' },
+    { id: 'EVOH PE40', name: 'EVOH PE40', thickness:40, density:0.95, price:45, sqPrice:1.71, stockMeter:0, feature:'' },
+    { id: 'APE', name: 'APE', thickness:40, density:0.95, price:35, sqPrice:1.33, stockMeter:0, feature:'' },
+    { id: '奶白APE', name: '奶白APE', thickness:40, density:0.95, price:40, sqPrice:1.52, stockMeter:0, feature:'' },
+    { id: 'APE50', name: 'APE50', thickness:50, density:0.95, price:35, sqPrice:1.66, stockMeter:0, feature:'' },
+    { id: '奶白APE50', name: '奶白APE50', thickness:50, density:0.95, price:40, sqPrice:1.90, stockMeter:0, feature:'' },
+    { id: '奶白PE60', name: '奶白PE60', thickness:60, density:0.93, price:20, sqPrice:1.12, stockMeter:0, feature:'' },
+    { id: '奶白PE80', name: '奶白PE80', thickness:80, density:0.93, price:20, sqPrice:1.49, stockMeter:0, feature:'' },
+    { id: '奶白PE40', name: '奶白PE40', thickness:40, density:0.93, price:20, sqPrice:0.74, stockMeter:0, feature:'' },
+    { id: '奶白PE100', name: '奶白PE100', thickness:100, density:0.93, price:20, sqPrice:1.86, stockMeter:0, feature:'' },
+    { id: 'CPP30', name: 'CPP30', thickness:30, density:0.91, price:16, sqPrice:0.44, stockMeter:0, feature:'' },
+    { id: 'CPP60', name: 'CPP60', thickness:60, density:0.91, price:16, sqPrice:0.87, stockMeter:0, feature:'' },
+    { id: 'VMCPP25', name: 'VMCPP25', thickness:25, density:0.91, price:20, sqPrice:0.46, stockMeter:0, feature:'' },
+    { id: 'PLA 高阻隔', name: 'PLA 高阻隔', thickness:50, density:1.3, price:75, sqPrice:4.88, stockMeter:0, feature:'' },
+    { id: '客料', name: '客料', thickness:0, density:0, price:0, sqPrice:0, stockMeter:0, feature:'' },
+  ]
+};
+
+type CompoundSelfRule = 
+  | { isForbiddenDirectPrint: boolean }
+  | { onlyMatchPrint: string[] };
+
+export const MATERIAL_CONFLICT_RULES = {
+  print2Compound: {
+    'PET12': ['VMPET普通12', 'VMPET素面镭射', 'VMPET/PET阴阳'],
+    'PET25': ['VMPET普通12', 'VMPET素面镭射', 'VMPET/PET阴阳'],
+    '默认': []
+  },
+  compoundSelfRule: {
+    'AL': { isForbiddenDirectPrint: true },
+    '黄牛50': { onlyMatchPrint: ['BOPP25','BOPP38','MOPP25','MOPP40','PET12','PET25'] },
+    'MENK镀铝': { onlyMatchPrint: ['黄牛皮纸50','白牛皮纸50','黄牛70','白牛60','白牛80','黑牛80'] },
+  },
+  compound2HeatSeal: { '默认': [] },
+  layerCountLimit: { normalBag: { min: 2 }, rollFilm: { min: 1 } }
+};
+export const IS_ROLL_FILM = (bagType: BagType) => bagType === '卷膜';
+
+// ====================== 内联样式（保留原有格式） ======================
+const styles = {
+  container: {
+    fontFamily: "Arial, sans-serif",
+    maxWidth: "1200px",
+    margin: "0 auto",
+    padding: "20px",
+    boxSizing: "border-box"
+  } as React.CSSProperties,
+  title: {
+    fontSize: "24px",
+    fontWeight: "bold",
+    marginBottom: "20px",
+    color: "#333"
+  } as React.CSSProperties,
+  section: {
+    marginBottom: "30px",
+    padding: "20px",
+    borderRadius: "8px",
+    border: "1px solid #e0e0e0",
+    backgroundColor: "#fff"
+  } as React.CSSProperties,
+  sectionTitle: {
+    fontSize: "18px",
+    fontWeight: "bold",
+    marginBottom: "15px",
+    color: "#333",
+    borderBottom: "1px solid #e0e0e0",
+    paddingBottom: "10px"
+  } as React.CSSProperties,
+  formRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "20px",
+    marginBottom: "15px"
+  } as React.CSSProperties,
+  formGroup: {
+    flex: 1,
+    minWidth: "150px"
+  } as React.CSSProperties,
+  label: {
+    display: "block",
+    marginBottom: "5px",
+    fontSize: "14px",
+    color: "#666"
+  } as React.CSSProperties,
+  input: {
+    width: "100%",
+    padding: "8px 10px",
+    border: "1px solid #ddd",
+    borderRadius: "4px",
+    fontSize: "14px"
+  } as React.CSSProperties,
+  select: {
+    width: "100%",
+    padding: "8px 10px",
+    border: "1px solid #ddd",
+    borderRadius: "4px",
+    fontSize: "14px",
+    backgroundColor: "#fff"
+  } as React.CSSProperties,
+  materialLayer: {
+    display: "flex",
+    gap: "10px",
+    alignItems: "center",
+    marginBottom: "10px",
+    padding: "10px",
+    border: "1px solid #f0f0f0",
+    borderRadius: "4px"
+  } as React.CSSProperties,
+  materialLayerCell: {
+    flex: 1,
+    minWidth: "120px"
+  } as React.CSSProperties,
+  materialCostTag: {
+    fontSize: "14px",
+    color: "#333",
+    fontWeight: "bold"
+  } as React.CSSProperties,
+  deleteBtn: {
+    padding: "6px 10px",
+    border: "none",
+    borderRadius: "4px",
+    backgroundColor: "#f44336",
+    color: "white",
+    cursor: "pointer"
+  } as React.CSSProperties,
+  addMaterialBtnGroup: {
+    display: "flex",
+    gap: "10px",
+    marginBottom: "15px"
+  } as React.CSSProperties,
+  addMaterialBtn: {
+    padding: "8px 12px",
+    border: "none",
+    borderRadius: "4px",
+    backgroundColor: "#2196F3",
+    color: "white",
+    cursor: "pointer"
+  } as React.CSSProperties,
+  specialProcessGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
+    gap: "15px",
+    marginBottom: "15px"
+  } as React.CSSProperties,
+  processCard: {
+    padding: "15px",
+    border: "1px solid #f0f0f0",
+    borderRadius: "4px"
+  } as React.CSSProperties,
+  processTitle: {
+    fontSize: "14px",
+    fontWeight: "bold",
+    marginBottom: "5px"
+  } as React.CSSProperties,
+  processDesc: {
+    fontSize: "12px",
+    color: "#666",
+    marginBottom: "5px"
+  } as React.CSSProperties,
+  processCost: {
+    fontSize: "14px",
+    color: "#333",
+    fontWeight: "bold"
+  } as React.CSSProperties,
+  quoteSummary: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, 1fr)",
+    gap: "15px",
+    marginBottom: "20px"
+  } as React.CSSProperties,
+  quoteCard: {
+    padding: "15px",
+    border: "1px solid #e0e0e0",
+    borderRadius: "4px",
+    backgroundColor: "#f9f9f9"
+  } as React.CSSProperties,
+  quoteCardHighlight: {
+    padding: "15px",
+    border: "1px solid #e0e0e0",
+    borderRadius: "4px",
+    backgroundColor: "#fff3f3"
+  } as React.CSSProperties,
+  quoteLabel: {
+    fontSize: "14px",
+    color: "#666",
+    marginBottom: "5px"
+  } as React.CSSProperties,
+  quoteValue: {
+    fontSize: "16px",
+    fontWeight: "bold",
+    color: "#333"
+  } as React.CSSProperties,
+  quoteValueHighlight: {
+    fontSize: "16px",
+    fontWeight: "bold",
+    color: "#e91e63"
+  } as React.CSSProperties,
+  costBreakdown: {
+    display: "flex",
+    gap: "10px",
+    marginBottom: "20px",
+    flexWrap: "wrap"
+  } as React.CSSProperties,
+  costBreakdownItem: {
+    flex: 1,
+    padding: "10px",
+    border: "1px solid #e0e0e0",
+    borderRadius: "4px",
+    textAlign: "center",
+    minWidth: "80px"
+  } as React.CSSProperties,
+  costDetailTitle: {
+    fontSize: "16px",
+    fontWeight: "bold",
+    marginBottom: "10px",
+    marginTop: "15px"
+  } as React.CSSProperties,
+  costDetailList: {
+    fontSize: "14px",
+    lineHeight: "1.6"
+  } as React.CSSProperties
+};
+
+// ====================== 组件定义 ======================
+const PackagingQuoteCalculator: React.FC = () => {
+  // ===== 基础业务状态 =====
+  const [bagType, setBagType] = useState<BagType>("自立袋");
+  const [rollFilmUnit, setRollFilmUnit] = useState<RollFilmUnit>("个");
+  // 尺寸状态 - 全部改为 数字|空字符串 联合类型，初始值保留数字
+  const [safeW, setSafeW] = useState<number | ''>(190); // 袋宽
+  const [safeH, setSafeH] = useState<number | ''>(300); // 袋高
+  const [safeG, setSafeG] = useState<number | ''>(40); // 底琴
+  const [safeSealBack, setSafeSealBack] = useState<number | ''>(10); // 背封边
+  const [safeSideExpand, setSafeSideExpand] = useState<number | ''>(50); // 侧面展开
+  const [safeAreaFactor, setSafeAreaFactor] = useState<number | ''>(1.05); // 异形袋面积系数
+  // 订单信息
+  const [safeQ, setSafeQ] = useState<number | ''>(30000); // 数量
+  const [safeSKU, setSafeSKU] = useState<number | ''>(1); // 款数
+  const [safeVAT, setSafeVAT] = useState<number | ''>(13); // 税率
+  const [exchangeRate, setExchangeRate] = useState<number | ''>(7.2); // 汇率
+  // 印刷与工艺状态
+  const [printingMode, setPrintingMode] = useState<PrintingMode>("无印刷");
+  const [selectedSpecialProcesses, setSelectedSpecialProcesses] = useState<SpecialProcess[]>([]);
+  // 配件状态
+  const [zipperType, setZipperType] = useState<ZipperType>("无");
+  const [valveType, setValveType] = useState<ValveType>("无");
+  const [selectedOtherAccessories, setSelectedOtherAccessories] = useState<OtherAccessory[]>([]);
+  const [selectedExtraOptions, setSelectedExtraOptions] = useState<ExtraOption[]>([]);
+  // 自定义成本
+  const [moldFee, setMoldFee] = useState<number | ''>(0);
+  const [plateFee, setPlateFee] = useState<number | ''>(0);
+  // ✅ 修复2：烫金价格改为标准状态声明，保留修改能力
+  const [CUSTOM_GILDING_PRICE, setCUSTOM_GILDING_PRICE] = useState<number>(0); // 烫金自定义价格
+
+  // ===== 新版：多层材料核心状态【替换原三层固定状态，完全匹配原有参数】 =====
+  interface MaterialLayer {
+    id: string;
+    layerType: keyof typeof MATERIAL_LIBRARY;
+    materialId: string;
+    // 新增可编辑参数，默认从选中材料继承，支持手动修改
+    material: (typeof MATERIAL_LIBRARY)[keyof typeof MATERIAL_LIBRARY][0] & {
+      editableThickness?: number; // 可编辑厚度
+      editableDensity?: number;   // 可编辑密度
+      editablePrice?: number;     // 可编辑单价（元/kg）
+      editableSqPrice?: number;   // 可编辑平方价（元/㎡）
+    };
+  }
+  const [materialLayers, setMaterialLayers] = useState<MaterialLayer[]>([
+    { 
+      id: '1', 
+      layerType: LAYER_TYPES.PRINT, 
+      materialId: MATERIAL_LIBRARY[LAYER_TYPES.PRINT][0].id, 
+      material: {
+        ...MATERIAL_LIBRARY[LAYER_TYPES.PRINT][0],
+        editableThickness: MATERIAL_LIBRARY[LAYER_TYPES.PRINT][0].thickness,
+        editableDensity: MATERIAL_LIBRARY[LAYER_TYPES.PRINT][0].density,
+        editablePrice: MATERIAL_LIBRARY[LAYER_TYPES.PRINT][0].price,
+        editableSqPrice: MATERIAL_LIBRARY[LAYER_TYPES.PRINT][0].sqPrice,
+      }
+    },
+  ]);
+  // 生成唯一ID
+  const generateLayerId = () => `layer_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+  // 新增材料层
+  const addMaterialLayer = (layerType: keyof typeof MATERIAL_LIBRARY) => {
+    const defaultMat = MATERIAL_LIBRARY[layerType][0];
+    const newLayer: MaterialLayer = {
+      id: generateLayerId(),
+      layerType,
+      materialId: defaultMat.id,
+      material: {
+        ...defaultMat,
+        editableThickness: defaultMat.thickness,
+        editableDensity: defaultMat.density,
+        editablePrice: defaultMat.price,
+        editableSqPrice: defaultMat.sqPrice,
+      }
+    };
+    setMaterialLayers([...materialLayers, newLayer]);
+  };
+  // 删除材料层
+  const removeMaterialLayer = (layerId: string) => {
+    if (materialLayers.length <= 1) return; // 至少保留1层
+    setMaterialLayers(materialLayers.filter(layer => layer.id !== layerId));
+  };
+  // 更新材料层选择的材料
+  const updateLayerMaterial = (layerId: string, newMaterialId: string) => {
+    setMaterialLayers(prev => prev.map(layer => {
+      if (layer.id !== layerId) return layer;
+      const newMaterial = MATERIAL_LIBRARY[layer.layerType].find(mat => mat.id === newMaterialId)!;
+      // 切换材料时，同步更新可编辑参数为新材料的默认值
+      return { 
+        ...layer, 
+        materialId: newMaterialId, 
+        material: {
+          ...newMaterial,
+          editableThickness: newMaterial.thickness,
+          editableDensity: newMaterial.density,
+          editablePrice: newMaterial.price,
+          editableSqPrice: newMaterial.sqPrice,
+        }
+      };
+    }));
+  };
+
+  // 编辑材料参数
+  const handleMaterialParamChange = (
+    layerId: string, 
+    paramKey: 'editableThickness' | 'editableDensity' | 'editablePrice' | 'editableSqPrice', 
+    value: number
+  ) => {
+    setMaterialLayers(prev => prev.map(layer => {
+      if (layer.id !== layerId) return layer;
+      
+      // 平方价可手动输入，也可通过 厚度/密度/单价 自动计算
+      // 若修改的是前三个参数，自动重新计算平方价（保持逻辑一致性）
+      let updatedMaterial = { ...layer.material, [paramKey]: value };
+      if (paramKey !== 'editableSqPrice' && value) {
+        const thickness = updatedMaterial.editableThickness || 0;
+        const density = updatedMaterial.editableDensity || 0;
+        const price = updatedMaterial.editablePrice || 0;
+        // 平方价计算公式：(厚度(mm) * 密度(g/cm³) * 单价(元/kg)) / 1000
+        const calcSqPrice = (thickness * density * price) / 1000;
+        updatedMaterial.editableSqPrice = Number(calcSqPrice.toFixed(4));
+      }
+      
+      return { ...layer, material: updatedMaterial };
+    }));
+  };
+
+  // 核心复用：有效层数+平方价合计（使用编辑后的参数，修复取错材料的问题）
+  const validLayers = useMemo(() => {
+    return materialLayers
+      .filter(layer => layer.material.id !== '0' && layer.material.name !== '无')
+      .map(layer => ({
+        ...layer.material,
+        thickness: layer.material.editableThickness || layer.material.thickness,
+        density: layer.material.editableDensity || layer.material.density,
+        price: layer.material.editablePrice || layer.material.price,
+        sqPrice: layer.material.editableSqPrice || layer.material.sqPrice,
+      }));
+  }, [materialLayers]);
+
+  // 修复：计算时使用多层材料的validLayers，而非原三层固定材料
+  const materialSquarePriceTotal = useMemo(() => {
+    return validLayers.reduce((sum, mat) => sum + (mat.sqPrice || 0), 0);
+  }, [validLayers]);
+
+  // ===== 新增：八边封专属状态 =====
+  const [sideQin, setSideQin] = useState<number | ''>(safeG);
+  const [isSidePrint, setIsSidePrint] = useState<boolean>(false);
+
+  // ===== 新增：材料层核心状态【三层联动 核心替换】 =====
+  const [selectedPrintMat, setSelectedPrintMat] = useState(MATERIAL_LIBRARY[LAYER_TYPES.PRINT][0]);
+  const [selectedCompoundMat, setSelectedCompoundMat] = useState(MATERIAL_LIBRARY[LAYER_TYPES.COMPOUND][0]);
+  const [selectedHeatSealMat, setSelectedHeatSealMat] = useState(MATERIAL_LIBRARY[LAYER_TYPES.HEAT_SEAL][0]);
+
+  // ===== 报价生成相关状态 =====
+  const [showQuoteResult, setShowQuoteResult] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 监听输入变化，自动隐藏报价结果
+  useEffect(() => {
+    setShowQuoteResult(false);
+  }, [
+    bagType, rollFilmUnit, safeW, safeH, safeG, safeSealBack, safeSideExpand,
+    safeAreaFactor, safeQ, safeSKU, safeVAT, exchangeRate, printingMode,
+    selectedSpecialProcesses, zipperType, valveType, selectedOtherAccessories,
+    selectedExtraOptions, moldFee, plateFee, sideQin, isSidePrint,
+    selectedPrintMat, selectedCompoundMat, selectedHeatSealMat
+  ]);
+
+  // ===== 工具方法：安全数字转换 =====
+  const getSafeNum = (num: number | '' | undefined | null, defaultValue = 0) => {
+    return typeof num === 'number' ? num : Number(num || defaultValue);
+  };
+
+  // ===== 材料层核心过滤方法【三层联动过滤 无冲突】 =====
+  const getFilteredCompoundMaterials = () => {
+    const printMatId = selectedPrintMat.id;
+    const conflictCompoundIds = (MATERIAL_CONFLICT_RULES.print2Compound[printMatId as keyof typeof MATERIAL_CONFLICT_RULES.print2Compound] || MATERIAL_CONFLICT_RULES.print2Compound['默认']) as string[];
+    let filtered = MATERIAL_LIBRARY[LAYER_TYPES.COMPOUND].filter(item => !conflictCompoundIds.includes(item.id));
+    filtered = filtered.filter(compMat => {
+      const selfRule = MATERIAL_CONFLICT_RULES.compoundSelfRule[compMat.id as keyof typeof MATERIAL_CONFLICT_RULES.compoundSelfRule] as CompoundSelfRule;
+      if (!selfRule) return true;
+      if ('isForbiddenDirectPrint' in selfRule) {
+        return selfRule.isForbiddenDirectPrint ? selectedPrintMat.id !== '0' : true;
+      }
+      if ('onlyMatchPrint' in selfRule) {
+        return selfRule.onlyMatchPrint.includes(selectedPrintMat.id);
+      }
+      return true;
+    });
+    return filtered;
+  };
+
+  const getFilteredHeatSealMaterials = () => {
+    const compoundMatId = selectedCompoundMat.id;
+    const conflictHeatSealIds = (MATERIAL_CONFLICT_RULES.compound2HeatSeal[compoundMatId as keyof typeof MATERIAL_CONFLICT_RULES.compound2HeatSeal] || MATERIAL_CONFLICT_RULES.compound2HeatSeal['默认']) as string[];
+    return MATERIAL_LIBRARY[LAYER_TYPES.HEAT_SEAL].filter(item => !conflictHeatSealIds.includes(item.id));
+  };
+
+  // Duplicate checkLayerCountValid function removed; use memoized checkLayerCountValid boolean above.
+  // ===== 材料层联动重置【选中上层，下层自动重置为无，避免冲突残留】 =====
+  useEffect(() => {
+    setSelectedCompoundMat(MATERIAL_LIBRARY[LAYER_TYPES.COMPOUND][0]);
+    setSelectedHeatSealMat(MATERIAL_LIBRARY[LAYER_TYPES.HEAT_SEAL][0]);
+  }, [selectedPrintMat]);
+  useEffect(() => {
+    setSelectedHeatSealMat(MATERIAL_LIBRARY[LAYER_TYPES.HEAT_SEAL][0]);
+  }, [selectedCompoundMat]);
+  
+  // ✅ 修复7：有效层数过滤条件优化，精准匹配
+      const checkLayerCountValid = IS_ROLL_FILM(bagType) ? validLayers.length >= 1 : validLayers.length >= 2;
+      const selectedMaterialLayers = { print: selectedPrintMat, compound: selectedCompoundMat, heatSeal: selectedHeatSealMat, valid: checkLayerCountValid };
+      // note: materialSquarePriceTotal is computed earlier from validLayers (multi-layer support); avoid redeclaring it here
+
+  // ===== 尺寸显示控制方法 =====
+  const shouldShowDimensionField = (field: string) => {
+    switch (field) {
+      case "G": return ["自立袋", "自立袋双放", "自立袋分底", "八边封", "八边封双放", "八边封分底"].includes(bagType);
+      case "sealBack": return ["中封袋", "侧封袋", "风琴袋"].includes(bagType);
+      case "sideExpand": return ["风琴袋"].includes(bagType);
+      case "areaFactor": return bagType === "异形袋";
+      default: return true;
+    }
+  };
+
+  // 核心计算（按需求实现完整流程 + 空值兜底防报错）
+  const calculationResult = useMemo(() => {
+    const safeWNum = getSafeNum(safeW, 190);
+    const safeHNum = getSafeNum(safeH, 300);
+    const safeGNum = getSafeNum(safeG, 40);
+    const safeSealBackNum = getSafeNum(safeSealBack, 10);
+    const safeSideExpandNum = getSafeNum(safeSideExpand, 50);
+    const safeAreaFactorNum = getSafeNum(safeAreaFactor, 1.05);
+    const safeQNum = getSafeNum(safeQ, 30000);
+    const safeSKUNum = getSafeNum(safeSKU, 1);
+    const safeVATNum = getSafeNum(safeVAT, 13);
+    const exchangeRateNum = getSafeNum(exchangeRate, 7.2);
+    const moldFeeNum = getSafeNum(moldFee, 0);
+    const plateFeeNum = getSafeNum(plateFee, 300);
+
+    if (safeQNum <= 0) return {
+      processData: { expandSize: { L_exp: '0', W_exp: '0' }, layout: { N_row:0, N_circ:0, N_rev:0 }, rotation: { R_order: '0', R_loss: '0' }, meterage: { M_order: '0', M_loss: '0', M_idle: '0', M_total: '0' }, feedArea: '0' },
+      costBreakdown: { material: '0', lamination: '0', print: '0', bagMaking: '0', accessories: '0', specialProcess: '0', custom: '0', total: '0', totalVAT: '0' },
+      quote: { exFactory: { unit: '0', total: '0', unitUSD: '0', totalUSD: '0' }, withTax: { unit: '0', total: '0', unitUSD: '0', totalUSD: '0' } },
+      materialDetails: [], materialSquarePriceTotal:0
+    };
+
+    const safeSideQin = getSafeNum(sideQin, safeGNum);
+    const isAllowSpecialShape = ["三边封", "自立袋"].includes(bagType);
+    // 修复：使用多层材料的validLayers，而非原三层固定材料
+    const validLayers = materialLayers
+      .filter(layer => layer.material.id !== '0' && layer.material.name !== '无')
+      .map(layer => ({
+        ...layer.material,
+        thickness: layer.material.editableThickness || layer.material.thickness,
+        density: layer.material.editableDensity || layer.material.density,
+        price: layer.material.editablePrice || layer.material.price,
+        sqPrice: layer.material.editableSqPrice || layer.material.sqPrice,
+      }));
+    const hasPaper = validLayers.some(layer => layer.name.includes("牛皮纸"));
+    const toUSD = (cnPrice: number) => cnPrice / exchangeRateNum;
+
+    // ✅ 第一步：袋型展开尺寸计算 + 异形袋限制
+    let L_exp = 0, W_exp = 0;
+    const currentBagType = bagType === "异形袋" ? (isAllowSpecialShape ? "异形袋" : "三边封") : bagType;
+    switch (currentBagType) {
+      case "三边封": L_exp = safeHNum * 2 + 30; W_exp = safeWNum + 3; break;
+      case "三边封双放": L_exp = safeHNum + 30; W_exp = safeWNum + 3; break;
+      case "自立袋": case "自立袋分底": L_exp = (safeHNum + safeGNum) * 2 + 40; W_exp = safeWNum + 3; break;
+      case "自立袋双放": L_exp = (safeHNum + safeGNum) + 40; W_exp = safeWNum + 3; break;
+      case "中封袋": case "侧封袋": L_exp = (safeWNum + safeSealBackNum + safeSideExpandNum) * 2 + 20; W_exp = safeHNum + 3; break;
+      case "风琴袋": L_exp = (safeWNum + safeSealBackNum + safeSideExpandNum) * 2 + 40; W_exp = safeHNum + 3; break;
+      case "八边封": case "八边封双放": case "八边封分底": L_exp = 0; W_exp =0; break;
+      case "异形袋":
+        const baseBag = isAllowSpecialShape ? "三边封" : "自立袋";
+        const baseL = baseBag === "三边封" ? (safeHNum *2 +30) : ((safeHNum+safeGNum)*2+40);
+        const baseW = safeWNum +3;
+        const scale = Math.sqrt(safeAreaFactorNum);
+        L_exp = baseL * scale; W_exp = baseW * scale; break;
+      case "卷膜": L_exp = safeHNum; W_exp = safeWNum; break;
+      default: L_exp = safeHNum * 2 + 30; W_exp = safeWNum + 3;
+    }
+
+    // ✅ 第二步：八边封 独立完整计算逻辑【公式1-28全实现】
+    let octagonCalc = {
+      bagBody: { L_exp:0, W_exp:0, N_circ:0, N_row:0, L_rev:0, R_order:0, R_loss:0, M_total:0 },
+      bagSide: { L_exp:0, W_exp:0, N_circ:0, N_row:0, L_rev:0, R_order:0, R_loss:0, M_total:0 },
+      totalMeter:0, totalOrderRev:0, totalLossRev:0, totalRev:0, printArea:0, materialWidth:760,
+      materialCost:0, fileHandleFee:0, printCost:0, lamCost:0, bagMakeCost:0, specialCost:0,
+      // 新增：拆分的费用字段（便于调试和展示）
+      bagBodyMaterialCost: 0,
+      bagSideMaterialCost: 0,
+      bagBodyPrintCost: 0,
+      bagSidePrintCost: 0
+    };
+    const isOctagon = ["八边封", "八边封双放", "八边封分底"].includes(bagType);
+    if (isOctagon) {
+      // 袋身计算1-8
+      const bagBody_L_exp = (safeHNum + safeGNum) * 2 + 60;
+      const bagBody_W_exp = safeWNum + 5;
+      const bagBody_N_circ = Math.max(1, Math.floor(OCTAGON_MAX_PRINT_CIRC / bagBody_W_exp));
+      const bagBody_N_row = Math.max(1, Math.floor(OCTAGON_MAX_PRINT_WIDTH / bagBody_L_exp));
+      const bagBody_L_rev = bagBody_N_circ * bagBody_W_exp;
+      const bagBody_R_order = safeQNum / (bagBody_N_circ * bagBody_N_row);
+      const bagBody_R_loss = (safeSKUNum * 60) + 250;
+      const bagBody_meter_base = (bagBody_R_order + bagBody_R_loss) * bagBody_L_rev / 1000;
+      const bagBody_idle = Math.max(OCTAGON_MIN_IDLE, bagBody_meter_base / 1500 * 50);
+      const bagBody_M_total = bagBody_meter_base + bagBody_idle;
+
+      // 袋侧（侧琴）计算9-16
+      const bagSide_L_exp = safeSideQin * 2 + 15;
+      const bagSide_W_exp = safeHNum + 5;
+      const bagSide_N_circ = Math.max(1, Math.floor(OCTAGON_MAX_PRINT_CIRC / bagSide_W_exp));
+      const bagSide_N_row = Math.max(1, Math.floor(OCTAGON_MAX_PRINT_WIDTH / bagSide_L_exp));
+      const bagSide_L_rev = bagSide_N_circ * bagSide_W_exp;
+      const bagSide_R_order = safeQNum / (bagSide_N_circ * bagSide_N_row);
+      const bagBody_perRev = bagBody_N_circ * bagBody_N_row;
+      const bagSide_perRev = bagSide_N_circ * bagSide_N_row || 1; // 新增 ||1 兜底
+      const bagSide_loss_rate = Math.floor(Number(isSidePrint) * (bagBody_perRev / bagSide_perRev));
+      const bagSide_R_loss = bagSide_loss_rate * bagBody_R_loss;
+      const bagSide_meter_base = (bagSide_R_order + bagSide_R_loss) * bagSide_L_rev / 1000;
+      const bagSide_idle = Math.max(OCTAGON_MIN_IDLE, bagSide_meter_base / 1500 * 50);
+      const bagSide_M_total = bagSide_meter_base + bagSide_idle;
+
+      // 费用计算17-28 【八边封 最新印刷规则 完整版】
+      const totalMeter = bagSide_M_total + (bagBody_M_total * 1.05);
+      const totalOrderRev = bagSide_R_order + bagBody_R_order;
+      const totalLossRev = bagSide_R_loss + bagBody_R_loss;
+      const totalRev = totalOrderRev + totalLossRev;
+      let materialWidth =760;
+      const printPatternWidth = bagBody_L_exp * bagBody_N_row;
+      if(totalOrderRev < 2000){ materialWidth =760; }
+      else if(printPatternWidth <=545){ materialWidth=555; }
+      else if(printPatternWidth <=625){ materialWidth=630; }
+      else if(printPatternWidth <=670){ materialWidth=680; }
+      const printArea = totalMeter * materialWidth * 1.02 /1000;
+      const totalSqPrice = validLayers.reduce((sum, mat) => sum + mat.sqPrice, 0);
+
+      // ========== 核心修改1：拆分侧琴和袋身材料费 ==========
+      // 袋身材料费（保留1.05系数）
+      const bagBodyMaterialCost = (bagBody_M_total * 1.05) * materialWidth * totalSqPrice / 1000;
+      // 侧琴材料费（独立计算）
+      const bagSideMaterialCost = bagSide_M_total * materialWidth * totalSqPrice / 1000;
+      // 总材料费 = 袋身 + 侧琴
+      const materialCost = bagBodyMaterialCost + bagSideMaterialCost;
+
+      const fileHandleFee = safeSKUNum >5 ? (safeSKUNum -5)*50 :0;
+
+      // ========== 核心修改2：拆分侧琴和袋身印刷费 ==========
+      const printUnitPrice = PRINT_PRICE_LADDER.find(ladder => totalOrderRev <= ladder.max)?.price || 3.5;
+      let printCost = 0;
+      let bagBodyPrintCost = 0; // 袋身印刷费
+      let bagSidePrintCost = 0; // 侧琴印刷费
+      const isDoublePrintProcess = selectedSpecialProcesses.includes("双面印刷");
+      const printModeMultiplier = { "无印刷":0, "单黑":1, "单白":1, "双层白":1.5 } as Record<PrintingMode, number>;
+
+      if(printingMode === "无印刷"){
+        // 无印刷时，只有损耗费（按总损耗计算）
+        printCost = totalLossRev * 4;
+      } else {
+        // 1. 计算袋身印刷费
+        bagBodyPrintCost = printUnitPrice * bagBody_R_order + bagBody_R_loss * 4;
+        bagBodyPrintCost *= printModeMultiplier[printingMode];
+        if (isDoublePrintProcess) bagBodyPrintCost *= 2;
+
+        // 2. 计算侧琴印刷费（仅勾选了侧琴印刷时才计算）
+        if (isSidePrint) {
+          bagSidePrintCost = printUnitPrice * bagSide_R_order + bagSide_R_loss * 4;
+          bagSidePrintCost *= printModeMultiplier[printingMode];
+          if (isDoublePrintProcess) bagSidePrintCost *= 2;
+        }
+
+        // 3. 总印刷费 = 袋身 + 侧琴
+        printCost = bagBodyPrintCost + bagSidePrintCost;
+      }
+
+      const Lam = Math.max(0, validLayers.length -1);
+      const lamBase = printArea * Lam *0.25;
+      const lamCost = lamBase < (200 * Lam) ? (200 * Lam) : lamBase;
+      
+      // ✅ 修复6：八边封制袋费修正，取米数×单价+最低起步价
+      const bagMakingBaseCost = (bagBody_R_order + bagBody_R_loss) * bagBody_L_rev /1000 * 1.8;
+      const bagMakeCost = Math.max(bagMakingBaseCost, BAG_MAKING_CONFIG[bagType].minPrice);
+      
+      const specialCost = selectedSpecialProcesses.reduce((sum, p) => sum + SPECIAL_PROCESS_CONFIG[p]({printMeter:totalMeter, totalQty:safeQNum, hasPaper}),0);
+      
+      // 更新计算结果（包含拆分的费用字段）
+      octagonCalc = {
+        bagBody: { L_exp:bagBody_L_exp, W_exp:bagBody_W_exp, N_circ:bagBody_N_circ, N_row:bagBody_N_row, L_rev:bagBody_L_rev, R_order:bagBody_R_order, R_loss:bagBody_R_loss, M_total:bagBody_M_total },
+        bagSide: { L_exp:bagSide_L_exp, W_exp:bagSide_W_exp, N_circ:bagSide_N_circ, N_row:bagSide_N_row, L_rev:bagSide_L_rev, R_order:bagSide_R_order, R_loss:bagSide_R_loss, M_total:bagSide_M_total },
+        totalMeter, totalOrderRev, totalLossRev, totalRev, printArea, materialWidth,
+        materialCost, fileHandleFee, printCost, lamCost, bagMakeCost, specialCost,
+        // 新增：拆分的费用字段（便于前端展示和调试）
+        bagBodyMaterialCost,
+        bagSideMaterialCost,
+        bagBodyPrintCost,
+        bagSidePrintCost
+      };
+    }
+
+    // ✅ 第三步：卷膜 独立完整计算逻辑【≤200米快速报价+公式全实现】
+    let rollFilmCalc = {
+      expand: { L:0, W:0 }, layout: { N_circ:1, perRevLength:0, perRevQty:0 },
+      qtyUnit: rollFilmUnit, orderMeter:0, lossMeter:0, feedMeter:0,
+      orderRev:0, lossRev:0, totalRev:0, materialWidth:760, materialArea:0,
+      fees: { material:0, file:0, print:0, lamination:0, slitting:0 }
+    };
+    const isRollFilm = bagType === "卷膜";
+    if (isRollFilm) {
+      const L_exp = safeHNum; const W_exp = safeWNum;
+      const N_circ = Math.max(1, Math.floor(1120 / W_exp));
+      const perRevLength = N_circ * W_exp / 1000;
+      const perRevQty = N_circ;
+      let orderMeter = 0;
+      switch(rollFilmUnit) {
+        case "个": orderMeter = (safeQNum / perRevQty) * perRevLength; break;
+        case "米": orderMeter = safeQNum; break;
+        case "转": orderMeter = 1.12 * safeQNum; break;
+        default: orderMeter = safeQNum;
+      }
+      const lossMeter = Math.max(50, orderMeter / 1500 * 50);
+      const feedMeter = orderMeter + lossMeter;
+      const orderRev = Math.ceil(orderMeter / perRevLength);
+      const lossRev = Math.ceil(orderRev * 0.02);
+      const totalRev = orderRev + lossRev;
+      
+      // ========== 核心修改：卷膜材料幅宽计算规则更新 ==========
+      let materialWidth = 760;
+      const printPatternWidth = L_exp; // 印刷图案幅宽 = 展开高度
+      // 规则1：正单转数 < 1000 → 固定760
+      if (orderRev < 1000) {
+        materialWidth = 760;
+      } 
+      // 规则2：正单转数 ≥ 1000 → 按印刷图案幅宽匹配阶梯值
+      else {
+        if (printPatternWidth <= 545) {
+          materialWidth = 555;
+        } else if (printPatternWidth <= 625) {
+          materialWidth = 630;
+        } else if (printPatternWidth <= 670) {
+          materialWidth = 680;
+        } else {
+          materialWidth = 760;
+        }
+      }
+      
+      // ========== 材料面积计算：严格匹配公式「材料面积=投料米数×材料幅宽」 ==========
+      const materialArea = feedMeter * materialWidth / 1000;
+      const isNormalMaterial = ROLL_FILM_NORMAL_MATERIALS.some(m => validLayers.some(l => l.id.includes(m)));
+      let materialCost = 0;
+      if (orderMeter <= 200) {
+        const quickPrice = ROLL_FILM_QUICK_PRICE.find(item => orderMeter >= item.meterRange[0] && orderMeter <= item.meterRange[1]);
+        if (quickPrice) {
+          if (printingMode === "无印刷" && validLayers.length ===1) materialCost = quickPrice.onlyPrint;
+          else if(isNormalMaterial) materialCost = quickPrice.normalMaterial;
+          else materialCost = quickPrice.specialMaterial;
+        }
+      } else {
+        const totalSqPrice = validLayers.reduce((sum, mat) => sum + mat.sqPrice, 0);
+        materialCost = materialArea * totalSqPrice;
+      }
+      const fileFee = safeSKUNum >5 ? (safeSKUNum-5)*30 :0;
+      const printUnitPrice = ROLL_FILM_PRINT_LADDER.find(ladder => orderRev <= ladder.maxRev)?.price ||3.5;
+      const printFee = orderMeter <=200 ?0 : (printUnitPrice * totalRev);
+      const lamLayers = Math.max(0, validLayers.length -1);
+      const lamBase = materialArea * lamLayers *0.25;
+      const laminationFee = lamLayers===0 ?0 : (lamBase < (200*lamLayers) ? (200*lamLayers) : lamBase);
+      const slittingFee = validLayers.length >=2 ? ROLL_FILM_SLITTING_FEE :0;
+      rollFilmCalc = {
+        expand: { L: L_exp, W: W_exp }, layout: { N_circ, perRevLength, perRevQty },
+        qtyUnit: rollFilmUnit, orderMeter, lossMeter, feedMeter,
+        orderRev, lossRev, totalRev, materialWidth, materialArea,
+        fees: { material: materialCost, file: fileFee, print: printFee, lamination: laminationFee, slitting: slittingFee }
+      };
+    }
+
+    // ✅ 第四步：排版与投料量计算【适配卷膜+八边封+普通袋】
+    let N_row =1, N_circ=1, N_rev=1, R_order=0, R_loss=0, L_rev=0, M_order=0, M_loss=0, M_idle=0, M_total=0, feedAreaSqm=0, materialWidth=760;
+    if(isRollFilm){
+      N_circ = rollFilmCalc.layout.N_circ; N_rev = rollFilmCalc.layout.perRevQty;
+      R_order = rollFilmCalc.orderRev; R_loss = rollFilmCalc.lossRev;
+      M_total = rollFilmCalc.feedMeter; materialWidth = rollFilmCalc.materialWidth;
+      feedAreaSqm = rollFilmCalc.materialArea;
+    }else if(isOctagon){
+      N_row = octagonCalc.bagBody.N_row; N_circ = octagonCalc.bagBody.N_circ;
+      N_rev = N_row * N_circ; R_order = octagonCalc.totalOrderRev;
+      R_loss = octagonCalc.totalLossRev; M_total = octagonCalc.totalMeter;
+      materialWidth = octagonCalc.materialWidth; feedAreaSqm = octagonCalc.printArea;
+    }else{
+      N_row = Math.max(1, Math.floor(MAX_PRINT_WIDTH / L_exp));
+      N_circ = Math.max(1, Math.floor(MAX_PRINT_PERIMETER / W_exp));
+      N_rev = N_row * N_circ; R_order = safeQNum / N_rev;
+      R_loss = (safeSKUNum * PER_SKU_LOSS) + DEBUG_LOSS_REV; L_rev = (N_circ * W_exp)/1000;
+      M_order = R_order * L_rev; M_loss = R_loss * L_rev;
+      M_idle = Math.max(MIN_IDLE_MATERIAL, (M_order+M_loss)/1500*50);
+      M_total = M_order + M_loss + M_idle;
+      const printPatternWidth = L_exp;
+      if(R_order <1500) materialWidth=760;
+      else if(printPatternWidth <=540) materialWidth=555;
+      else if(printPatternWidth <=620) materialWidth=630;
+      else if(printPatternWidth <=670) materialWidth=680;
+      feedAreaSqm = M_total * (materialWidth/1000);
+    }
+
+    // ✅ 第五步：各项成本计算【适配卷膜+八边封+普通袋+所有修正】
+    let C_mat=0, C_lam=0, C_print=0, C_bag=0, C_accessories=0, C_special=0, C_custom = moldFeeNum + plateFeeNum;
+    const slittingFee = isRollFilm ? rollFilmCalc.fees.slitting : 0;
+    const lamLayers = Math.max(0, validLayers.length -1);
+    // ✅ 重构：额外选项成本计算 (激光易撕线+手提扣+束口条 分开精准计价)
+    let extraOptionCost = 0;
+    // 获取当前袋型的有效宽度 (用于束口条计价)
+    const getEffectiveWidth = () => {
+      if (["八边封", "八边封双放", "八边封分底"].includes(bagType)) return getSafeNum(safeW); // 八边封取袋宽
+      if (bagType === "卷膜") return getSafeNum(safeW); // 卷膜取宽度
+      return W_exp; // 其他袋型取展开宽度
+    };
+    const effectiveWidth = getEffectiveWidth();
+
+    selectedExtraOptions.forEach(opt => {
+      switch(opt) {
+        case "激光易撕线": 
+          extraOptionCost += 0.35 * M_total; // 激光易撕线：按投料总米数计算
+          break;
+        case "手提扣": 
+          extraOptionCost += 1 * getSafeNum(safeQ); // 手提扣：固定1元/个
+          break;
+        case "束口条": 
+          // 束口条：复用已有tinStrip阶梯计价 + 按总数量计算，完美匹配你的规则
+          const singleTinPrice = ACCESSORY_PRICE.tinStrip(effectiveWidth);
+          extraOptionCost += singleTinPrice * getSafeNum(safeQ);
+          break;
+        default: break;
+      }
+    });
+    // 新增：普通袋文件费计算，和卷膜/八边封保持一致
+    const normalBagFileFee = safeSKUNum >5 ? (safeSKUNum -5)*50 :0;
+
+    if(isRollFilm){
+      C_mat = rollFilmCalc.fees.material; C_lam = rollFilmCalc.fees.lamination;
+      const printUnitPrice = ROLL_FILM_PRINT_LADDER.find(ladder => rollFilmCalc.orderRev <= ladder.maxRev)?.price ||3.5;
+      let rollPrintCost = 0;
+      const isDoublePrintProcess = selectedSpecialProcesses.includes("双面印刷");
+      const printModeMultiplier = { "无印刷":0, "单黑":1, "单白":1, "双层白":1.5 } as Record<PrintingMode, number>;
+
+      if(printingMode === "无印刷"){
+        rollPrintCost = rollFilmCalc.lossRev *4;
+      } else {
+        let basePrint = printUnitPrice * rollFilmCalc.orderRev + rollFilmCalc.lossRev *4;
+        basePrint *= printModeMultiplier[printingMode];
+        rollPrintCost = isDoublePrintProcess ? basePrint *2 : basePrint;
+      }
+      C_print = rollPrintCost + rollFilmCalc.fees.file;
+      C_bag =0; 
+      // ✅ 修复4：卷膜配件成本加入分切费
+      C_accessories= extraOptionCost + slittingFee;
+      
+      C_special = selectedSpecialProcesses.reduce((sum, process) => {
+        const processFee = process==="烫金" ? CUSTOM_GILDING_PRICE : SPECIAL_PROCESS_CONFIG[process]({printMeter:rollFilmCalc.feedMeter, totalQty:safeQNum, hasPaper});
+        return sum + (processFee ||0);
+      },0);
+    }else if(isOctagon){
+      C_mat = octagonCalc.materialCost; C_lam = octagonCalc.lamCost;
+      C_print = octagonCalc.printCost + octagonCalc.fileHandleFee; C_bag = octagonCalc.bagMakeCost;
+      const zipperUnitPrice = ACCESSORY_PRICE.zipper[zipperType];
+      const zipperCost = N_row * octagonCalc.totalMeter * zipperUnitPrice;
+      const valveUnitPrice = ACCESSORY_PRICE.valve[valveType];
+      const valveCost = safeQNum * valveUnitPrice;
+      const otherAccessoryCost = selectedOtherAccessories.reduce((sum, acc) => sum + (ACCESSORY_PRICE.other[acc] * safeQNum), 0);
+      C_accessories = zipperCost + valveCost + otherAccessoryCost + extraOptionCost;
+      C_special = selectedSpecialProcesses.reduce((sum, process) => {
+        const processFee = process==="烫金" ? CUSTOM_GILDING_PRICE : SPECIAL_PROCESS_CONFIG[process]({printMeter:octagonCalc.totalMeter, totalQty:safeQNum, hasPaper});
+        return sum + (processFee ||0);
+      },0);
+      if(selectedSpecialProcesses.includes("异形袋")) C_special += SPECIAL_SHAPE_MOLD_FEE;
+    }else{
+      const totalSqPrice = validLayers.reduce((sum, mat) => sum + mat.sqPrice,0);
+      C_mat = feedAreaSqm * totalSqPrice;
+      const singleLamCost = Math.max(200, 0.25 * M_total);
+      C_lam = singleLamCost * lamLayers;
+
+      // ========== 普通袋印刷费核心计算【无起步价+转数匹配阶梯】 ==========
+      const printUnitPrice = PRINT_PRICE_LADDER.find(ladder => R_order <= ladder.max)?.price || 3.5;
+      let printAdjustCost = 0;
+      const isDoublePrintProcess = selectedSpecialProcesses.includes("双面印刷");
+      const printModeMultiplier = { "无印刷":0, "单黑":1, "单白":1, "双层白":1.5 } as Record<PrintingMode, number>;
+
+      if (printingMode === "无印刷") {
+        printAdjustCost = R_loss * 4;
+      } else {
+        let basePrint = printUnitPrice * R_order + R_loss * 4;
+        basePrint *= printModeMultiplier[printingMode];
+        printAdjustCost = isDoublePrintProcess ? basePrint * 2 : basePrint;
+      }
+      // ✅ 修复5：普通袋印刷费加入文件费
+      C_print = printAdjustCost + normalBagFileFee;
+      // ========== 印刷费计算结束 ==========
+
+      const bagMakingParams = { L_rev, R_order, R_loss, N_row, M_order };
+      const bagMakingCost = BAG_MAKING_CONFIG[bagType].formula(bagMakingParams);
+      C_bag = Math.max(bagMakingCost, BAG_MAKING_CONFIG[bagType].minPrice);
+      const zipperUnitPrice = ACCESSORY_PRICE.zipper[zipperType];
+      const zipperCost = N_row * (M_order+M_loss) * zipperUnitPrice;
+      const valveUnitPrice = ACCESSORY_PRICE.valve[valveType];
+      const valveCost = safeQNum * valveUnitPrice;
+      const otherAccessoryCost = selectedOtherAccessories.reduce((sum, acc) => sum + (ACCESSORY_PRICE.other[acc] * safeQNum), 0);
+      C_accessories = zipperCost + valveCost + otherAccessoryCost + extraOptionCost;
+      const specialProcessValid = ["三边封", "自立袋"].includes(bagType) || bagType !== "异形袋";
+      C_special =0;
+      if(specialProcessValid && selectedSpecialProcesses.length>0){
+        C_special = selectedSpecialProcesses.reduce((sum, process) => {
+          const processFee = process==="烫金" ? CUSTOM_GILDING_PRICE : SPECIAL_PROCESS_CONFIG[process]({printMeter:M_total, totalQty:safeQNum, hasPaper});
+          return sum + (processFee ||0);
+        },0);
+        if(selectedSpecialProcesses.includes("异形袋")) C_special += SPECIAL_SHAPE_MOLD_FEE;
+      }
+    }
+
+    // ✅ 第六步：总价与单价计算【最终版 含双放×2】
+    const Total = C_mat + C_lam + C_print + C_bag + C_accessories + C_special + C_custom;
+    const isDoubleBag = ["三边封双放", "自立袋双放", "八边封双放"].includes(bagType);
+    const finalTotal = isDoubleBag ? Total *2 : Total;
+    const finalUnit = finalTotal / safeQNum;
+    const finalUnitVAT = finalUnit * (1 + safeVATNum / 100);
+    const finalTotalVAT = finalTotal * (1 + safeVATNum / 100);
+
+    return {
+      processData: {
+        expandSize: { L_exp: L_exp.toFixed(2), W_exp: W_exp.toFixed(2) },
+        layout: { N_row, N_circ, N_rev },
+        rotation: { R_order: R_order.toFixed(2), R_loss: R_loss.toFixed(2) },
+        meterage: { M_order: M_order.toFixed(2), M_loss: M_loss.toFixed(2), M_idle: M_idle.toFixed(2), M_total: M_total.toFixed(2) },
+        feedArea: feedAreaSqm.toFixed(2)
+      },
+      costBreakdown: {
+        material: C_mat.toFixed(2), lamination: C_lam.toFixed(2), print: C_print.toFixed(2),
+        bagMaking: C_bag.toFixed(2), accessories: C_accessories.toFixed(2), specialProcess: C_special.toFixed(2),
+        custom: C_custom.toFixed(2), total: finalTotal.toFixed(2), totalVAT: finalTotalVAT.toFixed(2)
+      },
+      quote: {
+        exFactory: { unit: finalUnit.toFixed(4), total: finalTotal.toFixed(2), unitUSD: toUSD(finalUnit).toFixed(4), totalUSD: toUSD(finalTotal).toFixed(2) },
+        withTax: { unit: finalUnitVAT.toFixed(4), total: finalTotalVAT.toFixed(2), unitUSD: toUSD(finalUnitVAT).toFixed(4), totalUSD: toUSD(finalTotalVAT).toFixed(2) }
+      },
+      materialDetails: validLayers,
+      materialSquarePriceTotal
+    };
+  }, [
+    bagType, safeW, safeH, safeG, safeSealBack, safeSideExpand, safeAreaFactor,
+    safeQ, safeSKU, safeVAT, exchangeRate, printingMode, selectedSpecialProcesses,
+    zipperType, valveType, selectedOtherAccessories, selectedExtraOptions,
+    moldFee, plateFee, sideQin, isSidePrint, rollFilmUnit, CUSTOM_GILDING_PRICE,
+    selectedPrintMat, selectedCompoundMat, selectedHeatSealMat
+  ]);
+
+  // 工艺/附件切换操作
+  const toggleSpecialProcess = (process: SpecialProcess) => {
+    setSelectedSpecialProcesses(prev => 
+      prev.includes(process) ? prev.filter(p => p !== process) : [...prev, process]
+    );
+  };
+
+  const toggleOtherAccessory = (accessory: OtherAccessory) => {
+    setSelectedOtherAccessories(prev => 
+      prev.includes(accessory) ? prev.filter(a => a !== accessory) : [...prev, accessory]
+    );
+  };
+
+  const toggleExtraOption = (option: ExtraOption) => {
+    setSelectedExtraOptions(prev => 
+      prev.includes(option) ? prev.filter(o => o !== option) : [...prev, option]
+    );
+  };
+
+  // 生成报价并保存到后端
+  const handleGenerateQuote = async () => {
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        quoterType: 'dmt',
+        timestamp: new Date().toISOString(),
+        inputs: {
+          bagType,
+          rollFilmUnit,
+          safeW,
+          safeH,
+          safeG,
+          safeSealBack,
+          safeSideExpand,
+          safeAreaFactor,
+          safeQ,
+          safeSKU,
+          safeVAT,
+          exchangeRate,
+          printingMode,
+          selectedSpecialProcesses,
+          zipperType,
+          valveType,
+          selectedOtherAccessories,
+          selectedExtraOptions,
+          moldFee,
+          plateFee,
+          sideQin,
+          isSidePrint,
+          selectedPrintMat: selectedPrintMat.id,
+          selectedCompoundMat: selectedCompoundMat.id,
+          selectedHeatSealMat: selectedHeatSealMat.id,
+        },
+        result: calculationResult,
+      };
+
+      await fetch('http://54.84.216.44:3973/api/v1/dylign/quote-inputs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      console.error('保存报价失败:', error);
+    } finally {
+      setIsSubmitting(false);
+      setShowQuoteResult(true);
+    }
+  };
+
+  // ====================== 渲染区 开始 ======================
+  return (
+    <div style={styles.container}>
+      <h1 style={styles.title}>包装袋自动报价器</h1>
+
+      {/* 1. 袋型与尺寸 - 新增【八边封侧琴输入框】 */}
+      <div style={styles.section}>
+        <div style={styles.sectionTitle}>袋型与尺寸</div>
+        <div style={styles.formRow}>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>袋型</label>
+            <select style={styles.select} value={bagType} onChange={(e) => setBagType(e.target.value as BagType)}>
+              {BAG_TYPES.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+          {shouldShowDimensionField("W") && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>{bagType === "卷膜" ? "宽 (mm)" : "袋宽 (mm)"}</label>
+              <input style={styles.input} type="number" value={safeW} onChange={(e) => setSafeW(e.target.value.trim() === '' ? '' : Number(e.target.value))} min={1} />
+            </div>
+          )}
+          {shouldShowDimensionField("H") && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>{bagType === "卷膜" ? "高 (mm)" : "袋高 (mm)"}</label>
+              <input style={styles.input} type="number" value={safeH} onChange={(e) => setSafeH(e.target.value.trim() === '' ? '' : Number(e.target.value))} min={1} />
+            </div>
+          )}
+          {shouldShowDimensionField("G") && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>底琴 (mm)</label>
+              <input style={styles.input} type="number" value={safeG} onChange={(e) => setSafeG(e.target.value.trim() === '' ? '' : Number(e.target.value))} min={1} />
+            </div>
+          )}
+          {["八边封", "八边封双放", "八边封分底"].includes(bagType) && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>八边封侧琴 (mm)</label>
+              <input style={styles.input} type="number" value={sideQin} onChange={(e) => setSideQin(e.target.value.trim() === '' ? '' : Number(e.target.value))} min={1} />
+            </div>
+          )}
+          {shouldShowDimensionField("sealBack") && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>背封边 (mm)</label>
+              <input style={styles.input} type="number" value={safeSealBack} onChange={(e) => setSafeSealBack(e.target.value.trim() === '' ? '' : Number(e.target.value))} min={1} />
+            </div>
+          )}
+          {shouldShowDimensionField("sideExpand") && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>侧面展开 (mm)</label>
+              <input style={styles.input} type="number" value={safeSideExpand} onChange={(e) => setSafeSideExpand(e.target.value.trim() === '' ? '' : Number(e.target.value))} min={1} />
+            </div>
+          )}
+          {shouldShowDimensionField("areaFactor") && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>异形袋面积系数</label>
+              <input style={styles.input} type="number" value={safeAreaFactor} onChange={(e) => setSafeAreaFactor(e.target.value.trim() === '' ? '' : Number(e.target.value))} min={1.05} max={1.10} step={0.01} />
+            </div>
+          )}
+          {bagType === "卷膜" && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>数量单位</label>
+              <select style={styles.select} value={rollFilmUnit} onChange={(e) => setRollFilmUnit(e.target.value as RollFilmUnit)}>
+                {["个", "米", "转"].map(unit => (
+                  <option key={unit} value={unit}>{unit}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div style={styles.formGroup}>
+            <label style={styles.label}>数量 ({bagType === "卷膜" ? rollFilmUnit : "个"})</label>
+            <input style={styles.input} type="number" value={safeQ} onChange={(e) => setSafeQ(e.target.value.trim() === '' ? '' : Number(e.target.value))} min={1} />
+          </div>
+          {/* ✅ 修复1：八边封侧面印刷勾选 提为formRow同级子元素 */}
+          {["八边封", "八边封双放", "八边封分底"].includes(bagType) && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>八边封侧面印刷</label>
+              <input type="checkbox" checked={isSidePrint} onChange={(e) => setIsSidePrint(e.target.checked)} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 2. 订单信息配置 - 保留原代码不变 */}
+      <div style={styles.section}>
+        <div style={styles.sectionTitle}>订单信息配置</div>
+        <div style={styles.formRow}>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>款数 (SKU)</label>
+            <input style={styles.input} type="number" value={safeSKU} onChange={(e) => setSafeSKU(e.target.value.trim() === '' ? '' : Number(e.target.value))} min={1} />
+          </div>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>税率 (%)</label>
+            <input style={styles.input} type="number" value={safeVAT} onChange={(e) => setSafeVAT(e.target.value.trim() === '' ? '' : Number(e.target.value))} min={0} max={100} />
+          </div>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>汇率 (CNY/USD)</label>
+            <input style={styles.input} type="number" value={exchangeRate} onChange={(e) => setExchangeRate(e.target.value.trim() === '' ? '' : Number(e.target.value))} min={1} step={0.01} />
+          </div>
+        </div>
+      </div>
+
+{/* ✅ 新版：多层材料层结构【完全匹配原有参数，无限增删，保留冲突提示】 */}
+      <div style={styles.section}>
+        <div style={styles.sectionTitle}>材料层结构</div>
+        <div style={{ fontSize: 14, color: checkLayerCountValid ? "#2e7d32" : "#d32f2f", fontWeight: "bold", margin: "10px 0" }}>
+          {checkLayerCountValid ? `✅ 层数合规` : `❌ 层数不足`} | 
+          {IS_ROLL_FILM(bagType) ? '卷膜要求≥1层' : '普通袋要求≥2层'} | 
+          当前有效层数：{validLayers.length} / 总层数：{materialLayers.length}
+        </div>
+
+        {/* 新增材料层按钮组 */}
+        <div style={styles.addMaterialBtnGroup}>
+          <button style={styles.addMaterialBtn} onClick={() => addMaterialLayer(LAYER_TYPES.PRINT)}>+ 印刷层</button>
+          <button style={styles.addMaterialBtn} onClick={() => addMaterialLayer(LAYER_TYPES.COMPOUND)}>+ 复合层</button>
+          <button style={styles.addMaterialBtn} onClick={() => addMaterialLayer(LAYER_TYPES.HEAT_SEAL)}>+ 热封层</button>
+        </div>
+
+        {/* 多层材料列表 */}
+        <div style={{ marginTop: 15 }}>
+          {materialLayers.map((layer, idx) => (
+            <div key={layer.id} style={{ ...styles.materialLayer, flexWrap: 'wrap' }}>
+              {/* 1. 层级类型 */}
+              <div style={styles.materialLayerCell}>
+                <label style={styles.label}>层级类型</label>
+                <div style={{ fontWeight: "bold", fontSize: 14 }}>
+                  {layer.layerType === LAYER_TYPES.PRINT && '印刷层'}
+                  {layer.layerType === LAYER_TYPES.COMPOUND && '复合层'}
+                  {layer.layerType === LAYER_TYPES.HEAT_SEAL && '热封层'}
+                </div>
+              </div>
+
+              {/* 2. 材料选择 */}
+              <div style={styles.materialLayerCell}>
+                <label style={styles.label}>材料选择</label>
+                <select style={styles.select} value={layer.materialId} onChange={(e) => updateLayerMaterial(layer.id, e.target.value)}>
+                  {MATERIAL_LIBRARY[layer.layerType].map(mat => (
+                    <option key={mat.id} value={mat.id}>{mat.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 3. 厚度（mm）- 可编辑 */}
+              <div style={styles.materialLayerCell}>
+                <label style={styles.label}>厚度 (mm)</label>
+                <input
+                  style={styles.input}
+                  type="number"
+                  min="0.1"
+                  step="0.1"
+                  value={layer.material.editableThickness || ''}
+                  onChange={(e) => handleMaterialParamChange(
+                    layer.id, 
+                    'editableThickness', 
+                    Number(e.target.value)
+                  )}
+                />
+              </div>
+
+              {/* 4. 密度（g/cm³）- 可编辑 */}
+              <div style={styles.materialLayerCell}>
+                <label style={styles.label}>密度 (g/cm³)</label>
+                <input
+                  style={styles.input}
+                  type="number"
+                  min="0.1"
+                  step="0.01"
+                  value={layer.material.editableDensity || ''}
+                  onChange={(e) => handleMaterialParamChange(
+                    layer.id, 
+                    'editableDensity', 
+                    Number(e.target.value)
+                  )}
+                />
+              </div>
+
+              {/* 5. 单价（元/kg）- 可编辑 */}
+              <div style={styles.materialLayerCell}>
+                <label style={styles.label}>单价 (元/kg)</label>
+                <input
+                  style={styles.input}
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={layer.material.editablePrice || ''}
+                  onChange={(e) => handleMaterialParamChange(
+                    layer.id, 
+                    'editablePrice', 
+                    Number(e.target.value)
+                  )}
+                />
+              </div>
+
+              {/* 6. 平方价（元/㎡）- 可编辑（自动计算或手动输入） */}
+              <div style={styles.materialLayerCell}>
+                <label style={styles.label}>平方价 (元/㎡)</label>
+                <input
+                  style={{ ...styles.input, backgroundColor: '#f9f9f9' }}
+                  type="number"
+                  min="0.0001"
+                  step="0.0001"
+                  value={layer.material.editableSqPrice || ''}
+                  onChange={(e) => handleMaterialParamChange(
+                    layer.id, 
+                    'editableSqPrice', 
+                    Number(e.target.value)
+                  )}
+                  placeholder="自动计算"
+                />
+              </div>
+
+              {/* 7. 备注 */}
+              <div style={{ ...styles.materialLayerCell, minWidth: '150px' }}>
+                <label style={styles.label}>备注</label>
+                <div style={{ fontSize: 12, color: "#666", wordBreak: 'break-all' }}>
+                  {layer.material.feature || '无特殊说明'}
+                </div>
+              </div>
+
+              {/* 8. 删除按钮 */}
+              <div style={{ ...styles.materialLayerCell, minWidth: '80px', display: 'flex', justifyContent: 'center' }}>
+                <button 
+                  style={styles.deleteBtn} 
+                  onClick={() => removeMaterialLayer(layer.id)} 
+                  disabled={materialLayers.length <=1}
+                >
+                  删除
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 核心合计（使用编辑后的平方价计算） */}
+        <div style={{ fontSize: "14px", fontWeight: "bold", marginTop: "15px", color: "#2563eb" }}>
+          ✔️ 材料结构平方价合计：{materialLayers.reduce((sum, layer) => {
+            return sum + (layer.material.editableSqPrice || 0);
+          }, 0).toFixed(4)} 元/㎡
+        </div>
+      </div>
+
+      {/* 4. 印刷工艺 */}
+      <div style={styles.section}>
+        <div style={styles.sectionTitle}>印刷工艺</div>
+        <div style={styles.formRow}>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>印刷模式</label>
+            <select style={styles.select} value={printingMode} onChange={(e) => setPrintingMode(e.target.value as PrintingMode)}>
+              {PRINTING_MODES.map(mode => (
+                <option key={mode} value={mode}>{mode}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* 5. 特殊工艺 */}
+      <div style={styles.section}>
+        <div style={styles.sectionTitle}>特殊工艺（可多选）</div>
+        <div style={styles.specialProcessGrid}>
+          {SPECIAL_PROCESSES.map(process => {
+            // ✅ 修复8：无印刷模式下禁用双面印刷
+            const isDoublePrintDisabled = printingMode === "无印刷" && process === "双面印刷";
+            return (
+              <div key={process} style={styles.processCard}>
+                <div style={styles.processTitle}>
+                  <input 
+                    type="checkbox" 
+                    checked={selectedSpecialProcesses.includes(process)} 
+                    onChange={() => toggleSpecialProcess(process)}
+                    disabled={isDoublePrintDisabled}
+                  />
+                  <span style={{ marginLeft: "5px", opacity: isDoublePrintDisabled ? 0.5 : 1 }}>{process}</span>
+                </div>
+                <div style={styles.processDesc}>
+                  {process === "双面印刷" && "印刷费×2，无额外费用"}
+                  {process === "异形袋" && "0.05×总数量 + 300元模具费，仅三边封/自立袋生效"}
+                  {process === "可变码" && "最低300元，0.05×总数量"}
+                  {process === "一袋一图" && "最低300元，0.05×总数量"}
+                  {process === "条形窗" && "最低300元，0.2×总数量"}
+                  {process === "异形窗" && "最低800元，0.2×总数量"}
+                  {process === "烫金" && "自定义价格，在成本设置中填写"}
+                  {process === "数码局部UV" && "最低400元，1×投料米数"}
+                  {process === "数码烫金/银" && "最低600元，1.5×投料米数"}
+                  {process === "强凸感局部UV" && "最低400元，1.3×投料米数"}
+                  {process === "镭射烫金/银" && "最低800元，2×投料米数"}
+                  {process === "普通+强凸感局部UV(UV幅宽<=320)" && "最低600元，1.6×投料米数"}
+                  {process === "普通+强凸感局部UV(UV幅宽>=320)" && "最低600元，2×投料米数"}
+                  {process === "局部UV+烫金" && "最低1000元，2×投料米数"}
+                  {process === "强凸感烫镭射金/银" && "最低1000元，2.3×投料米数"}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: "14px", color: "#666" }}>
+          已选工艺：{selectedSpecialProcesses.length > 0 ? selectedSpecialProcesses.join("、") : "无"}
+        </div>
+      </div>
+
+      {/* 6. 附件配置 */}
+      <div style={styles.section}>
+        <div style={styles.sectionTitle}>附件配置</div>
+        <div style={styles.formRow}>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>拉链类型</label>
+            <select style={styles.select} value={zipperType} onChange={(e) => setZipperType(e.target.value as ZipperType)}>
+              {ZIPPER_TYPES.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>气阀类型</label>
+            <select style={styles.select} value={valveType} onChange={(e) => setValveType(e.target.value as ValveType)}>
+              {VALVE_TYPES.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div style={{ marginTop: "20px" }}>
+          <div style={styles.processTitle}>其他附件（单选）</div>
+          <div style={styles.specialProcessGrid}>
+            {OTHER_ACCESSORIES.map(accessory => (
+              <div key={accessory} style={styles.processCard}>
+                <div style={styles.processTitle}>
+                  <input type="checkbox" checked={selectedOtherAccessories.includes(accessory)} onChange={() => toggleOtherAccessory(accessory)} />
+                  <span style={{ marginLeft: "5px" }}>{accessory}</span>
+                </div>
+                <div style={styles.processDesc}>单价：{ACCESSORY_PRICE.other[accessory]} 元/个</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginTop: "20px" }}>
+          <div style={styles.processTitle}>额外功能选项（可多选）</div>
+          <div style={styles.specialProcessGrid}>
+            {EXTRA_OPTIONS.map(option => (
+              <div key={option} style={styles.processCard}>
+                <div style={styles.processTitle}>
+                  <input type="checkbox" checked={selectedExtraOptions.includes(option)} onChange={() => toggleExtraOption(option)} />
+                  <span style={{ marginLeft: "5px" }}>{option}</span>
+                </div>
+                <div style={styles.processDesc}>
+                  {option === "激光易撕线" && "0.35×投料总米数"}
+                  {option === "手提扣" && "1元/个"}
+                  {option === "束口条" && "按袋宽阶梯计价：≤140mm=0.5元 | 140-200mm=0.6元 | 200-250mm=0.7元 | >250mm=0.8元"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 7. 自定义成本设置 */}
+      <div style={styles.section}>
+        <div style={styles.sectionTitle}>自定义成本设置</div>
+        <div style={styles.formRow}>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>模具费</label>
+            <input style={styles.input} type="number" value={moldFee} onChange={(e) => setMoldFee(e.target.value.trim() === '' ? '' : Number(e.target.value))} min={0} />
+          </div>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>特殊工艺版费</label>
+            <input style={styles.input} type="number" value={plateFee} onChange={(e) => setPlateFee(e.target.value.trim() === '' ? '' : Number(e.target.value))} min={0} />
+          </div>
+        </div>
+      </div>
+
+      {/* 8. 中间过程数据 */}
+      <div style={styles.section}>
+        <div style={styles.sectionTitle}>中间过程数据（核对用）</div>
+        <div style={styles.costDetailList}>
+          <div><strong>展开尺寸：</strong>长度 {calculationResult.processData.expandSize.L_exp} mm，宽度 {calculationResult.processData.expandSize.W_exp} mm</div>
+          <div><strong>排版参数：</strong>横排 {calculationResult.processData.layout.N_row} 个，周排 {calculationResult.processData.layout.N_circ} 个，每转产出 {calculationResult.processData.layout.N_rev} 个</div>
+          <div><strong>转数：</strong>订单转数 {calculationResult.processData.rotation.R_order} 转，损耗转数 {calculationResult.processData.rotation.R_loss} 转</div>
+          <div><strong>米数：</strong>订单 {calculationResult.processData.meterage.M_order} m，损耗 {calculationResult.processData.meterage.M_loss} m，闲置 {calculationResult.processData.meterage.M_idle} m，总投料 {calculationResult.processData.meterage.M_total} m</div>
+          <div><strong>投料面积：</strong>{calculationResult.processData.feedArea} ㎡</div>
+        </div>
+      </div>
+
+      {/* 生成报价按钮 */}
+      <div style={styles.section}>
+        <button
+          onClick={handleGenerateQuote}
+          disabled={isSubmitting}
+          style={{
+            width: '100%',
+            padding: '12px 24px',
+            backgroundColor: isSubmitting ? '#93c5fd' : '#2563eb',
+            color: 'white',
+            fontSize: '16px',
+            fontWeight: 600,
+            border: 'none',
+            borderRadius: '8px',
+            cursor: isSubmitting ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {isSubmitting ? '生成中...' : '生成报价'}
+        </button>
+      </div>
+
+      {/* 9. 报价汇总 */}
+      {showQuoteResult && (
+        <div style={styles.section}>
+          <div style={styles.sectionTitle}>✅ 报价汇总 & 完整成本计算明细（每笔费用分步展示）</div>
+          <div style={styles.quoteSummary}>
+            <div style={styles.quoteCard}>
+              <div style={styles.quoteLabel}>不含税报价</div>
+              <div style={styles.quoteValue}>
+                单价：{calculationResult.quote.exFactory.unit} 元/个 ≈ {calculationResult.quote.exFactory.unitUSD} USD/pc
+              </div>
+              <div style={styles.quoteValue}>
+                总价：{calculationResult.quote.exFactory.total} 元 ≈ {calculationResult.quote.exFactory.totalUSD} USD
+              </div>
+            </div>
+            <div style={styles.quoteCardHighlight}>
+              <div style={styles.quoteLabel}>含税报价（含{safeVAT}%增值税）</div>
+              <div style={styles.quoteValueHighlight}>
+                单价：{calculationResult.quote.withTax.unit} 元/个 ≈ {calculationResult.quote.withTax.unitUSD} USD/pc
+              </div>
+              <div style={styles.quoteValueHighlight}>
+                总价：{calculationResult.quote.withTax.total} 元 ≈ {calculationResult.quote.withTax.totalUSD} USD
+              </div>
+            </div>
+          </div>
+
+          {/* ========== 核心：成本明细总表头 ========== */}
+          <div style={{...styles.costDetailTitle, color:'#2563eb', borderBottom:'1px solid #e0e0e0', paddingBottom:'8px'}}>
+            📌 核心计算规则：所有费用累加 = 总成本 → 总成本 ÷ 总数量 = 单价 → 单价 × (1+税率) = 含税单价
+          </div>
+
+          {/* ========== 一、材料成本 精细化计算步骤 ========== */}
+          <div style={styles.costDetailTitle}>1️⃣ 材料成本【精准分步计算】</div>
+          <div style={{...styles.costDetailList, lineHeight:1.8, paddingLeft:10, borderLeft:'2px solid #2563eb'}}>
+            <div>▷ 材料层明细（已过滤无材料项）：</div>
+            {calculationResult.materialDetails.map((layer, idx) => (
+              <div key={idx} style={{paddingLeft:15}}>
+                ✔ {idx+1}层 {layer.name} → 单平方价：{layer.sqPrice.toFixed(4)} 元/㎡
+              </div>
+            ))}
+            <div style={{marginTop:8}}>▷ 材料平方价合计 = {calculationResult.materialDetails.reduce((s,i)=>s+i.sqPrice,0).toFixed(4)} 元/㎡</div>
+            <div>▷ 总投料面积 = {calculationResult.processData.feedArea} ㎡</div>
+            <div style={{fontWeight:'bold', color:'#2563eb'}}>
+              ✅ 材料总成本计算公式：材料合计平方价 × 总投料面积
+              <br/>
+              → {calculationResult.materialSquarePriceTotal.toFixed(4)} × {calculationResult.processData.feedArea} = {calculationResult.costBreakdown.material} 元
+            </div>
+          </div>
+
+          {/* ========== 二、复合成本 精细化计算步骤 ========== */}
+          <div style={styles.costDetailTitle}>2️⃣ 复合成本【精准分步计算】</div>
+          <div style={{...styles.costDetailList, lineHeight:1.8, paddingLeft:10, borderLeft:'2px solid #2563eb'}}>
+            <div>▷ 复合层数规则：有效材料层数量 - 1 层（N层材料需要N-1次复合）</div>
+            <div>▷ 当前有效材料层：{calculationResult.materialDetails.length} 层 → 复合层数 = {Math.max(0, calculationResult.materialDetails.length - 1)} 层</div>
+            <div>▷ 单层复合计价规则：max(200元【最低起步价】, 0.25 × 总投料米数)</div>
+            <div>▷ 单层复合费用 = max(200, 0.25 × {calculationResult.processData.meterage.M_total}) = {Math.max(200, 0.25 * Number(calculationResult.processData.meterage.M_total)).toFixed(2)} 元</div>
+            <div style={{fontWeight:'bold', color:'#2563eb'}}>
+              ✅ 复合总成本计算公式：单层复合费用 × 复合层数
+              <br/>
+              → {Math.max(200, 0.25 * Number(calculationResult.processData.meterage.M_total)).toFixed(2)} × {Math.max(0, calculationResult.materialDetails.length - 1)} = {calculationResult.costBreakdown.lamination} 元
+            </div>
+          </div>
+
+          {/* ========== 三、印刷成本 精细化计算步骤【分袋型适配 最核心】 ========== */}
+          <div style={styles.costDetailTitle}>3️⃣ 印刷成本【分袋型精准分步计算 无印刷/有印刷/双面印刷全适配】</div>
+          <div style={{...styles.costDetailList, lineHeight:1.8, paddingLeft:10, borderLeft: bagType==='卷膜' ? '2px solid #16a34a' : bagType.includes('八边封') ? '2px solid #d97706' : '2px solid #2563eb'}}>
+            {bagType === '卷膜' ? (
+              <>
+                <div style={{color:'#16a34a', fontWeight:'bold'}}>▷ 当前袋型：卷膜 专属印刷规则</div>
+                <div>▷ 印刷模式：{printingMode}</div>
+                <div>▷ 卷膜米数：{calculationResult.processData.meterage.M_total} m (订单米数{calculationResult.processData.meterage.M_order}+损耗米数{calculationResult.processData.meterage.M_loss})</div>
+                <div>▷ 卷膜转数：{calculationResult.processData.rotation.R_order} 转 (订单转数{calculationResult.processData.rotation.R_order}+损耗转数{calculationResult.processData.rotation.R_loss})</div>
+                <div>▷ 印刷阶梯单价：{ROLL_FILM_PRINT_LADDER.find(ladder => Number(calculationResult.processData.rotation.R_order) <= ladder.maxRev)?.price} 元/转 (损耗部分4元/转)</div>
+                <div>▷ 卷膜≤200米快速报价：{Number(calculationResult.processData.meterage.M_order) <=200 ? '印刷费0元' : '按阶梯计价'}</div>
+                <div>▷ 文件费：{getSafeNum(safeSKU) > 5 ? `(${getSafeNum(safeSKU)}-5)×50 = ${(getSafeNum(safeSKU)-5)*50}元` : '0元'}</div>
+                <div style={{fontWeight:'bold', color:'#16a34a'}}>
+                  ✅ 卷膜印刷总成本 = 基础印刷费 + 文件费 = {Number(calculationResult.costBreakdown.print) - (getSafeNum(safeSKU) > 5 ? (getSafeNum(safeSKU)-5)*50 : 0)} + {getSafeNum(safeSKU) > 5 ? (getSafeNum(safeSKU)-5)*50 : 0} = {calculationResult.costBreakdown.print} 元
+                </div>
+              </>
+            ) : bagType.includes('八边封') ? (
+              <>
+                <div style={{color:'#d97706', fontWeight:'bold'}}>▷ 当前袋型：八边封 专属印刷规则</div>
+                <div>▷ 印刷模式：{printingMode} {selectedSpecialProcesses.includes('双面印刷') ? '【双面印刷×2倍】' : ''}</div>
+                <div>▷ 印刷倍率：{printingMode==='双层白' ? '1.5倍' : '1倍'}</div>
+                <div>▷ 总投料米数：{calculationResult.processData.meterage.M_total} m</div>
+                <div>▷ 订单转数：{calculationResult.processData.rotation.R_order} 转 | 损耗转数：{calculationResult.processData.rotation.R_loss} 转</div>
+                <div>▷ 文件处理费：{getSafeNum(safeSKU) > 5 ? `(${getSafeNum(safeSKU)}-5)×50 = ${(getSafeNum(safeSKU)-5)*50}元` : '0元'}</div>
+                <div style={{fontWeight:'bold', color:'#d97706'}}>
+                  ✅ 八边封印刷总成本 = 印刷基础费 + 文件费 = {Number(calculationResult.costBreakdown.print) - (getSafeNum(safeSKU) > 5 ? (getSafeNum(safeSKU)-5)*50 : 0)} + {getSafeNum(safeSKU) > 5 ? (getSafeNum(safeSKU)-5)*50 : 0} = {calculationResult.costBreakdown.print} 元
+                </div>
+              </>
+            ) : (
+              <>
+                <div>▷ 当前袋型：普通袋 印刷规则</div>
+                <div>▷ 印刷模式：{printingMode} {selectedSpecialProcesses.includes('双面印刷') ? '【双面印刷×2倍】' : ''}</div>
+                <div>▷ 印刷倍率：{printingMode==='双层白' ? '1.5倍' : '1倍'}</div>
+                <div>▷ 订单转数：{calculationResult.processData.rotation.R_order} 转 | 损耗转数：{calculationResult.processData.rotation.R_loss} 转</div>
+                <div>▷ 印刷阶梯单价：{PRINT_PRICE_LADDER.find(ladder => Number(calculationResult.processData.rotation.R_order) <= ladder.max)?.price} 元/转 (损耗部分固定4元/转)</div>
+                <div>▷ 文件费：{getSafeNum(safeSKU) > 5 ? `(${getSafeNum(safeSKU)}-5)×50 = ${(getSafeNum(safeSKU)-5)*50}元` : '0元'}</div>
+                <div style={{fontWeight:'bold', color:'#2563eb'}}>
+                  ✅ 普通袋印刷总成本 = (订单转数×阶梯价 + 损耗转数×4) × 倍率 × 双面系数 + 文件费 = {calculationResult.costBreakdown.print} 元
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* ========== 四、制袋成本 精细化计算步骤 ========== */}
+          <div style={styles.costDetailTitle}>4️⃣ 制袋成本【分袋型精准公式+数值代入】</div>
+          <div style={{...styles.costDetailList, lineHeight:1.8, paddingLeft:10, borderLeft:'2px solid #2563eb'}}>
+            <div>▷ 当前袋型：{bagType} {bagType.includes('双放') ? '【双放工艺×2倍总价】' : ''}</div>
+            <div>▷ 制袋计算公式：{BAG_MAKING_CONFIG[bagType].formula.toString().replace(/\(params\) => /, '').replace(/params\./g, '')}</div>
+            <div>▷ 公式代入数值：
+              &nbsp;&nbsp;L_rev={ (Number(calculationResult.processData.meterage.M_total) / (Number(calculationResult.processData.rotation.R_order) + Number(calculationResult.processData.rotation.R_loss))).toFixed(2) },
+              &nbsp;&nbsp;R_order={calculationResult.processData.rotation.R_order},
+              &nbsp;&nbsp;R_loss={calculationResult.processData.rotation.R_loss},
+              &nbsp;&nbsp;N_row={calculationResult.processData.layout.N_row},
+              &nbsp;&nbsp;M_order={calculationResult.processData.meterage.M_order}
+            </div>
+            <div>▷ 制袋基础费用 = {BAG_MAKING_CONFIG[bagType].formula({
+              L_rev: Number(calculationResult.processData.meterage.M_total) / (Number(calculationResult.processData.rotation.R_order) + Number(calculationResult.processData.rotation.R_loss)),
+              R_order: Number(calculationResult.processData.rotation.R_order),
+              R_loss: Number(calculationResult.processData.rotation.R_loss),
+              N_row: calculationResult.processData.layout.N_row,
+              M_order: Number(calculationResult.processData.meterage.M_order)
+            }).toFixed(2)} 元</div>
+            <div>▷ 制袋最低起步价：{BAG_MAKING_CONFIG[bagType].minPrice} 元</div>
+            <div style={{fontWeight:'bold', color:'#2563eb'}}>
+              ✅ 制袋总成本计算公式：max(制袋基础费用, 最低起步价)
+              <br/>
+              → max({BAG_MAKING_CONFIG[bagType].formula({
+                L_rev: Number(calculationResult.processData.meterage.M_total) / (Number(calculationResult.processData.rotation.R_order) + Number(calculationResult.processData.rotation.R_loss)),
+                R_order: Number(calculationResult.processData.rotation.R_order),
+                R_loss: Number(calculationResult.processData.rotation.R_loss),
+                N_row: calculationResult.processData.layout.N_row,
+                M_order: Number(calculationResult.processData.meterage.M_order)
+              }).toFixed(2)}, {BAG_MAKING_CONFIG[bagType].minPrice}) = {calculationResult.costBreakdown.bagMaking} 元
+            </div>
+          </div>
+
+          {/* ========== 五、配件成本 精细化拆解【每一项都列出来】 ========== */}
+          <div style={styles.costDetailTitle}>5️⃣ 配件成本【逐项拆解 无隐藏费用】</div>
+          <div style={{...styles.costDetailList, lineHeight:1.8, paddingLeft:10, borderLeft:'2px solid #2563eb'}}>
+            <div>▷ ✔ 拉链费用：{zipperType==='无' ? '0元' : `${ACCESSORY_PRICE.zipper[zipperType]}元/个 × ${Number(calculationResult.processData.meterage.M_total).toFixed(2)}米×${calculationResult.processData.layout.N_row} = ${(ACCESSORY_PRICE.zipper[zipperType] * Number(calculationResult.processData.meterage.M_total) * calculationResult.processData.layout.N_row).toFixed(2)}元`}</div>
+            <div>▷ ✔ 气阀费用：{valveType==='无' ? '0元' : `${ACCESSORY_PRICE.valve[valveType]}元/个 × ${safeQ}个 = ${(ACCESSORY_PRICE.valve[valveType] * Number(safeQ)).toFixed(2)}元`}</div>
+            <div>▷ ✔ 其他附件：{selectedOtherAccessories.length>0 ? selectedOtherAccessories.map(acc=>(`${acc}(${ACCESSORY_PRICE.other[acc]}元/个×${safeQ}个=${(ACCESSORY_PRICE.other[acc]*Number(safeQ)).toFixed(2)}元)`)).join(' + ') : '0元'}</div>
+            <div>▷ ✔ 额外功能选项：
+              {selectedExtraOptions.length>0 ? selectedExtraOptions.map(opt=>{
+                if(opt==='激光易撕线') return `激光易撕线(0.35元/m × ${calculationResult.processData.meterage.M_total}m = ${(0.35*Number(calculationResult.processData.meterage.M_total)).toFixed(2)}元)`
+                if(opt==='手提扣') return `手提扣(1元/个 × ${safeQ}个 = ${Number(safeQ).toFixed(2)}元)`
+                if(opt==='束口条') {
+                  const width = getSafeNum(safeW);
+                  const price = ACCESSORY_PRICE.tinStrip(width);
+                  return `束口条(${price}元/个 × ${safeQ}个 = ${(price*Number(safeQ)).toFixed(2)}元)`
+                }
+                return opt
+              }).join(' + ') : '0元'}
+            </div>
+            <div>▷ ✔ 卷膜分切费：{bagType==='卷膜' ? (validLayers.length>=2 ? '100元' : '0元') : '0元'}</div>
+            <div style={{fontWeight:'bold', color:'#2563eb', marginTop:8}}>
+              ✅ 配件总成本 = 拉链+气阀+其他附件+额外选项+分切费 = {calculationResult.costBreakdown.accessories} 元
+            </div>
+          </div>
+
+          {/* ========== 六、特殊工艺+自定义成本 精细化拆解 ========== */}
+          <div style={styles.costDetailTitle}>6️⃣ 特殊工艺+自定义成本【逐项列出】</div>
+          <div style={{...styles.costDetailList, lineHeight:1.8, paddingLeft:10, borderLeft:'2px solid #2563eb'}}>
+            <div>▷ 已选特殊工艺：{selectedSpecialProcesses.length>0 ? selectedSpecialProcesses.join('、') : '无'}</div>
+            {selectedSpecialProcesses.map((p,idx)=>(
+              <div key={idx} style={{paddingLeft:15}}>
+                ✔ {p}：{p==='烫金' ? CUSTOM_GILDING_PRICE.toFixed(2) : SPECIAL_PROCESS_CONFIG[p]({printMeter:Number(calculationResult.processData.meterage.M_total), totalQty:Number(safeQ), hasPaper:validLayers.some(l=>l.name.includes('牛皮纸'))}).toFixed(2)} 元
+              </div>
+            ))}
+            <div>▷ 异形袋模具费：{selectedSpecialProcesses.includes('异形袋') ? '300元' : '0元'}</div>
+            <div>▷ 模具费（自定义）：{moldFee || 0} 元</div>
+            <div>▷ 版费（自定义）：{plateFee || 0} 元</div>
+            <div style={{fontWeight:'bold', color:'#2563eb', marginTop:8}}>
+              ✅ 特殊工艺总成本 = {calculationResult.costBreakdown.specialProcess} 元
+              <br/>
+              ✅ 自定义总成本 = {moldFee ||0} + {plateFee ||0} = {calculationResult.costBreakdown.custom} 元
+            </div>
+          </div>
+
+          {/* ========== 七、总成本+单价 最终汇总计算【最关键 一步不差】 ========== */}
+          <div style={{...styles.costDetailTitle, marginTop:20, backgroundColor:'#f8fafc', padding:'10px', borderRadius:'8px', color:'#dc2626'}}>
+            📌 最终总成本 & 单价 完整计算步骤【无删减 无隐藏】
+          </div>
+          <div style={{...styles.costDetailList, lineHeight:2, padding:10, border:'1px solid #fecdd3', borderRadius:'8px', backgroundColor:'#fff5f5'}}>
+            <div style={{fontWeight:'bold'}}>▶ 第一步：不含税总成本累加</div>
+            <div>
+              材料成本 {calculationResult.costBreakdown.material} + 
+              复合成本 {calculationResult.costBreakdown.lamination} + 
+              印刷成本 {calculationResult.costBreakdown.print} + 
+              制袋成本 {calculationResult.costBreakdown.bagMaking} + 
+              配件成本 {calculationResult.costBreakdown.accessories} + 
+              特殊工艺 {calculationResult.costBreakdown.specialProcess} + 
+              自定义成本 {calculationResult.costBreakdown.custom}
+            </div>
+            <div style={{fontWeight:'bold', color:'#dc2626'}}>
+              = {calculationResult.costBreakdown.total} 元 (不含税总成本)
+            </div>
+
+            <div style={{fontWeight:'bold', marginTop:10}}>▶ 第二步：不含税单价计算</div>
+            <div>不含税总成本 ÷ 总数量 = {calculationResult.costBreakdown.total} ÷ {safeQ} = {calculationResult.quote.exFactory.unit} 元/个</div>
+
+            <div style={{fontWeight:'bold', marginTop:10}}>▶ 第三步：含税金额计算（税率{safeVAT}%）</div>
+            <div>含税单价 = 不含税单价 × (1 + {safeVAT}%) = {calculationResult.quote.exFactory.unit} × { (1 + Number(safeVAT)/100).toFixed(4) } = {calculationResult.quote.withTax.unit} 元/个</div>
+            <div style={{fontWeight:'bold', color:'#dc2626'}}>
+              含税总成本 = 不含税总成本 × (1 + {safeVAT}%) = {calculationResult.costBreakdown.total} × { (1 + Number(safeVAT)/100).toFixed(4) } = {calculationResult.costBreakdown.totalVAT} 元
+            </div>
+
+            <div style={{fontWeight:'bold', marginTop:10, color:'#166534'}}>
+              ▶ 第四步：美金换算（汇率 {exchangeRate}）
+              <br/>
+              不含税美金单价：{calculationResult.quote.exFactory.unit} ÷ {exchangeRate} = {calculationResult.quote.exFactory.unitUSD} USD/pc
+              <br/>
+              含税美金单价：{calculationResult.quote.withTax.unit} ÷ {exchangeRate} = {calculationResult.quote.withTax.unitUSD} USD/pc
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default PackagingQuoteCalculator;
