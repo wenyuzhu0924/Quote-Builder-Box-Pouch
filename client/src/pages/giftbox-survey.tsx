@@ -546,6 +546,26 @@ export default function GiftBoxSurveyPage({
                     <p className="font-medium mb-2">灰板参数</p>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">灰板长（cm）</Label>
+                        <Input
+                          type="number"
+                          step={0.1}
+                          value={config.boardLength || ""}
+                          onChange={(e) => updateConfig({ boardLength: Number(e.target.value) || 0 })}
+                          data-testid="input-board-length"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">灰板宽（cm）</Label>
+                        <Input
+                          type="number"
+                          step={0.1}
+                          value={config.boardWidth || ""}
+                          onChange={(e) => updateConfig({ boardWidth: Number(e.target.value) || 0 })}
+                          data-testid="input-board-width"
+                        />
+                      </div>
+                      <div>
                         <Label className="text-xs text-muted-foreground mb-1 block">灰板单价（元/m²）</Label>
                         <Input
                           type="number"
@@ -567,6 +587,11 @@ export default function GiftBoxSurveyPage({
                         <p className="text-xs text-muted-foreground mt-1">面纸面积 = 灰板面积 × 此系数</p>
                       </div>
                     </div>
+                    {config.boardLength > 0 && config.boardWidth > 0 && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        灰板面积 = {config.boardLength} × {config.boardWidth} = {(config.boardLength * config.boardWidth).toFixed(1)} cm²（{((config.boardLength * config.boardWidth) / 10000).toFixed(4)} m²）
+                      </p>
+                    )}
                   </div>
 
                   <div>

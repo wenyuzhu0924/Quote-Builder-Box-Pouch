@@ -47,6 +47,8 @@ export interface GiftBoxSurveyConfig {
   crafts: CraftConfig[];
   moldFeeRules: MoldFeeRule[];
   boardPricePerSqm: number;
+  boardLength: number;
+  boardWidth: number;
   paperAreaRatio: number;
   cartonPricePerBox: number;
   cartonLength: number;
@@ -261,6 +263,8 @@ export const DEFAULT_GIFTBOX_CONFIG: GiftBoxSurveyConfig = {
     { minQty: 5000, maxQty: Infinity, price: 0, desc: "免费" },
   ],
   boardPricePerSqm: 0,
+  boardLength: 0,
+  boardWidth: 0,
   paperAreaRatio: 1.3,
   cartonPricePerBox: 0,
   cartonLength: 0,

@@ -114,7 +114,10 @@ export default function GiftBoxQuotePage({
       { length: L_cm, width: W_cm, height: H_cm }
     );
 
-    const boardAreaPerBox = areaCm2 / 10000;
+    const boardAreaCm2 = (config.boardLength > 0 && config.boardWidth > 0)
+      ? config.boardLength * config.boardWidth
+      : areaCm2;
+    const boardAreaPerBox = boardAreaCm2 / 10000;
     const totalBoardArea = boardAreaPerBox;
     const paperAreaPerBox = boardAreaPerBox * config.paperAreaRatio;
     const totalPaperArea = paperAreaPerBox;
@@ -629,12 +632,18 @@ export default function GiftBoxQuotePage({
                 )}
                 <div className="flex items-start gap-2 flex-wrap">
                   <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                  <span>展开面积 = {fmt(calc.areaCm2)} cm² = {fmt(calc.totalBoardArea, 4)} m²</span>
+                  <span>盒型展开面积 = {fmt(calc.areaCm2)} cm²</span>
                 </div>
                 {calc.formulaError && (
                   <div className="flex items-start gap-2 text-destructive font-medium flex-wrap">
                     <ChevronRight className="w-3 h-3 mt-1 shrink-0" />
                     <span>公式计算出错，请检查公式格式</span>
+                  </div>
+                )}
+                {config.boardLength > 0 && config.boardWidth > 0 && (
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                    <span>灰板尺寸 = {config.boardLength} × {config.boardWidth} = {fmt(config.boardLength * config.boardWidth)} cm² = {fmt(calc.totalBoardArea, 4)} m²</span>
                   </div>
                 )}
                 <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
