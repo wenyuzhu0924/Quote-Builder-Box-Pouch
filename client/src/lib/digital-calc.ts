@@ -191,7 +191,7 @@ function calcBagMakingCost(
 ): number {
   switch (rule.formulaType) {
     case "eightSide":
-      return rule.coefficient * params.L_rev * (params.R_order + params.R_loss) * params.N_row;
+      return rule.coefficient * params.L_rev * (params.R_order + params.R_loss);
     case "gusset":
       return rule.coefficient * params.L_rev * (params.R_order + params.R_loss) * params.N_row;
     case "standard":
@@ -577,11 +577,11 @@ function calcEightSide(
   }
   C_print += fileFee;
 
-  const singleLamCost8 = Math.max(config.laminationUnitPrice ?? 200, (config.laminationPerMeter ?? 0.25) * totalMeter);
+  const singleLamCost8 = Math.max(config.laminationUnitPrice ?? 200, (config.laminationPerMeter ?? 0.25) * printArea);
   const C_lam = singleLamCost8 * lamLayers;
 
   const bagMakingRule = getBagMakingRule(input.bagTypeId, config);
-  const bagMakingBaseCost = bagMakingRule.coefficient * bagBody_L_rev / 1000 * (bagBody_R_order + bagBody_R_loss) * bagBody_N_row;
+  const bagMakingBaseCost = bagMakingRule.coefficient * bagBody_L_rev / 1000 * (bagBody_R_order + bagBody_R_loss);
   const C_bag = Math.max(bagMakingBaseCost, bagMakingRule.minPrice);
 
   let C_accessories = 0;
