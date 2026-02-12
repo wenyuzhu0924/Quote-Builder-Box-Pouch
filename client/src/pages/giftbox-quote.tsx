@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Edit, RefreshCw, ChevronDown, ChevronUp, CheckCircle2, Sparkles, ChevronRight } from "lucide-react";
+import { ArrowLeft, Edit, RefreshCw, ChevronDown, ChevronUp, CheckCircle2, Sparkles, ChevronRight, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -69,7 +69,7 @@ export default function GiftBoxQuotePage({
     qty: 1000,
     customBoxPrice: 3,
     moldDiscount: 0,
-    cartonCount: 10,
+    giftBoxesPerCarton: 1,
     exchangeRate: 7.2,
     taxRate: 13,
   });
@@ -99,7 +99,7 @@ export default function GiftBoxQuotePage({
     const W_cm = dimensions.width || 0;
     const H_cm = dimensions.height || 0;
     const validQty = orderInfo.qty || 1;
-    const validCartonCount = orderInfo.cartonCount || 0;
+    const validGiftBoxesPerCarton = orderInfo.giftBoxesPerCarton || 1;
     const validExchangeRate = orderInfo.exchangeRate || 7.2;
     const validTaxRate = orderInfo.taxRate || 13;
     const validHoleCount = holeCount || 0;
@@ -179,8 +179,9 @@ export default function GiftBoxQuotePage({
       craftDetails.push({ name: craft.name, cost, desc });
     });
 
-    const cartonCostPerBox = validCartonCount > 0 ? (validCartonCount * config.cartonPricePerBox) / validQty : 0.5;
+    const cartonCostPerBox = config.cartonPricePerBox / validGiftBoxesPerCarton;
     const totalCartonCost = cartonCostPerBox * validQty;
+    const totalCartonCount = Math.ceil(validQty / validGiftBoxesPerCarton);
 
     const totalCostBeforeTax = totalBoardCost + totalPaperCost + totalLinerCost + totalBoxCost + totalCraftCost + totalCartonCost + finalMoldTotal;
     const taxAmount = totalCostBeforeTax * (validTaxRate / 100);
@@ -195,10 +196,10 @@ export default function GiftBoxQuotePage({
       boardCostPerBox, totalBoardCost, paperPrice, paperCostPerBox, totalPaperCost,
       linerCostPerBox, holeCostPerBox, totalHoleCost, baseLinerCost, totalLinerCost, linerMinCost, linerSteps,
       totalBoxCost, totalCraftCost, craftDetails,
-      cartonCostPerBox, totalCartonCost,
+      cartonCostPerBox, totalCartonCost, totalCartonCount,
       totalCostBeforeTax, taxAmount, totalCost, unitCost,
       unitCostUsd, totalCostUsd,
-      validQty, validExchangeRate, validTaxRate, validCartonCount,
+      validQty, validExchangeRate, validTaxRate, validGiftBoxesPerCarton,
     };
   }, [config, selectedBoxType, selectedPaper, selectedLiner, selectedCraftIds, dimensions, orderInfo, linerParams, craftAreas]);
 
@@ -353,16 +354,6 @@ export default function GiftBoxQuotePage({
                 </div>
               )}
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">运输纸箱个数</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={orderInfo.cartonCount || ""}
-                  onChange={(e) => setOrderInfo({ ...orderInfo, cartonCount: handleNumInput(e.target.value) })}
-                  data-testid="input-carton-count"
-                />
-              </div>
-              <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">美元汇率（默认7.2）</Label>
                 <Input
                   type="number"
@@ -499,6 +490,60 @@ export default function GiftBoxQuotePage({
             </CardContent>
           </Card>
         )}
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold section-title flex items-center gap-2">
+              <Truck className="w-4 h-4" /> 运费与箱规
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">纸箱长（cm）</Label>
+                <div className="h-11 flex items-center px-3 rounded-md border bg-muted/40 text-sm" data-testid="display-carton-length">
+                  {config.cartonLength || "-"}
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">纸箱宽（cm）</Label>
+                <div className="h-11 flex items-center px-3 rounded-md border bg-muted/40 text-sm" data-testid="display-carton-width">
+                  {config.cartonWidth || "-"}
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">纸箱高（cm）</Label>
+                <div className="h-11 flex items-center px-3 rounded-md border bg-muted/40 text-sm" data-testid="display-carton-height">
+                  {config.cartonHeight || "-"}
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">纸箱单价（元/个）</Label>
+                <div className="h-11 flex items-center px-3 rounded-md border bg-muted/40 text-sm" data-testid="display-carton-price">
+                  {config.cartonPricePerBox || "-"}
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">每箱装礼盒数量（个）</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={orderInfo.giftBoxesPerCarton || ""}
+                  onChange={(e) => setOrderInfo({ ...orderInfo, giftBoxesPerCarton: handleNumInput(e.target.value) })}
+                  data-testid="input-boxes-per-carton"
+                />
+              </div>
+              <div className="flex items-end">
+                <div className="text-sm text-muted-foreground">
+                  需要纸箱 <span className="font-semibold text-foreground">{calc.totalCartonCount}</span> 个，
+                  每盒分摊 <span className="font-semibold text-foreground">¥{fmt(calc.cartonCostPerBox, 4)}</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="space-y-0" data-testid="calculation-breakdown">
           <div className="summary-panel mb-8">
@@ -704,11 +749,19 @@ export default function GiftBoxQuotePage({
               <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
                 <div className="flex items-start gap-2 flex-wrap">
                   <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                  <span>纸箱数 = {calc.validCartonCount} 个 × {config.cartonPricePerBox} 元/个</span>
+                  <span>每箱装 {calc.validGiftBoxesPerCarton} 个礼盒，纸箱单价 {config.cartonPricePerBox} 元/个</span>
+                </div>
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>每盒分摊 = {config.cartonPricePerBox} ÷ {calc.validGiftBoxesPerCarton} = {fmt(calc.cartonCostPerBox, 4)} 元/个</span>
+                </div>
+                <div className="flex items-start gap-2 flex-wrap">
+                  <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                  <span>需要纸箱 = ⌈{calc.validQty} ÷ {calc.validGiftBoxesPerCarton}⌉ = {calc.totalCartonCount} 个</span>
                 </div>
                 <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
                   <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                  <span>分摊到每个盒子 = {fmt(calc.cartonCostPerBox)} 元/个 | 总计 = {fmt(calc.totalCartonCost)} 元</span>
+                  <span>纸箱总成本 = {fmt(calc.cartonCostPerBox, 4)} × {calc.validQty} = {fmt(calc.totalCartonCost)} 元</span>
                 </div>
               </div>
             </div>

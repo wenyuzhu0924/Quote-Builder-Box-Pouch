@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, ArrowRight, Plus, Trash2, Package, Layers, Sparkles, Wrench, DollarSign, Save } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Trash2, Package, Layers, Sparkles, Wrench, DollarSign, Save, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -779,7 +779,7 @@ export default function GiftBoxSurveyPage({
                         </TableBody>
                       </Table>
                     </div>
-                    <div className="mt-2 grid grid-cols-2 gap-4">
+                    <div className="mt-2">
                       <div>
                         <Label className="text-xs text-muted-foreground mb-1 block">孔位单价（元/个）</Label>
                         <Input
@@ -788,16 +788,6 @@ export default function GiftBoxSurveyPage({
                           value={config.holeCostPerUnit || ""}
                           onChange={(e) => updateConfig({ holeCostPerUnit: Number(e.target.value) || 0 })}
                           data-testid="input-hole-cost"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground mb-1 block">运输纸箱单价（元/个）</Label>
-                        <Input
-                          type="number"
-                          step={0.1}
-                          value={config.cartonPricePerBox || ""}
-                          onChange={(e) => updateConfig({ cartonPricePerBox: Number(e.target.value) || 0 })}
-                          data-testid="input-carton-price"
                         />
                       </div>
                     </div>
@@ -966,6 +956,70 @@ export default function GiftBoxSurveyPage({
                     </Table>
                   </div>
                   <SectionSaveButton section="crafts" label="特殊工艺" onSave={() => showSaveToast("特殊工艺")} />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="shipping" className="border rounded-lg px-4">
+              <AccordionTrigger className="hover:no-underline py-4" data-testid="section-shipping">
+                <div className="flex items-center gap-3">
+                  <Truck className="w-5 h-5 text-primary" />
+                  <div className="text-left">
+                    <div className="font-semibold">运费与箱规</div>
+                    <div className="text-sm text-muted-foreground">
+                      配置运输纸箱尺寸及单价
+                    </div>
+                  </div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pb-4">
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    设置运输纸箱的尺寸和单价。在报价器中用户输入每箱装多少个礼盒来计算运输纸箱成本。
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1 block">纸箱长度（cm）</Label>
+                      <Input
+                        type="number"
+                        step={0.1}
+                        value={config.cartonLength || ""}
+                        onChange={(e) => updateConfig({ cartonLength: Number(e.target.value) || 0 })}
+                        data-testid="input-carton-length"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1 block">纸箱宽度（cm）</Label>
+                      <Input
+                        type="number"
+                        step={0.1}
+                        value={config.cartonWidth || ""}
+                        onChange={(e) => updateConfig({ cartonWidth: Number(e.target.value) || 0 })}
+                        data-testid="input-carton-width"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1 block">纸箱高度（cm）</Label>
+                      <Input
+                        type="number"
+                        step={0.1}
+                        value={config.cartonHeight || ""}
+                        onChange={(e) => updateConfig({ cartonHeight: Number(e.target.value) || 0 })}
+                        data-testid="input-carton-height"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1 block">纸箱单价（元/个）</Label>
+                      <Input
+                        type="number"
+                        step={0.1}
+                        value={config.cartonPricePerBox || ""}
+                        onChange={(e) => updateConfig({ cartonPricePerBox: Number(e.target.value) || 0 })}
+                        data-testid="input-carton-price"
+                      />
+                    </div>
+                  </div>
+                  <SectionSaveButton section="shipping" label="运费与箱规" onSave={() => showSaveToast("运费与箱规")} />
                 </div>
               </AccordionContent>
             </AccordionItem>

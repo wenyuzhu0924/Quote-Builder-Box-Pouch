@@ -49,6 +49,9 @@ export interface GiftBoxSurveyConfig {
   boardPricePerSqm: number;
   paperAreaRatio: number;
   cartonPricePerBox: number;
+  cartonLength: number;
+  cartonWidth: number;
+  cartonHeight: number;
   holeCostPerUnit: number;
 }
 
@@ -260,6 +263,9 @@ export const DEFAULT_GIFTBOX_CONFIG: GiftBoxSurveyConfig = {
   boardPricePerSqm: 0,
   paperAreaRatio: 1.3,
   cartonPricePerBox: 0,
+  cartonLength: 0,
+  cartonWidth: 0,
+  cartonHeight: 0,
   holeCostPerUnit: 0,
 };
 
