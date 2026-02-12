@@ -50,7 +50,7 @@ export default function GiftBoxSurveyPage({
 
   const [newBoxType, setNewBoxType] = useState({ name: "", formula: "" });
   const [newPaper, setNewPaper] = useState({ name: "", pricePerSqm: 0 });
-  const [newLiner, setNewLiner] = useState({ name: "", calcMethod: "volume" as "volume" | "halfBoard", pricePerCubicM: 0, minCost: 0, baseProcessFee: 0 });
+  const [newLiner, setNewLiner] = useState({ name: "", calcMethod: "volume" as "volume" | "boardArea", pricePerCubicM: 0, boardAreaCoefficient: 0.5, minCost: 0, baseProcessFee: 0 });
   const [newCraft, setNewCraft] = useState({ name: "", calcType: "perUnit" as "perUnit" | "perArea", price: 0, startPrice: 400, desc: "" });
   const [newMoldRule, setNewMoldRule] = useState({ minQty: 0, maxQty: 0, price: 0, desc: "" });
 
@@ -175,12 +175,13 @@ export default function GiftBoxSurveyPage({
       id: `liner_${Date.now()}`,
       name: newLiner.name,
       calcMethod: newLiner.calcMethod,
+      boardAreaCoefficient: newLiner.boardAreaCoefficient,
       pricePerCubicM: newLiner.pricePerCubicM,
       minCost: newLiner.minCost,
       baseProcessFee: newLiner.baseProcessFee,
     };
     updateConfig({ linerTypes: [...config.linerTypes, liner] });
-    setNewLiner({ name: "", calcMethod: "volume", pricePerCubicM: 0, minCost: 0, baseProcessFee: 0 });
+    setNewLiner({ name: "", calcMethod: "volume", pricePerCubicM: 0, boardAreaCoefficient: 0.5, minCost: 0, baseProcessFee: 0 });
     toast({ title: "内衬类型已添加" });
   };
 
@@ -677,6 +678,7 @@ export default function GiftBoxSurveyPage({
                             <TableHead>内衬名称</TableHead>
                             <TableHead className="w-[100px]">计算方式</TableHead>
                             <TableHead className="w-[100px]">体积单价(元/m³)</TableHead>
+                            <TableHead className="w-[100px]">灰板面积系数</TableHead>
                             <TableHead className="w-[100px]">起步价(元)</TableHead>
                             <TableHead className="w-[100px]">加工费(元/个)</TableHead>
                             <TableHead className="w-[60px]"></TableHead>
@@ -703,7 +705,7 @@ export default function GiftBoxSurveyPage({
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="volume">按体积</SelectItem>
-                                    <SelectItem value="halfBoard">灰板÷2</SelectItem>
+                                    <SelectItem value="boardArea">按灰板面积</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </TableCell>
@@ -713,7 +715,17 @@ export default function GiftBoxSurveyPage({
                                   value={liner.pricePerCubicM || ""}
                                   onChange={(e) => updateLinerField(liner.id, "pricePerCubicM", Number(e.target.value) || 0)}
                                   className="h-9"
-                                  disabled={liner.calcMethod === "halfBoard"}
+                                  disabled={liner.calcMethod === "boardArea"}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step={0.01}
+                                  value={liner.boardAreaCoefficient ?? 0.5}
+                                  onChange={(e) => updateLinerField(liner.id, "boardAreaCoefficient", Number(e.target.value) || 0)}
+                                  className="h-9"
+                                  disabled={liner.calcMethod === "volume"}
                                 />
                               </TableCell>
                               <TableCell>
@@ -758,14 +770,14 @@ export default function GiftBoxSurveyPage({
                             <TableCell>
                               <Select
                                 value={newLiner.calcMethod}
-                                onValueChange={(v: "volume" | "halfBoard") => setNewLiner({ ...newLiner, calcMethod: v })}
+                                onValueChange={(v: "volume" | "boardArea") => setNewLiner({ ...newLiner, calcMethod: v })}
                               >
                                 <SelectTrigger className="h-9">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="volume">按体积</SelectItem>
-                                  <SelectItem value="halfBoard">灰板÷2</SelectItem>
+                                  <SelectItem value="boardArea">按灰板面积</SelectItem>
                                 </SelectContent>
                               </Select>
                             </TableCell>
@@ -775,7 +787,17 @@ export default function GiftBoxSurveyPage({
                                 value={newLiner.pricePerCubicM || ""}
                                 onChange={(e) => setNewLiner({ ...newLiner, pricePerCubicM: Number(e.target.value) || 0 })}
                                 className="h-9"
-                                disabled={newLiner.calcMethod === "halfBoard"}
+                                disabled={newLiner.calcMethod === "boardArea"}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step={0.01}
+                                value={newLiner.boardAreaCoefficient ?? 0.5}
+                                onChange={(e) => setNewLiner({ ...newLiner, boardAreaCoefficient: Number(e.target.value) || 0 })}
+                                className="h-9"
+                                disabled={newLiner.calcMethod === "volume"}
                               />
                             </TableCell>
                             <TableCell>

@@ -150,9 +150,10 @@ export default function GiftBoxQuotePage({
         `孔位费 = ${validHoleCount} × ${config.holeCostPerUnit} = ${fmt(holeCostPerBox)} 元/个`
       );
     } else {
-      linerCostPerBox = boardCostPerBox / 2;
+      const coeff = selectedLiner.boardAreaCoefficient || 0.5;
+      linerCostPerBox = boardCostPerBox * coeff;
       linerSteps.push(
-        `基础成本 = 灰板成本 ÷ 2 = ${fmt(boardCostPerBox)} ÷ 2 = ${fmt(linerCostPerBox)} 元/个`,
+        `基础成本 = 灰板成本 × 系数 = ${fmt(boardCostPerBox)} × ${coeff} = ${fmt(linerCostPerBox)} 元/个`,
         `孔位费 = ${validHoleCount} × ${config.holeCostPerUnit} = ${fmt(holeCostPerBox)} 元/个`
       );
     }

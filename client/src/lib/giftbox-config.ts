@@ -16,8 +16,9 @@ export interface PaperTypeConfig {
 export interface LinerTypeConfig {
   id: string;
   name: string;
-  calcMethod: "volume" | "halfBoard";
+  calcMethod: "volume" | "boardArea";
   pricePerCubicM: number;
+  boardAreaCoefficient: number;
   minCost: number;
   baseProcessFee: number;
 }
@@ -247,9 +248,9 @@ export const DEFAULT_GIFTBOX_CONFIG: GiftBoxSurveyConfig = {
     { id: "coated_special", name: "铜版纸+防刮花膜/触感膜", pricePerSqm: 0 },
   ],
   linerTypes: [
-    { id: "pearl_cotton", name: "珍珠棉内衬", calcMethod: "volume", pricePerCubicM: 0, minCost: 0, baseProcessFee: 0 },
-    { id: "eva", name: "EVA内衬", calcMethod: "volume", pricePerCubicM: 0, minCost: 0, baseProcessFee: 0 },
-    { id: "cardboard", name: "卡纸内衬", calcMethod: "halfBoard", pricePerCubicM: 0, minCost: 0, baseProcessFee: 0 },
+    { id: "pearl_cotton", name: "珍珠棉内衬", calcMethod: "volume", pricePerCubicM: 0, boardAreaCoefficient: 0.5, minCost: 0, baseProcessFee: 0 },
+    { id: "eva", name: "EVA内衬", calcMethod: "volume", pricePerCubicM: 0, boardAreaCoefficient: 0.5, minCost: 0, baseProcessFee: 0 },
+    { id: "cardboard", name: "卡纸内衬", calcMethod: "boardArea", pricePerCubicM: 0, boardAreaCoefficient: 0.5, minCost: 0, baseProcessFee: 0 },
   ],
   crafts: [
     { id: "hotStamping", name: "烫金", enabled: true, calcType: "perUnit", price: 0, startPrice: 0, desc: "按个计算" },
