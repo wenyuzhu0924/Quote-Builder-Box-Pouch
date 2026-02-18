@@ -13,10 +13,9 @@ export interface SoftBoxPrintingConfig {
   pricePerSqm: number;
 }
 
-export interface SoftBoxPostProcessConfig {
+export interface SoftBoxLaminationOption {
   id: string;
   name: string;
-  enabled: boolean;
   pricePerSqm: number;
 }
 
@@ -26,11 +25,18 @@ export interface SoftBoxFacePaperConfig {
   pricePerSqm: number;
 }
 
+export interface SoftBoxGluingConfig {
+  feePerBox: number;
+  minCharge: number;
+}
+
 export interface SoftBoxSurveyConfig {
   boxTypes: SoftBoxTypeConfig[];
   printingSides: SoftBoxPrintingConfig[];
-  postProcesses: SoftBoxPostProcessConfig[];
   facePapers: SoftBoxFacePaperConfig[];
+  laminationOptions: SoftBoxLaminationOption[];
+  laminationMinCharge: number;
+  gluing: SoftBoxGluingConfig;
 }
 
 export const softBoxDimensionLabels: Record<string, string> = {
@@ -181,12 +187,18 @@ export const DEFAULT_SOFTBOX_CONFIG: SoftBoxSurveyConfig = {
     { id: "single", name: "单面印刷", enabled: true, pricePerSqm: 0 },
     { id: "double", name: "双面印刷", enabled: true, pricePerSqm: 0 },
   ],
-  postProcesses: [
-    { id: "lamination", name: "覆膜", enabled: true, pricePerSqm: 0 },
-    { id: "uvCoating", name: "UV上光", enabled: true, pricePerSqm: 0 },
-  ],
   facePapers: [
-    { id: "eLeng", name: "E楞", pricePerSqm: 0 },
-    { id: "sbsBaika", name: "SBS白卡", pricePerSqm: 0 },
+    { id: "eLeng", name: "300gE楞单面", pricePerSqm: 0 },
+    { id: "sbsBaika", name: "350g单层白卡", pricePerSqm: 0 },
   ],
+  laminationOptions: [
+    { id: "none", name: "无覆膜", pricePerSqm: 0 },
+    { id: "glossy", name: "亮单面覆膜", pricePerSqm: 0 },
+    { id: "matte", name: "哑单面覆膜", pricePerSqm: 0 },
+  ],
+  laminationMinCharge: 150,
+  gluing: {
+    feePerBox: 0,
+    minCharge: 0,
+  },
 };

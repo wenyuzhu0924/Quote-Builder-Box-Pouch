@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, ArrowRight, Plus, Trash2, Package, Printer, Sparkles, Layers, Save } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Trash2, Package, Printer, Sparkles, Layers, Save, Film, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -10,8 +10,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import {
-  type SoftBoxTypeConfig, type SoftBoxPrintingConfig, type SoftBoxPostProcessConfig,
-  type SoftBoxFacePaperConfig,
+  type SoftBoxTypeConfig, type SoftBoxPrintingConfig,
+  type SoftBoxFacePaperConfig, type SoftBoxLaminationOption,
   parseSoftBoxDimensionsFromFormula, softBoxDimensionLabels, isValidSoftBoxFormula,
 } from "@/lib/softbox-config";
 import { useSoftBox } from "@/lib/softbox-store";
@@ -95,14 +95,6 @@ export default function SoftBoxSurveyPage({
     });
   };
 
-  const updatePostProcessField = (id: string, field: string, value: unknown) => {
-    updateConfig({
-      postProcesses: config.postProcesses.map(p =>
-        p.id === id ? { ...p, [field]: value } : p
-      ),
-    });
-  };
-
   const addPrintingSide = () => {
     const newItem: SoftBoxPrintingConfig = {
       id: `print_${Date.now()}`,
@@ -115,20 +107,6 @@ export default function SoftBoxSurveyPage({
 
   const removePrintingSide = (id: string) => {
     updateConfig({ printingSides: config.printingSides.filter(p => p.id !== id) });
-  };
-
-  const addPostProcess = () => {
-    const newItem: SoftBoxPostProcessConfig = {
-      id: `post_${Date.now()}`,
-      name: "",
-      enabled: true,
-      pricePerSqm: 0,
-    };
-    updateConfig({ postProcesses: [...config.postProcesses, newItem] });
-  };
-
-  const removePostProcess = (id: string) => {
-    updateConfig({ postProcesses: config.postProcesses.filter(p => p.id !== id) });
   };
 
   const updateFacePaperField = (id: string, field: string, value: unknown) => {
@@ -152,6 +130,31 @@ export default function SoftBoxSurveyPage({
     updateConfig({ facePapers: (config.facePapers || []).filter(fp => fp.id !== id) });
   };
 
+  const laminationOptions = config.laminationOptions || [];
+
+  const updateLaminationField = (id: string, field: string, value: unknown) => {
+    updateConfig({
+      laminationOptions: laminationOptions.map(lo =>
+        lo.id === id ? { ...lo, [field]: value } : lo
+      ),
+    });
+  };
+
+  const addLaminationOption = () => {
+    const newItem: SoftBoxLaminationOption = {
+      id: `lam_${Date.now()}`,
+      name: "",
+      pricePerSqm: 0,
+    };
+    updateConfig({ laminationOptions: [...laminationOptions, newItem] });
+  };
+
+  const removeLaminationOption = (id: string) => {
+    updateConfig({ laminationOptions: laminationOptions.filter(lo => lo.id !== id) });
+  };
+
+  const gluing = config.gluing || { feePerBox: 0, minCharge: 0 };
+
   const handleBack = () => navigate(backPath);
   const handleNext = () => navigate(nextPath);
 
@@ -162,7 +165,7 @@ export default function SoftBoxSurveyPage({
           <h1 className="text-xl font-bold tracking-tight text-foreground" data-testid="text-survey-title">
             报价器生成器 - 软盒
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">配置盒型、材料、印刷方式和后处理工艺的定价规则</p>
+          <p className="text-sm text-muted-foreground mt-1">配置盒型、材料、印刷方式、覆膜和糊盒的定价规则</p>
         </div>
       </header>
 
@@ -322,6 +325,7 @@ export default function SoftBoxSurveyPage({
                 <div className="space-y-4">
                   <div>
                     <Label className="text-sm font-semibold mb-3 block">面纸类型</Label>
+                    <p className="text-sm text-muted-foreground mb-3">材料成本 = 展开面积 × 材料单价</p>
                     <div className="space-y-3">
                       <div className="flex items-center gap-3 px-3">
                         <span className="text-sm font-medium text-primary flex-1">面纸名称</span>
@@ -444,14 +448,14 @@ export default function SoftBoxSurveyPage({
               </AccordionContent>
             </AccordionItem>
 
-            <AccordionItem value="postProcess" className="border rounded-lg px-4">
-              <AccordionTrigger className="hover:no-underline py-4" data-testid="section-postprocess">
+            <AccordionItem value="lamination" className="border rounded-lg px-4">
+              <AccordionTrigger className="hover:no-underline py-4" data-testid="section-lamination">
                 <div className="flex items-center gap-3">
-                  <Sparkles className="w-5 h-5 text-primary" />
+                  <Film className="w-5 h-5 text-primary" />
                   <div className="text-left">
-                    <div className="font-semibold">后处理工艺</div>
+                    <div className="font-semibold">覆膜配置</div>
                     <div className="text-sm text-muted-foreground">
-                      配置后处理工艺及单价（{config.postProcesses.filter(p => p.enabled).length}/{config.postProcesses.length} 种）
+                      配置覆膜选项及单价（{laminationOptions.length} 种），计算公式：max(展开面积 × 单价, 最低消费)
                     </div>
                   </div>
                 </div>
@@ -459,53 +463,45 @@ export default function SoftBoxSurveyPage({
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    配置可选的后处理工艺及其每平方米单价。
+                    覆膜成本 = max(展开面积 × 覆膜单价 × 数量, 最低消费)
                   </p>
                   <div className="border rounded-lg overflow-hidden">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[50px]">启用</TableHead>
-                          <TableHead>工艺名称</TableHead>
+                          <TableHead>覆膜类型</TableHead>
                           <TableHead className="w-[140px]">单价（元/m²）</TableHead>
                           <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {config.postProcesses.map(pp => (
-                          <TableRow key={pp.id}>
-                            <TableCell>
-                              <Checkbox
-                                checked={pp.enabled}
-                                onCheckedChange={(v) => updatePostProcessField(pp.id, "enabled", !!v)}
-                                data-testid={`toggle-post-${pp.id}`}
-                              />
-                            </TableCell>
+                        {laminationOptions.map(lo => (
+                          <TableRow key={lo.id}>
                             <TableCell>
                               <Input
-                                value={pp.name}
-                                onChange={(e) => updatePostProcessField(pp.id, "name", e.target.value)}
+                                value={lo.name}
+                                onChange={(e) => updateLaminationField(lo.id, "name", e.target.value)}
                                 className="h-9"
-                                data-testid={`post-name-${pp.id}`}
+                                data-testid={`lam-name-${lo.id}`}
                               />
                             </TableCell>
                             <TableCell>
                               <Input
                                 type="number"
                                 step={0.1}
-                                value={pp.pricePerSqm || ""}
-                                onChange={(e) => updatePostProcessField(pp.id, "pricePerSqm", Number(e.target.value) || 0)}
+                                value={lo.pricePerSqm || ""}
+                                onChange={(e) => updateLaminationField(lo.id, "pricePerSqm", Number(e.target.value) || 0)}
                                 className="h-9"
-                                data-testid={`post-price-${pp.id}`}
+                                data-testid={`lam-price-${lo.id}`}
                               />
                             </TableCell>
                             <TableCell>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => removePostProcess(pp.id)}
+                                onClick={() => removeLaminationOption(lo.id)}
                                 className="text-destructive"
-                                data-testid={`remove-post-${pp.id}`}
+                                data-testid={`remove-lam-${lo.id}`}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -515,39 +511,87 @@ export default function SoftBoxSurveyPage({
                       </TableBody>
                     </Table>
                   </div>
-                  <Button variant="outline" size="sm" onClick={addPostProcess} className="gap-1.5" data-testid="add-postprocess">
-                    <Plus className="w-3.5 h-3.5" /> 添加后处理工艺
+                  <Button variant="outline" size="sm" onClick={addLaminationOption} className="gap-1.5" data-testid="add-lamination">
+                    <Plus className="w-3.5 h-3.5" /> 添加覆膜类型
                   </Button>
-                  <SectionSaveButton section="postProcess" label="后处理配置" onSave={() => showSaveToast("后处理配置")} />
+                  <div className="flex items-center gap-3 mt-4">
+                    <Label className="text-sm font-semibold whitespace-nowrap">最低消费（元）</Label>
+                    <Input
+                      type="number"
+                      step={1}
+                      value={config.laminationMinCharge || ""}
+                      onChange={(e) => updateConfig({ laminationMinCharge: Number(e.target.value) || 0 })}
+                      className="w-[160px]"
+                      data-testid="input-lam-min-charge"
+                    />
+                  </div>
+                  <SectionSaveButton section="lamination" label="覆膜配置" onSave={() => showSaveToast("覆膜配置")} />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="gluing" className="border rounded-lg px-4">
+              <AccordionTrigger className="hover:no-underline py-4" data-testid="section-gluing">
+                <div className="flex items-center gap-3">
+                  <Wrench className="w-5 h-5 text-primary" />
+                  <div className="text-left">
+                    <div className="font-semibold">糊盒配置</div>
+                    <div className="text-sm text-muted-foreground">
+                      配置每个盒子的糊盒费用和最低消费
+                    </div>
+                  </div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pb-4">
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    糊盒成本 = max(每盒糊盒费用 × 数量, 最低消费)
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-semibold mb-2 block">每盒糊盒费用（元/个）</Label>
+                      <Input
+                        type="number"
+                        step={0.01}
+                        value={gluing.feePerBox || ""}
+                        onChange={(e) => updateConfig({ gluing: { ...gluing, feePerBox: Number(e.target.value) || 0 } })}
+                        data-testid="input-gluing-fee"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold mb-2 block">最低消费（元）</Label>
+                      <Input
+                        type="number"
+                        step={1}
+                        value={gluing.minCharge || ""}
+                        onChange={(e) => updateConfig({ gluing: { ...gluing, minCharge: Number(e.target.value) || 0 } })}
+                        data-testid="input-gluing-min"
+                      />
+                    </div>
+                  </div>
+                  <SectionSaveButton section="gluing" label="糊盒配置" onSave={() => showSaveToast("糊盒配置")} />
                 </div>
               </AccordionContent>
             </AccordionItem>
 
           </Accordion>
-
-          <div className="mt-8 flex justify-between sticky bottom-4 bg-background/95 backdrop-blur py-4 border-t">
-            {!hideBack ? (
-              <Button
-                data-testid="button-back"
-                variant="outline"
-                onClick={handleBack}
-                className="gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                返回
-              </Button>
-            ) : <div />}
-            <Button
-              data-testid="button-generate"
-              onClick={handleNext}
-              className="gap-2"
-            >
-              生成报价器
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          </div>
         </div>
       </main>
+
+      <footer className="border-t bg-card sticky bottom-0 z-50">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          {!hideBack ? (
+            <Button variant="outline" onClick={handleBack} className="gap-2" data-testid="button-back">
+              <ArrowLeft className="w-4 h-4" />
+              返回
+            </Button>
+          ) : <div />}
+          <Button onClick={handleNext} className="gap-2" data-testid="button-generate">
+            生成报价器
+            <ArrowRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </footer>
     </div>
   );
 }
