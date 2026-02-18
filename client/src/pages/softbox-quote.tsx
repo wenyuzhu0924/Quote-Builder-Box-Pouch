@@ -105,8 +105,12 @@ export default function SoftBoxQuotePage({
     const totalPaperCost = paperCostPerBox * validQty;
 
     const printingPrice = selectedPrinting?.pricePerSqm || 0;
-    const printingCostPerBox = areaSqm * printingPrice;
-    const totalPrintingCost = printingCostPerBox * validQty;
+    const printingCostPerBox = 0;
+    const totalPrintingCost = 0;
+
+    const uvCoatingPrice = 0;
+    const uvCostPerBox = 0;
+    const totalUVCost = 0;
 
     const lamPricePerSqm = selectedLamination?.pricePerSqm || 0;
     const lamCostRaw = areaSqm * lamPricePerSqm * validQty;
@@ -119,7 +123,7 @@ export default function SoftBoxQuotePage({
     const totalGluingCost = gluingCostPerBox * validQty;
     const gluingUsedMin = (gluing.feePerBox > 0 || gluing.minCharge > 0) && gluingMinPerBox > gluing.feePerBox;
 
-    const baseCost = totalPaperCost + totalPrintingCost + totalLaminationCost + totalGluingCost;
+    const baseCost = totalPaperCost + totalPrintingCost + totalUVCost + totalLaminationCost + totalGluingCost;
     const profitAmount = baseCost * (validProfitRate / 100);
     const totalBeforeTax = baseCost + profitAmount;
     const taxAmount = totalBeforeTax * (validTaxRate / 100);
@@ -132,6 +136,7 @@ export default function SoftBoxQuotePage({
       areaCm2, areaSqm, formulaError,
       facePaperPrice, paperCostPerBox, totalPaperCost,
       printingPrice, printingCostPerBox, totalPrintingCost,
+      uvCoatingPrice, uvCostPerBox, totalUVCost,
       lamPricePerSqm, lamCostRaw, totalLaminationCost, lamCostPerBox, lamUsedMin,
       gluingMinPerBox, totalGluingCost, gluingCostPerBox, gluingUsedMin,
       baseCost, profitAmount, totalBeforeTax,
@@ -300,7 +305,7 @@ export default function SoftBoxQuotePage({
         {enabledPrinting.length > 0 && (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold section-title">印刷方式</CardTitle>
+              <CardTitle className="text-base font-semibold section-title">印刷费用</CardTitle>
             </CardHeader>
             <CardContent>
               <Select value={selectedPrintingId} onValueChange={setSelectedPrintingId}>
@@ -318,9 +323,23 @@ export default function SoftBoxQuotePage({
                   单价：{selectedPrinting.pricePerSqm} 元/m²
                 </p>
               )}
+              <div className="mt-3 border border-dashed rounded-md p-3 text-center text-sm text-muted-foreground" data-testid="printing-pending">
+                计算逻辑待配置
+              </div>
             </CardContent>
           </Card>
         )}
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold section-title">UV上光</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="border border-dashed rounded-md p-3 text-center text-sm text-muted-foreground" data-testid="uv-pending">
+              计算逻辑待配置
+            </div>
+          </CardContent>
+        </Card>
 
         {laminationOptions.length > 0 && (
           <Card>
@@ -416,7 +435,7 @@ export default function SoftBoxQuotePage({
               </div>
 
               <div className="mt-5 text-sm font-medium text-muted-foreground flex items-center gap-1 flex-wrap">
-                <Sparkles className="w-4 h-4 text-primary" /> 核心规则：纸张 + 印刷 + 覆膜 + 糊盒 + 利润 = 税前总成本 → × (1+税率) = 最终价
+                <Sparkles className="w-4 h-4 text-primary" /> 核心规则：纸张 + 印刷 + UV上光 + 覆膜 + 糊盒 + 利润 = 税前总成本 → × (1+税率) = 最终价
               </div>
             </div>
 
@@ -475,26 +494,30 @@ export default function SoftBoxQuotePage({
                 <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
                   <div className="flex items-start gap-2 flex-wrap">
                     <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                    <span>印刷方式：{selectedPrinting?.name || "未选择"}</span>
+                    <span>印刷方式：{selectedPrinting?.name || "未选择"}，单价 = {calc.printingPrice} 元/m²</span>
                   </div>
-                  <div className="flex items-start gap-2 flex-wrap">
-                    <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                    <span>印刷单价 = {calc.printingPrice} 元/m²</span>
-                  </div>
-                  <div className="flex items-start gap-2 flex-wrap">
-                    <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                    <span>单盒印刷成本 = {fmt(calc.areaSqm, 4)} m² × {calc.printingPrice} = {fmt(calc.printingCostPerBox)} 元/个</span>
-                  </div>
-                  <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
-                    <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                    <span>总印刷成本 = {fmt(calc.printingCostPerBox)} × {calc.validQty} = {fmt(calc.totalPrintingCost)} 元</span>
+                  <div className="flex items-start gap-2 text-muted-foreground flex-wrap">
+                    <ChevronRight className="w-3 h-3 mt-1 shrink-0" />
+                    <span>计算逻辑待配置，当前印刷成本 = 0 元</span>
                   </div>
                 </div>
               </div>
 
               <div>
                 <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
-                  <Badge variant="default" className="text-xs">4</Badge> 覆膜成本
+                  <Badge variant="default" className="text-xs">4</Badge> UV上光成本
+                </h3>
+                <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                  <div className="flex items-start gap-2 text-muted-foreground flex-wrap">
+                    <ChevronRight className="w-3 h-3 mt-1 shrink-0" />
+                    <span>计算逻辑待配置，当前UV上光成本 = 0 元</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                  <Badge variant="default" className="text-xs">5</Badge> 覆膜成本
                 </h3>
                 <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
                   <div className="flex items-start gap-2 flex-wrap">
@@ -533,7 +556,7 @@ export default function SoftBoxQuotePage({
 
               <div>
                 <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
-                  <Badge variant="default" className="text-xs">5</Badge> 糊盒成本
+                  <Badge variant="default" className="text-xs">6</Badge> 糊盒成本
                 </h3>
                 <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
                   <div className="flex items-start gap-2 flex-wrap">
@@ -572,7 +595,7 @@ export default function SoftBoxQuotePage({
 
               <div>
                 <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
-                  <Badge variant="default" className="text-xs">6</Badge> 汇总
+                  <Badge variant="default" className="text-xs">7</Badge> 汇总
                 </h3>
                 <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
                   <div className="flex items-start gap-2 flex-wrap">
@@ -581,7 +604,11 @@ export default function SoftBoxQuotePage({
                   </div>
                   <div className="flex items-start gap-2 flex-wrap">
                     <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                    <span>印刷成本：¥{fmt(calc.totalPrintingCost)}</span>
+                    <span>印刷成本：¥{fmt(calc.totalPrintingCost)}（待配置）</span>
+                  </div>
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                    <span>UV上光成本：¥{fmt(calc.totalUVCost)}（待配置）</span>
                   </div>
                   <div className="flex items-start gap-2 flex-wrap">
                     <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />

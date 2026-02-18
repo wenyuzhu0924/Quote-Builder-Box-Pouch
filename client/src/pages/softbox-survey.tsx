@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import {
   type SoftBoxTypeConfig, type SoftBoxPrintingConfig,
-  type SoftBoxFacePaperConfig, type SoftBoxLaminationOption,
+  type SoftBoxFacePaperConfig, type SoftBoxLaminationOption, type SoftBoxUVCoatingConfig,
   parseSoftBoxDimensionsFromFormula, softBoxDimensionLabels, isValidSoftBoxFormula,
 } from "@/lib/softbox-config";
 import { useSoftBox } from "@/lib/softbox-store";
@@ -151,6 +151,30 @@ export default function SoftBoxSurveyPage({
 
   const removeLaminationOption = (id: string) => {
     updateConfig({ laminationOptions: laminationOptions.filter(lo => lo.id !== id) });
+  };
+
+  const uvCoatings = config.uvCoatings || [];
+
+  const updateUVCoatingField = (id: string, field: string, value: unknown) => {
+    updateConfig({
+      uvCoatings: uvCoatings.map(uv =>
+        uv.id === id ? { ...uv, [field]: value } : uv
+      ),
+    });
+  };
+
+  const addUVCoating = () => {
+    const newItem: SoftBoxUVCoatingConfig = {
+      id: `uv_${Date.now()}`,
+      name: "",
+      enabled: true,
+      pricePerSqm: 0,
+    };
+    updateConfig({ uvCoatings: [...uvCoatings, newItem] });
+  };
+
+  const removeUVCoating = (id: string) => {
+    updateConfig({ uvCoatings: uvCoatings.filter(uv => uv.id !== id) });
   };
 
   const gluing = config.gluing || { feePerBox: 0, minCharge: 0 };
@@ -374,7 +398,7 @@ export default function SoftBoxSurveyPage({
                 <div className="flex items-center gap-3">
                   <Printer className="w-5 h-5 text-primary" />
                   <div className="text-left">
-                    <div className="font-semibold">印刷方式</div>
+                    <div className="font-semibold">印刷费用</div>
                     <div className="text-sm text-muted-foreground">
                       配置印刷方式及单价（{config.printingSides.filter(p => p.enabled).length}/{config.printingSides.length} 种）
                     </div>
@@ -383,9 +407,10 @@ export default function SoftBoxSurveyPage({
               </AccordionTrigger>
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    配置可选的印刷方式及其每平方米单价。
-                  </p>
+                  <div className="border border-dashed rounded-lg p-6 text-center text-muted-foreground">
+                    <Printer className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    <p className="text-sm">印刷计算逻辑待配置</p>
+                  </div>
                   <div className="border rounded-lg overflow-hidden">
                     <Table>
                       <TableHeader>
@@ -526,6 +551,86 @@ export default function SoftBoxSurveyPage({
                     />
                   </div>
                   <SectionSaveButton section="lamination" label="覆膜配置" onSave={() => showSaveToast("覆膜配置")} />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="uvCoating" className="border rounded-lg px-4">
+              <AccordionTrigger className="hover:no-underline py-4" data-testid="section-uv">
+                <div className="flex items-center gap-3">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  <div className="text-left">
+                    <div className="font-semibold">UV上光</div>
+                    <div className="text-sm text-muted-foreground">
+                      配置UV上光选项及单价（{uvCoatings.filter(u => u.enabled).length}/{uvCoatings.length} 种）
+                    </div>
+                  </div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pb-4">
+                <div className="space-y-4">
+                  <div className="border border-dashed rounded-lg p-6 text-center text-muted-foreground">
+                    <Sparkles className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    <p className="text-sm">UV上光计算逻辑待配置</p>
+                  </div>
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[50px]">启用</TableHead>
+                          <TableHead>UV上光类型</TableHead>
+                          <TableHead className="w-[140px]">单价（元/m²）</TableHead>
+                          <TableHead className="w-[50px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {uvCoatings.map(uv => (
+                          <TableRow key={uv.id}>
+                            <TableCell>
+                              <Checkbox
+                                checked={uv.enabled}
+                                onCheckedChange={(v) => updateUVCoatingField(uv.id, "enabled", !!v)}
+                                data-testid={`toggle-uv-${uv.id}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={uv.name}
+                                onChange={(e) => updateUVCoatingField(uv.id, "name", e.target.value)}
+                                className="h-9"
+                                data-testid={`uv-name-${uv.id}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step={0.1}
+                                value={uv.pricePerSqm || ""}
+                                onChange={(e) => updateUVCoatingField(uv.id, "pricePerSqm", Number(e.target.value) || 0)}
+                                className="h-9"
+                                data-testid={`uv-price-${uv.id}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeUVCoating(uv.id)}
+                                className="text-destructive"
+                                data-testid={`remove-uv-${uv.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={addUVCoating} className="gap-1.5" data-testid="add-uv">
+                    <Plus className="w-3.5 h-3.5" /> 添加UV上光类型
+                  </Button>
+                  <SectionSaveButton section="uvCoating" label="UV上光配置" onSave={() => showSaveToast("UV上光配置")} />
                 </div>
               </AccordionContent>
             </AccordionItem>

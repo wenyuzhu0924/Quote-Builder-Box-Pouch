@@ -25,6 +25,13 @@ export interface SoftBoxFacePaperConfig {
   pricePerSqm: number;
 }
 
+export interface SoftBoxUVCoatingConfig {
+  id: string;
+  name: string;
+  enabled: boolean;
+  pricePerSqm: number;
+}
+
 export interface SoftBoxGluingConfig {
   feePerBox: number;
   minCharge: number;
@@ -36,6 +43,7 @@ export interface SoftBoxSurveyConfig {
   facePapers: SoftBoxFacePaperConfig[];
   laminationOptions: SoftBoxLaminationOption[];
   laminationMinCharge: number;
+  uvCoatings: SoftBoxUVCoatingConfig[];
   gluing: SoftBoxGluingConfig;
 }
 
@@ -197,6 +205,7 @@ export const DEFAULT_SOFTBOX_CONFIG: SoftBoxSurveyConfig = {
     { id: "matte", name: "哑单面覆膜", pricePerSqm: 0 },
   ],
   laminationMinCharge: 150,
+  uvCoatings: [],
   gluing: {
     feePerBox: 0,
     minCharge: 0,
