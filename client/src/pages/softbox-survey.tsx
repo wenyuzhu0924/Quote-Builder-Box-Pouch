@@ -545,7 +545,7 @@ export default function SoftBoxSurveyPage({
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    糊盒成本 = max(每盒糊盒费用 × 数量, 最低消费)
+                    单盒糊盒费用 = max(每盒价格, 最低消费 ÷ 数量)
                   </p>
                   <div className="grid grid-cols-2 gap-4">
                     <div>

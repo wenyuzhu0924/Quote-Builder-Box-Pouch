@@ -114,10 +114,10 @@ export default function SoftBoxQuotePage({
     const lamCostPerBox = totalLaminationCost / validQty;
     const lamUsedMin = lamPricePerSqm > 0 && lamCostRaw < laminationMinCharge;
 
-    const gluingCostRaw = gluing.feePerBox * validQty;
-    const totalGluingCost = gluing.feePerBox > 0 ? Math.max(gluingCostRaw, gluing.minCharge) : 0;
-    const gluingCostPerBox = totalGluingCost / validQty;
-    const gluingUsedMin = gluing.feePerBox > 0 && gluingCostRaw < gluing.minCharge;
+    const gluingMinPerBox = gluing.minCharge > 0 ? gluing.minCharge / validQty : 0;
+    const gluingCostPerBox = gluing.feePerBox > 0 || gluing.minCharge > 0 ? Math.max(gluing.feePerBox, gluingMinPerBox) : 0;
+    const totalGluingCost = gluingCostPerBox * validQty;
+    const gluingUsedMin = (gluing.feePerBox > 0 || gluing.minCharge > 0) && gluingMinPerBox > gluing.feePerBox;
 
     const baseCost = totalPaperCost + totalPrintingCost + totalLaminationCost + totalGluingCost;
     const profitAmount = baseCost * (validProfitRate / 100);
@@ -133,7 +133,7 @@ export default function SoftBoxQuotePage({
       facePaperPrice, paperCostPerBox, totalPaperCost,
       printingPrice, printingCostPerBox, totalPrintingCost,
       lamPricePerSqm, lamCostRaw, totalLaminationCost, lamCostPerBox, lamUsedMin,
-      gluingCostRaw, totalGluingCost, gluingCostPerBox, gluingUsedMin,
+      gluingMinPerBox, totalGluingCost, gluingCostPerBox, gluingUsedMin,
       baseCost, profitAmount, totalBeforeTax,
       taxAmount, totalCost, unitCost, unitCostUsd, totalCostUsd,
       validQty, validExchangeRate, validTaxRate, validProfitRate,
@@ -540,21 +540,25 @@ export default function SoftBoxQuotePage({
                     <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
                     <span>每盒糊盒费用 = {gluing.feePerBox} 元/个，最低消费 = ¥{gluing.minCharge}</span>
                   </div>
-                  {gluing.feePerBox > 0 ? (
+                  {gluing.feePerBox > 0 || gluing.minCharge > 0 ? (
                     <>
                       <div className="flex items-start gap-2 flex-wrap">
                         <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                        <span>计算：{gluing.feePerBox} × {calc.validQty} = {fmt(calc.gluingCostRaw)} 元</span>
+                        <span>最低消费分摊 = {gluing.minCharge} ÷ {calc.validQty} = {fmt(calc.gluingMinPerBox, 4)} 元/个</span>
+                      </div>
+                      <div className="flex items-start gap-2 flex-wrap">
+                        <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                        <span>单盒糊盒费用 = max({gluing.feePerBox}, {fmt(calc.gluingMinPerBox, 4)}) = {fmt(calc.gluingCostPerBox, 4)} 元/个</span>
                       </div>
                       {calc.gluingUsedMin && (
                         <div className="flex items-start gap-2 flex-wrap text-muted-foreground">
                           <ChevronRight className="w-3 h-3 mt-1 shrink-0" />
-                          <span>低于最低消费 ¥{gluing.minCharge}，按最低消费计算</span>
+                          <span>最低消费分摊高于每盒价格，按最低消费分摊计算</span>
                         </div>
                       )}
                       <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
                         <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                        <span>总糊盒成本 = max({fmt(calc.gluingCostRaw)}, {gluing.minCharge}) = {fmt(calc.totalGluingCost)} 元</span>
+                        <span>总糊盒成本 = {fmt(calc.gluingCostPerBox, 4)} × {calc.validQty} = {fmt(calc.totalGluingCost)} 元</span>
                       </div>
                     </>
                   ) : (
