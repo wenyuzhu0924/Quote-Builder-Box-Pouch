@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, ArrowRight, Plus, Trash2, Package, Printer, Sparkles, Save } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Trash2, Package, Printer, Sparkles, Layers, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import {
   type SoftBoxTypeConfig, type SoftBoxPrintingConfig, type SoftBoxPostProcessConfig,
+  type SoftBoxFacePaperConfig,
   parseSoftBoxDimensionsFromFormula, softBoxDimensionLabels, isValidSoftBoxFormula,
 } from "@/lib/softbox-config";
 import { useSoftBox } from "@/lib/softbox-store";
@@ -130,6 +131,27 @@ export default function SoftBoxSurveyPage({
     updateConfig({ postProcesses: config.postProcesses.filter(p => p.id !== id) });
   };
 
+  const updateFacePaperField = (id: string, field: string, value: unknown) => {
+    updateConfig({
+      facePapers: (config.facePapers || []).map(fp =>
+        fp.id === id ? { ...fp, [field]: value } : fp
+      ),
+    });
+  };
+
+  const addFacePaper = () => {
+    const newItem: SoftBoxFacePaperConfig = {
+      id: `fp_${Date.now()}`,
+      name: "",
+      pricePerSqm: 0,
+    };
+    updateConfig({ facePapers: [...(config.facePapers || []), newItem] });
+  };
+
+  const removeFacePaper = (id: string) => {
+    updateConfig({ facePapers: (config.facePapers || []).filter(fp => fp.id !== id) });
+  };
+
   const handleBack = () => navigate(backPath);
   const handleNext = () => navigate(nextPath);
 
@@ -140,7 +162,7 @@ export default function SoftBoxSurveyPage({
           <h1 className="text-xl font-bold tracking-tight text-foreground" data-testid="text-survey-title">
             报价器生成器 - 软盒
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">配置盒型、印刷方式和后处理工艺的定价规则</p>
+          <p className="text-sm text-muted-foreground mt-1">配置盒型、材料、印刷方式和后处理工艺的定价规则</p>
         </div>
       </header>
 
@@ -166,18 +188,6 @@ export default function SoftBoxSurveyPage({
                     配置盒型的展开面积公式，系统会自动识别所需的尺寸字段（长/宽/高）。
                   </p>
 
-                  <div>
-                    <Label className="text-xs text-muted-foreground mb-1 block">纸张单价（元/m²）</Label>
-                    <Input
-                      type="number"
-                      step={0.1}
-                      value={config.paperPricePerSqm || ""}
-                      onChange={(e) => updateConfig({ paperPricePerSqm: Number(e.target.value) || 0 })}
-                      className="max-w-xs"
-                      data-testid="input-paper-price"
-                    />
-                  </div>
-
                   <div className="border rounded-lg overflow-hidden">
                     <Table>
                       <TableHeader>
@@ -185,7 +195,7 @@ export default function SoftBoxSurveyPage({
                           <TableHead className="w-[50px]">启用</TableHead>
                           <TableHead className="w-[120px]">盒型名称</TableHead>
                           <TableHead>展开面积公式</TableHead>
-                          <TableHead className="w-[100px]">匹配字段</TableHead>
+                          <TableHead className="w-[100px]">尺寸字段</TableHead>
                           <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -221,7 +231,7 @@ export default function SoftBoxSurveyPage({
                               </div>
                             </TableCell>
                             <TableCell>
-                              <div className="flex flex-wrap gap-1">
+                              <div className="flex gap-1">
                                 {box.requiredDimensions.map(dim => (
                                   <Badge key={dim} variant="secondary" className="text-xs">
                                     {softBoxDimensionLabels[dim] || dim}
@@ -292,6 +302,65 @@ export default function SoftBoxSurveyPage({
                     提示：在公式中使用"长"、"宽"、"高"关键词，系统会自动识别所需尺寸字段。支持 ×、÷、+、- 运算符和括号。
                   </p>
                   <SectionSaveButton section="boxTypes" label="盒型配置" onSave={() => showSaveToast("盒型配置")} />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="materials" className="border rounded-lg px-4">
+              <AccordionTrigger className="hover:no-underline py-4" data-testid="section-materials">
+                <div className="flex items-center gap-3">
+                  <Layers className="w-5 h-5 text-primary" />
+                  <div className="text-left">
+                    <div className="font-semibold">材料</div>
+                    <div className="text-sm text-muted-foreground">
+                      配置面纸类型及单价（{(config.facePapers || []).length} 种）
+                    </div>
+                  </div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pb-4">
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-semibold mb-3 block">面纸类型</Label>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3 px-3">
+                        <span className="text-sm font-medium text-primary flex-1">面纸名称</span>
+                        <span className="text-sm font-medium text-primary w-[140px]">单价（元/m²）</span>
+                        <span className="w-9"></span>
+                      </div>
+                      {(config.facePapers || []).map(fp => (
+                        <div key={fp.id} className="flex items-center gap-3 px-3">
+                          <Input
+                            value={fp.name}
+                            onChange={(e) => updateFacePaperField(fp.id, "name", e.target.value)}
+                            className="flex-1"
+                            data-testid={`facepaper-name-${fp.id}`}
+                          />
+                          <Input
+                            type="number"
+                            step={0.1}
+                            value={fp.pricePerSqm || ""}
+                            onChange={(e) => updateFacePaperField(fp.id, "pricePerSqm", Number(e.target.value) || 0)}
+                            className="w-[140px]"
+                            data-testid={`facepaper-price-${fp.id}`}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeFacePaper(fp.id)}
+                            className="text-destructive shrink-0"
+                            data-testid={`remove-facepaper-${fp.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={addFacePaper} className="gap-1.5" data-testid="add-facepaper">
+                    <Plus className="w-3.5 h-3.5" /> 添加面纸类型
+                  </Button>
+                  <SectionSaveButton section="materials" label="材料配置" onSave={() => showSaveToast("材料配置")} />
                 </div>
               </AccordionContent>
             </AccordionItem>

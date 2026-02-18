@@ -34,8 +34,11 @@ export default function SoftBoxQuotePage({
   const enabledPrinting = config.printingSides.filter(p => p.enabled);
   const enabledPostProcesses = config.postProcesses.filter(p => p.enabled);
 
+  const facePapers = config.facePapers || [];
+
   const [selectedBoxTypeId, setSelectedBoxTypeId] = useState(enabledBoxTypes[0]?.id || "");
   const [selectedPrintingId, setSelectedPrintingId] = useState(enabledPrinting[0]?.id || "");
+  const [selectedFacePaperId, setSelectedFacePaperId] = useState(facePapers[0]?.id || "");
   const [selectedPostProcessIds, setSelectedPostProcessIds] = useState<string[]>([]);
   const [customerName] = useState(() => localStorage.getItem("customerName") || "");
   const quoteTitle = customerName ? `${customerName} - 报价器生成器 - 软盒` : "报价器生成器 - 软盒";
@@ -51,6 +54,12 @@ export default function SoftBoxQuotePage({
       setSelectedPrintingId(enabledPrinting[0].id);
     }
   }, [enabledPrinting, selectedPrintingId]);
+
+  useEffect(() => {
+    if (!facePapers.find(fp => fp.id === selectedFacePaperId) && facePapers.length > 0) {
+      setSelectedFacePaperId(facePapers[0].id);
+    }
+  }, [facePapers, selectedFacePaperId]);
 
   const [dimensions, setDimensions] = useState({ length: 20, width: 15, height: 5 });
   const [orderInfo, setOrderInfo] = useState({
@@ -70,6 +79,7 @@ export default function SoftBoxQuotePage({
 
   const selectedBoxType = config.boxTypes.find(b => b.id === selectedBoxTypeId);
   const selectedPrinting = config.printingSides.find(p => p.id === selectedPrintingId);
+  const selectedFacePaper = facePapers.find(fp => fp.id === selectedFacePaperId);
 
   const calc = useMemo(() => {
     if (!selectedBoxType) return null;
@@ -89,7 +99,8 @@ export default function SoftBoxQuotePage({
 
     const areaSqm = areaCm2 / 10000;
 
-    const paperCostPerBox = areaSqm * config.paperPricePerSqm;
+    const facePaperPrice = selectedFacePaper?.pricePerSqm || 0;
+    const paperCostPerBox = areaSqm * facePaperPrice;
     const totalPaperCost = paperCostPerBox * validQty;
 
     const printingPrice = selectedPrinting?.pricePerSqm || 0;
@@ -118,14 +129,14 @@ export default function SoftBoxQuotePage({
 
     return {
       areaCm2, areaSqm, formulaError,
-      paperCostPerBox, totalPaperCost,
+      facePaperPrice, paperCostPerBox, totalPaperCost,
       printingPrice, printingCostPerBox, totalPrintingCost,
       postProcessDetails, totalPostProcessCost,
       baseCost, profitAmount, totalBeforeTax,
       taxAmount, totalCost, unitCost, unitCostUsd, totalCostUsd,
       validQty, validExchangeRate, validTaxRate, validProfitRate,
     };
-  }, [selectedBoxType, selectedPrinting, dimensions, orderInfo, selectedPostProcessIds, config]);
+  }, [selectedBoxType, selectedPrinting, selectedFacePaper, dimensions, orderInfo, selectedPostProcessIds, config]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -255,6 +266,34 @@ export default function SoftBoxQuotePage({
             </div>
           </CardContent>
         </Card>
+
+        {facePapers.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold section-title">材料配置</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">面纸类型</Label>
+                <Select value={selectedFacePaperId} onValueChange={setSelectedFacePaperId}>
+                  <SelectTrigger className="max-w-xs" data-testid="select-facepaper">
+                    <SelectValue placeholder="选择面纸" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {facePapers.map(fp => (
+                      <SelectItem key={fp.id} value={fp.id}>{fp.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedFacePaper && (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    单价：{selectedFacePaper.pricePerSqm} 元/m²
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {enabledPrinting.length > 0 && (
           <Card>
@@ -398,11 +437,11 @@ export default function SoftBoxQuotePage({
                 <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
                   <div className="flex items-start gap-2 flex-wrap">
                     <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                    <span>纸张单价 = {config.paperPricePerSqm} 元/m²</span>
+                    <span>面纸：{selectedFacePaper?.name || "未选择"}，单价 = {calc.facePaperPrice} 元/m²</span>
                   </div>
                   <div className="flex items-start gap-2 flex-wrap">
                     <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                    <span>单盒纸张成本 = {fmt(calc.areaSqm, 4)} m² × {config.paperPricePerSqm} = {fmt(calc.paperCostPerBox)} 元/个</span>
+                    <span>单盒纸张成本 = {fmt(calc.areaSqm, 4)} m² × {calc.facePaperPrice} = {fmt(calc.paperCostPerBox)} 元/个</span>
                   </div>
                   <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
                     <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />

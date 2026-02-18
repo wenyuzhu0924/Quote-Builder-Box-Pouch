@@ -20,11 +20,17 @@ export interface SoftBoxPostProcessConfig {
   pricePerSqm: number;
 }
 
+export interface SoftBoxFacePaperConfig {
+  id: string;
+  name: string;
+  pricePerSqm: number;
+}
+
 export interface SoftBoxSurveyConfig {
   boxTypes: SoftBoxTypeConfig[];
   printingSides: SoftBoxPrintingConfig[];
   postProcesses: SoftBoxPostProcessConfig[];
-  paperPricePerSqm: number;
+  facePapers: SoftBoxFacePaperConfig[];
 }
 
 export const softBoxDimensionLabels: Record<string, string> = {
@@ -179,5 +185,8 @@ export const DEFAULT_SOFTBOX_CONFIG: SoftBoxSurveyConfig = {
     { id: "lamination", name: "覆膜", enabled: true, pricePerSqm: 0 },
     { id: "uvCoating", name: "UV上光", enabled: true, pricePerSqm: 0 },
   ],
-  paperPricePerSqm: 0,
+  facePapers: [
+    { id: "eLeng", name: "E楞", pricePerSqm: 0 },
+    { id: "sbsBaika", name: "SBS白卡", pricePerSqm: 0 },
+  ],
 };
