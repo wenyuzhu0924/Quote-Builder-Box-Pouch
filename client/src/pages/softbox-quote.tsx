@@ -38,7 +38,7 @@ export default function SoftBoxQuotePage({
   const [selectedPrintingId, setSelectedPrintingId] = useState(enabledPrinting[0]?.id || "");
   const [selectedPostProcessIds, setSelectedPostProcessIds] = useState<string[]>([]);
   const [customerName] = useState(() => localStorage.getItem("customerName") || "");
-  const quoteTitle = customerName ? `${customerName}自动报价器` : "软盒自动报价器";
+  const quoteTitle = customerName ? `${customerName} - 报价器生成器 - 软盒` : "报价器生成器 - 软盒";
 
   useEffect(() => {
     if (!enabledBoxTypes.find(b => b.id === selectedBoxTypeId) && enabledBoxTypes.length > 0) {
