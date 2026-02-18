@@ -5,11 +5,14 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QuoteProvider } from "@/lib/quote-store";
 import { GiftBoxProvider } from "@/lib/giftbox-store";
+import { SoftBoxProvider } from "@/lib/softbox-store";
 import ProductSelectPage from "@/pages/product-select";
 import SurveyPage from "@/pages/survey";
 import QuotePage from "@/pages/quote";
 import GiftBoxSurveyPage from "@/pages/giftbox-survey";
 import GiftBoxQuotePage from "@/pages/giftbox-quote";
+import SoftBoxSurveyPage from "@/pages/softbox-survey";
+import SoftBoxQuotePage from "@/pages/softbox-quote";
 import DemoGravurePage from "@/pages/demo-gravure";
 import DemoGiftBoxPage from "@/pages/demo-giftbox";
 import DemoDigitalPage from "@/pages/demo-digital";
@@ -33,6 +36,18 @@ function AppRouter() {
 
   if (location.startsWith("/s/")) {
     return <SharedQuotePage />;
+  }
+
+  if (location.startsWith("/softbox")) {
+    return (
+      <SoftBoxProvider>
+        <Switch>
+          <Route path="/softbox/survey">{() => <SoftBoxSurveyPage />}</Route>
+          <Route path="/softbox/quote">{() => <SoftBoxQuotePage />}</Route>
+          <Route component={NotFound} />
+        </Switch>
+      </SoftBoxProvider>
+    );
   }
 
   if (location.startsWith("/giftbox")) {

@@ -74,7 +74,11 @@ export default function ProductSelectPage() {
     if (selectedCategory === "packaging" && selectedBoxType) {
       setProductType(selectedBoxType);
       setPrintingMethod(null);
-      navigate("/giftbox/survey");
+      if (selectedBoxType === "softBox") {
+        navigate("/softbox/survey");
+      } else {
+        navigate("/giftbox/survey");
+      }
     } else if (selectedCategory === "pouch" && selectedPrinting) {
       setProductType("pouch");
       setPrintingMethod(selectedPrinting);
