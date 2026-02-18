@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
 interface ShareQuoteButtonProps {
-  quoteType: "gravure" | "digital" | "giftbox";
+  quoteType: "gravure" | "digital" | "giftbox" | "softbox";
   customerName: string;
   configData: unknown;
 }

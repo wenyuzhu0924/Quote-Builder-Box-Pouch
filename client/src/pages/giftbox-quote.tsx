@@ -38,7 +38,7 @@ export default function GiftBoxQuotePage({
   const [selectedLinerId, setSelectedLinerId] = useState(config.linerTypes[0]?.id || "");
   const [selectedCraftIds, setSelectedCraftIds] = useState<string[]>([]);
   const [customerName] = useState(() => localStorage.getItem("customerName") || "");
-  const quoteTitle = customerName ? `${customerName}自动报价器` : "礼盒自动报价器";
+  const quoteTitle = customerName ? `${customerName}自动报价器` : "硬盒自动报价器";
 
   useEffect(() => {
     if (!enabledBoxTypes.find(b => b.id === selectedBoxTypeId) && enabledBoxTypes.length > 0) {
@@ -226,7 +226,7 @@ export default function GiftBoxQuotePage({
               <h1 className="text-xl font-bold tracking-tight text-foreground" data-testid="text-page-title">
                 {quoteTitle}
               </h1>
-              <Badge variant="secondary">礼盒</Badge>
+              <Badge variant="secondary">硬盒</Badge>
             </div>
             <div className="flex items-center gap-2">
               <ShareQuoteButton quoteType="giftbox" customerName={customerName} configData={config} />
@@ -530,7 +530,7 @@ export default function GiftBoxQuotePage({
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">每箱装礼盒数量（个）</Label>
+                <Label className="text-xs text-muted-foreground mb-1 block">每箱装硬盒数量（个）</Label>
                 <Input
                   type="number"
                   min={1}
@@ -759,7 +759,7 @@ export default function GiftBoxQuotePage({
               <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
                 <div className="flex items-start gap-2 flex-wrap">
                   <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                  <span>每箱装 {calc.validGiftBoxesPerCarton} 个礼盒，纸箱单价 {config.cartonPricePerBox} 元/个</span>
+                  <span>每箱装 {calc.validGiftBoxesPerCarton} 个硬盒，纸箱单价 {config.cartonPricePerBox} 元/个</span>
                 </div>
                 <div className="flex items-start gap-2 flex-wrap">
                   <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
@@ -879,7 +879,7 @@ export default function GiftBoxQuotePage({
 
       {!hideRestart && (
         <footer className="border-t py-4 text-center text-xs text-muted-foreground">
-          礼盒报价器 · 实时计算
+          硬盒报价器 · 实时计算
         </footer>
       )}
     </div>

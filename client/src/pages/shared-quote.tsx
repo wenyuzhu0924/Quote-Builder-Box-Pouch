@@ -3,12 +3,14 @@ import { useRoute } from "wouter";
 import { Loader2 } from "lucide-react";
 import { QuoteProvider, useQuote } from "@/lib/quote-store";
 import { GiftBoxProvider } from "@/lib/giftbox-store";
+import { SoftBoxProvider } from "@/lib/softbox-store";
 import QuotePage from "@/pages/quote";
 import GiftBoxQuotePage from "@/pages/giftbox-quote";
+import SoftBoxQuotePage from "@/pages/softbox-quote";
 
 interface SharedQuoteData {
   id: string;
-  quoteType: "gravure" | "digital" | "giftbox";
+  quoteType: "gravure" | "digital" | "giftbox" | "softbox";
   customerName: string;
   configData: unknown;
 }
@@ -109,6 +111,14 @@ export default function SharedQuotePage() {
       <QuoteProvider>
         <SharedDigitalLoader data={data} />
       </QuoteProvider>
+    );
+  }
+
+  if (data.quoteType === "softbox") {
+    return (
+      <SoftBoxProvider initial={data.configData as any}>
+        <SoftBoxQuotePage surveyPath="" homePath="" hideRestart />
+      </SoftBoxProvider>
     );
   }
 

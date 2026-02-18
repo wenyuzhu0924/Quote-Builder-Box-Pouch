@@ -256,7 +256,7 @@ export default function GiftBoxSurveyPage({
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b bg-card sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
-          <h1 className="text-xl font-semibold text-foreground" data-testid="text-page-title">报价器生成器 - 礼盒</h1>
+          <h1 className="text-xl font-semibold text-foreground" data-testid="text-page-title">报价器生成器 - 硬盒</h1>
         </div>
       </header>
 
@@ -271,7 +271,7 @@ export default function GiftBoxSurveyPage({
             </div>
             <h2 className="text-2xl font-bold text-foreground mb-2">配置报价器</h2>
             <p className="text-muted-foreground">
-              配置您的礼盒自动报价器参数和价格逻辑。填入的数据将用于生成最终报价器。
+              配置您的硬盒自动报价器参数和价格逻辑。填入的数据将用于生成最终报价器。
             </p>
           </div>
 
@@ -1022,7 +1022,7 @@ export default function GiftBoxSurveyPage({
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    设置运输纸箱的尺寸和单价。在报价器中用户输入每箱装多少个礼盒来计算运输纸箱成本。
+                    设置运输纸箱的尺寸和单价。在报价器中用户输入每箱装多少个硬盒来计算运输纸箱成本。
                   </p>
                   <div className="grid grid-cols-2 gap-4">
                     <div>

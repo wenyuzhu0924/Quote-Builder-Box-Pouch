@@ -138,7 +138,7 @@ export default function SoftBoxSurveyPage({
       <header className="sticky top-0 z-50 border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <h1 className="text-xl font-bold tracking-tight text-foreground" data-testid="text-survey-title">
-            软盒报价器配置
+            报价器生成器 - 软盒
           </h1>
           <p className="text-sm text-muted-foreground mt-1">配置盒型、印刷方式和后处理工艺的定价规则</p>
         </div>
