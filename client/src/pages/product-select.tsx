@@ -1,19 +1,34 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Package, ShoppingBag, ArrowRight, Printer, Cpu, Check } from "lucide-react";
+import { Package, ShoppingBag, ArrowRight, Printer, Cpu, Check, Box, FileBox } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuote, type ProductType, type PrintingMethod } from "@/lib/quote-store";
 
-const products = [
+type TopCategory = "packaging" | "pouch" | null;
+
+const topCategories = [
   {
-    id: "box" as const,
-    name: "礼盒",
+    id: "packaging" as const,
+    name: "包装盒",
     icon: Package,
   },
   {
     id: "pouch" as const,
     name: "包装袋",
     icon: ShoppingBag,
+  },
+];
+
+const boxSubTypes = [
+  {
+    id: "hardBox" as const,
+    name: "硬盒",
+    icon: Box,
+  },
+  {
+    id: "softBox" as const,
+    name: "软盒",
+    icon: FileBox,
   },
 ];
 
@@ -33,31 +48,37 @@ const printingMethods = [
 export default function ProductSelectPage() {
   const [, navigate] = useLocation();
   const { state, setProductType, setPrintingMethod } = useQuote();
-  const [selectedProduct, setSelectedProduct] = useState<ProductType>(state.productType);
+  const [selectedCategory, setSelectedCategory] = useState<TopCategory>(
+    state.productType === "pouch" ? "pouch" : state.productType === "hardBox" || state.productType === "softBox" || state.productType === "box" ? "packaging" : null
+  );
+  const [selectedBoxType, setSelectedBoxType] = useState<"hardBox" | "softBox" | null>(
+    state.productType === "hardBox" || state.productType === "box" ? "hardBox" : state.productType === "softBox" ? "softBox" : null
+  );
   const [selectedPrinting, setSelectedPrinting] = useState<PrintingMethod>(state.printingMethod);
-  const handleProductSelect = (productId: ProductType) => {
-    setSelectedProduct(productId);
-    if (productId !== "pouch") {
+
+  const handleCategorySelect = (catId: TopCategory) => {
+    setSelectedCategory(catId);
+    if (catId === "packaging") {
       setSelectedPrinting(null);
+    } else {
+      setSelectedBoxType(null);
     }
   };
 
-  const handlePrintingSelect = (printingId: PrintingMethod) => {
-    setSelectedPrinting(printingId);
-  };
-
-  const canProceed = selectedProduct === "box" || (selectedProduct === "pouch" && selectedPrinting);
+  const canProceed =
+    (selectedCategory === "packaging" && selectedBoxType !== null) ||
+    (selectedCategory === "pouch" && selectedPrinting !== null);
 
   const handleNext = () => {
-    if (canProceed) {
-      setProductType(selectedProduct);
-      if (selectedProduct === "box") {
-        setPrintingMethod(null);
-        navigate("/giftbox/survey");
-      } else {
-        setPrintingMethod(selectedPrinting);
-        navigate("/survey");
-      }
+    if (!canProceed) return;
+    if (selectedCategory === "packaging" && selectedBoxType) {
+      setProductType(selectedBoxType);
+      setPrintingMethod(null);
+      navigate("/giftbox/survey");
+    } else if (selectedCategory === "pouch" && selectedPrinting) {
+      setProductType("pouch");
+      setPrintingMethod(selectedPrinting);
+      navigate("/survey");
     }
   };
 
@@ -83,19 +104,19 @@ export default function ProductSelectPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {products.map((product) => {
-              const Icon = product.icon;
-              const isSelected = selectedProduct === product.id;
+            {topCategories.map((cat) => {
+              const Icon = cat.icon;
+              const isSelected = selectedCategory === cat.id;
               return (
                 <button
-                  key={product.id}
-                  data-testid={`card-product-${product.id}`}
+                  key={cat.id}
+                  data-testid={`card-product-${cat.id}`}
                   className={`relative group rounded-md p-6 flex flex-col items-center gap-4 transition-all duration-200 cursor-pointer border-2 ${
                     isSelected
                       ? "border-primary bg-primary/5"
                       : "border-transparent bg-card hover:border-primary/30"
                   } shadow-sm hover:shadow-md`}
-                  onClick={() => handleProductSelect(product.id)}
+                  onClick={() => handleCategorySelect(cat.id)}
                 >
                   {isSelected && (
                     <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
@@ -118,14 +139,64 @@ export default function ProductSelectPage() {
                         : "text-foreground"
                     }`}
                   >
-                    {product.name}
+                    {cat.name}
                   </span>
                 </button>
               );
             })}
           </div>
 
-          {selectedProduct === "pouch" && (
+          {selectedCategory === "packaging" && (
+            <div className="space-y-4">
+              <h3 className="text-center text-base font-semibold text-foreground" data-testid="text-box-type-title">
+                选择盒型
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                {boxSubTypes.map((sub) => {
+                  const Icon = sub.icon;
+                  const isSelected = selectedBoxType === sub.id;
+                  return (
+                    <button
+                      key={sub.id}
+                      data-testid={`card-box-${sub.id}`}
+                      className={`relative group rounded-md p-5 flex flex-col items-center gap-3 transition-all duration-200 cursor-pointer border-2 ${
+                        isSelected
+                          ? "border-primary bg-primary/5"
+                          : "border-transparent bg-card hover:border-primary/30"
+                      } shadow-sm hover:shadow-md`}
+                      onClick={() => setSelectedBoxType(sub.id)}
+                    >
+                      {isSelected && (
+                        <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                          <Check className="w-3 h-3 text-primary-foreground" />
+                        </div>
+                      )}
+                      <div
+                        className={`flex items-center justify-center w-12 h-12 rounded-md transition-colors ${
+                          isSelected
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-primary/10 text-primary"
+                        }`}
+                      >
+                        <Icon className="w-6 h-6" />
+                      </div>
+                      <span
+                        className={`text-base font-semibold transition-colors ${
+                          isSelected
+                            ? "text-primary"
+                            : "text-foreground"
+                        }`}
+                      >
+                        {sub.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {selectedCategory === "pouch" && (
             <div className="space-y-4">
               <h3 className="text-center text-base font-semibold text-foreground" data-testid="text-printing-title">
                 选择印刷方式
@@ -143,7 +214,7 @@ export default function ProductSelectPage() {
                           ? "border-primary bg-primary/5"
                           : "border-transparent bg-card hover:border-primary/30"
                       } shadow-sm hover:shadow-md`}
-                      onClick={() => handlePrintingSelect(method.id)}
+                      onClick={() => setSelectedPrinting(method.id)}
                     >
                       {isSelected && (
                         <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-primary flex items-center justify-center">

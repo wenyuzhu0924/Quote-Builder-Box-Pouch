@@ -637,7 +637,7 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
               <p className="text-muted-foreground">
                 您选择的产品类型：
                 <span className="font-medium text-foreground ml-1">
-                  {state.productType === "box" ? "礼盒" : "包装袋"}
+                  {state.productType === "pouch" ? "包装袋" : "包装盒"}
                 </span>
               </p>
             </div>

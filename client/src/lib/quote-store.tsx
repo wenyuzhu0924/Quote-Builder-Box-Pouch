@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 
-export type ProductType = "box" | "pouch" | null;
+export type ProductType = "box" | "hardBox" | "softBox" | "pouch" | null;
 export type PrintingMethod = "gravure" | "digital" | null;
 
 export type BagType =
@@ -624,7 +624,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
 
   const generateOutput = (): QuoteGeneratorOutput => {
     const output: QuoteGeneratorOutput = {
-      name: `${state.productType === "pouch" ? "包装袋" : "礼盒"}-${state.printingMethod === "gravure" ? "凹版" : "数码"}报价器`,
+      name: `${state.productType === "pouch" ? "包装袋" : "包装盒"}-${state.printingMethod === "gravure" ? "凹版" : "数码"}报价器`,
       productType: state.productType,
       printingMethod: state.printingMethod,
       config: state.config,
