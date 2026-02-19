@@ -10,9 +10,9 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import {
-  type SoftBoxTypeConfig, type SoftBoxPrintingConfig,
-  type SoftBoxFacePaperConfig, type SoftBoxLaminationOption, type SoftBoxUVCoatingConfig,
-  parseSoftBoxDimensionsFromFormula, softBoxDimensionLabels, isValidSoftBoxFormula,
+  type SoftBoxTypeConfig, type SoftBoxPrintingSideOption,
+  type SoftBoxFacePaperConfig, type SoftBoxLaminationOption,
+  parseSoftBoxDimensionsFromDualFormulas, softBoxDimensionLabels, isValidSoftBoxFormula,
 } from "@/lib/softbox-config";
 import { useSoftBox } from "@/lib/softbox-store";
 
@@ -48,7 +48,7 @@ export default function SoftBoxSurveyPage({
   const { config, updateConfig } = useSoftBox();
   const { toast } = useToast();
 
-  const [newBoxType, setNewBoxType] = useState({ name: "", formula: "" });
+  const [newBoxType, setNewBoxType] = useState({ name: "", frameLFormula: "", frameWFormula: "" });
 
   const showSaveToast = (label: string) => {
     toast({ title: `${label}已保存` });
@@ -57,16 +57,17 @@ export default function SoftBoxSurveyPage({
   const enabledBoxCount = config.boxTypes.filter(b => b.enabled).length;
 
   const addBoxType = () => {
-    if (!newBoxType.name || !isValidSoftBoxFormula(newBoxType.formula)) return;
+    if (!newBoxType.name || !isValidSoftBoxFormula(newBoxType.frameLFormula) || !isValidSoftBoxFormula(newBoxType.frameWFormula)) return;
     const box: SoftBoxTypeConfig = {
       id: `softbox_${Date.now()}`,
       name: newBoxType.name,
       enabled: true,
-      areaFormula: newBoxType.formula,
-      requiredDimensions: parseSoftBoxDimensionsFromFormula(newBoxType.formula),
+      frameLengthFormula: newBoxType.frameLFormula,
+      frameWidthFormula: newBoxType.frameWFormula,
+      requiredDimensions: parseSoftBoxDimensionsFromDualFormulas(newBoxType.frameLFormula, newBoxType.frameWFormula),
     };
     updateConfig({ boxTypes: [...config.boxTypes, box] });
-    setNewBoxType({ name: "", formula: "" });
+    setNewBoxType({ name: "", frameLFormula: "", frameWFormula: "" });
     toast({ title: "盒型已添加" });
   };
 
@@ -79,34 +80,43 @@ export default function SoftBoxSurveyPage({
       boxTypes: config.boxTypes.map(b => {
         if (b.id !== id) return b;
         const updated = { ...b, [field]: value };
-        if (field === "areaFormula" && typeof value === "string") {
-          updated.requiredDimensions = parseSoftBoxDimensionsFromFormula(value);
+        if (field === "frameLengthFormula" || field === "frameWidthFormula") {
+          updated.requiredDimensions = parseSoftBoxDimensionsFromDualFormulas(
+            updated.frameLengthFormula, updated.frameWidthFormula
+          );
         }
         return updated;
       }),
     });
   };
 
-  const updatePrintingField = (id: string, field: string, value: unknown) => {
+  const printingSideOptions = config.printingSideOptions || [];
+  const printingTier = config.printingTier || { baseCost: 450, baseThreshold: 3000, stepCost: 80, stepSize: 1000 };
+
+  const updatePrintingSideField = (id: string, field: string, value: unknown) => {
     updateConfig({
-      printingSides: config.printingSides.map(p =>
+      printingSideOptions: printingSideOptions.map(p =>
         p.id === id ? { ...p, [field]: value } : p
       ),
     });
   };
 
-  const addPrintingSide = () => {
-    const newItem: SoftBoxPrintingConfig = {
-      id: `print_${Date.now()}`,
+  const addPrintingSideOption = () => {
+    const newItem: SoftBoxPrintingSideOption = {
+      id: `ps_${Date.now()}`,
       name: "",
+      sides: 1,
       enabled: true,
-      pricePerSqm: 0,
     };
-    updateConfig({ printingSides: [...config.printingSides, newItem] });
+    updateConfig({ printingSideOptions: [...printingSideOptions, newItem] });
   };
 
-  const removePrintingSide = (id: string) => {
-    updateConfig({ printingSides: config.printingSides.filter(p => p.id !== id) });
+  const removePrintingSideOption = (id: string) => {
+    updateConfig({ printingSideOptions: printingSideOptions.filter(p => p.id !== id) });
+  };
+
+  const updatePrintingTierField = (field: string, value: number) => {
+    updateConfig({ printingTier: { ...printingTier, [field]: value } });
   };
 
   const updateFacePaperField = (id: string, field: string, value: unknown) => {
@@ -145,6 +155,7 @@ export default function SoftBoxSurveyPage({
       id: `lam_${Date.now()}`,
       name: "",
       pricePerSqm: 0,
+      faces: 1,
     };
     updateConfig({ laminationOptions: [...laminationOptions, newItem] });
   };
@@ -153,28 +164,10 @@ export default function SoftBoxSurveyPage({
     updateConfig({ laminationOptions: laminationOptions.filter(lo => lo.id !== id) });
   };
 
-  const uvCoatings = config.uvCoatings || [];
+  const uvConfig = config.uvConfig || { enabled: true, sheetWidth: 59, sheetHeight: 88, pricePerSheet: 0.15, maxPerSheet: 8, minTotalCharge: 150 };
 
-  const updateUVCoatingField = (id: string, field: string, value: unknown) => {
-    updateConfig({
-      uvCoatings: uvCoatings.map(uv =>
-        uv.id === id ? { ...uv, [field]: value } : uv
-      ),
-    });
-  };
-
-  const addUVCoating = () => {
-    const newItem: SoftBoxUVCoatingConfig = {
-      id: `uv_${Date.now()}`,
-      name: "",
-      enabled: true,
-      pricePerSqm: 0,
-    };
-    updateConfig({ uvCoatings: [...uvCoatings, newItem] });
-  };
-
-  const removeUVCoating = (id: string) => {
-    updateConfig({ uvCoatings: uvCoatings.filter(uv => uv.id !== id) });
+  const updateUVField = (field: string, value: unknown) => {
+    updateConfig({ uvConfig: { ...uvConfig, [field]: value } });
   };
 
   const gluing = config.gluing || { feePerBox: 0, minCharge: 0 };
@@ -189,7 +182,7 @@ export default function SoftBoxSurveyPage({
           <h1 className="text-xl font-bold tracking-tight text-foreground" data-testid="text-survey-title">
             报价器生成器 - 软盒
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">配置盒型、材料、印刷方式、覆膜和糊盒的定价规则</p>
+          <p className="text-sm text-muted-foreground mt-1">配置盒型、材料、印刷方式、覆膜、UV和糊盒的定价规则</p>
         </div>
       </header>
 
@@ -204,7 +197,7 @@ export default function SoftBoxSurveyPage({
                   <div className="text-left">
                     <div className="font-semibold">盒型配置</div>
                     <div className="text-sm text-muted-foreground">
-                      配置盒型及展开面积公式（已启用 {enabledBoxCount}/{config.boxTypes.length} 种）
+                      配置盒型及展开红框公式（已启用 {enabledBoxCount}/{config.boxTypes.length} 种）
                     </div>
                   </div>
                 </div>
@@ -212,7 +205,7 @@ export default function SoftBoxSurveyPage({
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    配置盒型的展开面积公式，系统会自动识别所需的尺寸字段（长/宽/高）。
+                    分别配置红框的长度公式和宽度公式，展开面积 = 红框长 × 红框宽。系统会自动识别所需的尺寸字段（长/宽/高）。
                   </p>
 
                   <div className="border rounded-lg overflow-hidden">
@@ -220,9 +213,10 @@ export default function SoftBoxSurveyPage({
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-[50px]">启用</TableHead>
-                          <TableHead className="w-[120px]">盒型名称</TableHead>
-                          <TableHead>展开面积公式</TableHead>
-                          <TableHead className="w-[100px]">尺寸字段</TableHead>
+                          <TableHead className="w-[100px]">盒型名称</TableHead>
+                          <TableHead>红框长公式</TableHead>
+                          <TableHead>红框宽公式</TableHead>
+                          <TableHead className="w-[80px]">尺寸</TableHead>
                           <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -245,20 +239,25 @@ export default function SoftBoxSurveyPage({
                               />
                             </TableCell>
                             <TableCell>
-                              <div className="space-y-1">
-                                <Input
-                                  value={box.areaFormula}
-                                  onChange={(e) => updateBoxField(box.id, "areaFormula", e.target.value)}
-                                  className={`h-9 ${box.areaFormula && !isValidSoftBoxFormula(box.areaFormula) ? "border-destructive" : ""}`}
-                                  data-testid={`boxtype-formula-${box.id}`}
-                                />
-                                {box.areaFormula && !isValidSoftBoxFormula(box.areaFormula) && (
-                                  <p className="text-xs text-destructive">请输入有效公式，需包含数字、运算符和尺寸关键词(长/宽/高)</p>
-                                )}
-                              </div>
+                              <Input
+                                value={box.frameLengthFormula}
+                                onChange={(e) => updateBoxField(box.id, "frameLengthFormula", e.target.value)}
+                                className={`h-9 ${box.frameLengthFormula && !isValidSoftBoxFormula(box.frameLengthFormula) ? "border-destructive" : ""}`}
+                                placeholder="例如：长+4×高+2"
+                                data-testid={`boxtype-framel-${box.id}`}
+                              />
                             </TableCell>
                             <TableCell>
-                              <div className="flex gap-1">
+                              <Input
+                                value={box.frameWidthFormula}
+                                onChange={(e) => updateBoxField(box.id, "frameWidthFormula", e.target.value)}
+                                className={`h-9 ${box.frameWidthFormula && !isValidSoftBoxFormula(box.frameWidthFormula) ? "border-destructive" : ""}`}
+                                placeholder="例如：2×宽+3×高"
+                                data-testid={`boxtype-framew-${box.id}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1 flex-wrap">
                                 {box.requiredDimensions.map(dim => (
                                   <Badge key={dim} variant="secondary" className="text-xs">
                                     {softBoxDimensionLabels[dim] || dim}
@@ -291,23 +290,29 @@ export default function SoftBoxSurveyPage({
                             />
                           </TableCell>
                           <TableCell>
-                            <div className="space-y-1">
-                              <Input
-                                value={newBoxType.formula}
-                                onChange={(e) => setNewBoxType({ ...newBoxType, formula: e.target.value })}
-                                placeholder="例如：(长+宽×2+4)×(宽+高×2+2)"
-                                className={`h-9 ${newBoxType.formula && !isValidSoftBoxFormula(newBoxType.formula) ? "border-destructive" : ""}`}
-                                data-testid="new-boxtype-formula"
-                              />
-                              {newBoxType.formula && !isValidSoftBoxFormula(newBoxType.formula) && (
-                                <p className="text-xs text-destructive">需包含数字、运算符和尺寸关键词(长/宽/高)</p>
-                              )}
-                            </div>
+                            <Input
+                              value={newBoxType.frameLFormula}
+                              onChange={(e) => setNewBoxType({ ...newBoxType, frameLFormula: e.target.value })}
+                              placeholder="红框长公式"
+                              className={`h-9 ${newBoxType.frameLFormula && !isValidSoftBoxFormula(newBoxType.frameLFormula) ? "border-destructive" : ""}`}
+                              data-testid="new-boxtype-framel"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              value={newBoxType.frameWFormula}
+                              onChange={(e) => setNewBoxType({ ...newBoxType, frameWFormula: e.target.value })}
+                              placeholder="红框宽公式"
+                              className={`h-9 ${newBoxType.frameWFormula && !isValidSoftBoxFormula(newBoxType.frameWFormula) ? "border-destructive" : ""}`}
+                              data-testid="new-boxtype-framew"
+                            />
                           </TableCell>
                           <TableCell>
                             <span className="text-xs text-muted-foreground">
-                              {newBoxType.formula && isValidSoftBoxFormula(newBoxType.formula)
-                                ? parseSoftBoxDimensionsFromFormula(newBoxType.formula).map(d => softBoxDimensionLabels[d] || d).join("、") || "无匹配"
+                              {newBoxType.frameLFormula && newBoxType.frameWFormula &&
+                               isValidSoftBoxFormula(newBoxType.frameLFormula) && isValidSoftBoxFormula(newBoxType.frameWFormula)
+                                ? parseSoftBoxDimensionsFromDualFormulas(newBoxType.frameLFormula, newBoxType.frameWFormula)
+                                    .map(d => softBoxDimensionLabels[d] || d).join("、") || "无匹配"
                                 : "自动匹配"}
                             </span>
                           </TableCell>
@@ -326,7 +331,7 @@ export default function SoftBoxSurveyPage({
                     </Table>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    提示：在公式中使用"长"、"宽"、"高"关键词，系统会自动识别所需尺寸字段。支持 ×、÷、+、- 运算符和括号。
+                    提示：展开面积 = 红框长 × 红框宽。在公式中使用"长"、"宽"、"高"关键词，支持 ×、÷、+、- 运算符和括号。
                   </p>
                   <SectionSaveButton section="boxTypes" label="盒型配置" onSave={() => showSaveToast("盒型配置")} />
                 </div>
@@ -366,7 +371,7 @@ export default function SoftBoxSurveyPage({
                           />
                           <Input
                             type="number"
-                            step={0.1}
+                            step={0.001}
                             value={fp.pricePerSqm || ""}
                             onChange={(e) => updateFacePaperField(fp.id, "pricePerSqm", Number(e.target.value) || 0)}
                             className="w-[140px]"
@@ -400,73 +405,123 @@ export default function SoftBoxSurveyPage({
                   <div className="text-left">
                     <div className="font-semibold">印刷费用</div>
                     <div className="text-sm text-muted-foreground">
-                      配置印刷方式及单价（{config.printingSides.filter(p => p.enabled).length}/{config.printingSides.length} 种）
+                      阶梯定价：≤{printingTier.baseThreshold}个 每面¥{printingTier.baseCost}，每多{printingTier.stepSize}个 +¥{printingTier.stepCost}
                     </div>
                   </div>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
-                  <div className="border border-dashed rounded-lg p-6 text-center text-muted-foreground">
-                    <Printer className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                    <p className="text-sm">印刷计算逻辑待配置</p>
+                  <p className="text-sm text-muted-foreground">
+                    印刷成本 = 每面价格(Q) × 面数 ÷ 数量。每面价格随数量阶梯递增。
+                  </p>
+
+                  <div>
+                    <Label className="text-sm font-semibold mb-3 block">阶梯定价参数</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">基础价格（¥/面）</Label>
+                        <Input
+                          type="number"
+                          step={1}
+                          value={printingTier.baseCost || ""}
+                          onChange={(e) => updatePrintingTierField("baseCost", Number(e.target.value) || 0)}
+                          data-testid="printing-basecost"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">基础阈值（个）</Label>
+                        <Input
+                          type="number"
+                          step={100}
+                          value={printingTier.baseThreshold || ""}
+                          onChange={(e) => updatePrintingTierField("baseThreshold", Number(e.target.value) || 0)}
+                          data-testid="printing-threshold"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">每步递增（¥）</Label>
+                        <Input
+                          type="number"
+                          step={1}
+                          value={printingTier.stepCost || ""}
+                          onChange={(e) => updatePrintingTierField("stepCost", Number(e.target.value) || 0)}
+                          data-testid="printing-stepcost"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">步长（个）</Label>
+                        <Input
+                          type="number"
+                          step={100}
+                          value={printingTier.stepSize || ""}
+                          onChange={(e) => updatePrintingTierField("stepSize", Number(e.target.value) || 0)}
+                          data-testid="printing-stepsize"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="border rounded-lg overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[50px]">启用</TableHead>
-                          <TableHead>印刷方式</TableHead>
-                          <TableHead className="w-[140px]">单价（元/m²）</TableHead>
-                          <TableHead className="w-[50px]"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {config.printingSides.map(ps => (
-                          <TableRow key={ps.id}>
-                            <TableCell>
-                              <Checkbox
-                                checked={ps.enabled}
-                                onCheckedChange={(v) => updatePrintingField(ps.id, "enabled", !!v)}
-                                data-testid={`toggle-print-${ps.id}`}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                value={ps.name}
-                                onChange={(e) => updatePrintingField(ps.id, "name", e.target.value)}
-                                className="h-9"
-                                data-testid={`print-name-${ps.id}`}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                step={0.1}
-                                value={ps.pricePerSqm || ""}
-                                onChange={(e) => updatePrintingField(ps.id, "pricePerSqm", Number(e.target.value) || 0)}
-                                className="h-9"
-                                data-testid={`print-price-${ps.id}`}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removePrintingSide(ps.id)}
-                                className="text-destructive"
-                                data-testid={`remove-print-${ps.id}`}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </TableCell>
+
+                  <div>
+                    <Label className="text-sm font-semibold mb-3 block">印刷面选项</Label>
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[50px]">启用</TableHead>
+                            <TableHead>选项名称</TableHead>
+                            <TableHead className="w-[100px]">面数</TableHead>
+                            <TableHead className="w-[50px]"></TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {printingSideOptions.map(ps => (
+                            <TableRow key={ps.id}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={ps.enabled}
+                                  onCheckedChange={(v) => updatePrintingSideField(ps.id, "enabled", !!v)}
+                                  data-testid={`toggle-print-${ps.id}`}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  value={ps.name}
+                                  onChange={(e) => updatePrintingSideField(ps.id, "name", e.target.value)}
+                                  className="h-9"
+                                  data-testid={`print-name-${ps.id}`}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  step={1}
+                                  value={ps.sides || ""}
+                                  onChange={(e) => updatePrintingSideField(ps.id, "sides", Number(e.target.value) || 1)}
+                                  className="h-9"
+                                  data-testid={`print-sides-${ps.id}`}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removePrintingSideOption(ps.id)}
+                                  className="text-destructive"
+                                  data-testid={`remove-print-${ps.id}`}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={addPrintingSide} className="gap-1.5" data-testid="add-printing">
-                    <Plus className="w-3.5 h-3.5" /> 添加印刷方式
+                  <Button variant="outline" size="sm" onClick={addPrintingSideOption} className="gap-1.5" data-testid="add-printing">
+                    <Plus className="w-3.5 h-3.5" /> 添加印刷面选项
                   </Button>
                   <SectionSaveButton section="printing" label="印刷配置" onSave={() => showSaveToast("印刷配置")} />
                 </div>
@@ -480,7 +535,7 @@ export default function SoftBoxSurveyPage({
                   <div className="text-left">
                     <div className="font-semibold">覆膜配置</div>
                     <div className="text-sm text-muted-foreground">
-                      配置覆膜选项及单价（{laminationOptions.length} 种），计算公式：max(展开面积 × 单价, 最低消费)
+                      配置覆膜选项（{laminationOptions.length} 种），公式：max(面积 × 单价 × 面数, 最低消费 ÷ 数量)
                     </div>
                   </div>
                 </div>
@@ -488,14 +543,15 @@ export default function SoftBoxSurveyPage({
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    覆膜成本 = max(展开面积 × 覆膜单价 × 数量, 最低消费)
+                    每只覆膜成本 = max(展开面积 × 单价 × 面数, 最低消费 ÷ 数量)
                   </p>
                   <div className="border rounded-lg overflow-hidden">
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>覆膜类型</TableHead>
-                          <TableHead className="w-[140px]">单价（元/m²）</TableHead>
+                          <TableHead className="w-[120px]">单价（元/m²）</TableHead>
+                          <TableHead className="w-[80px]">面数</TableHead>
                           <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -513,11 +569,22 @@ export default function SoftBoxSurveyPage({
                             <TableCell>
                               <Input
                                 type="number"
-                                step={0.1}
+                                step={0.01}
                                 value={lo.pricePerSqm || ""}
                                 onChange={(e) => updateLaminationField(lo.id, "pricePerSqm", Number(e.target.value) || 0)}
                                 className="h-9"
                                 data-testid={`lam-price-${lo.id}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                min={0}
+                                step={1}
+                                value={lo.faces ?? ""}
+                                onChange={(e) => updateLaminationField(lo.id, "faces", Number(e.target.value) || 0)}
+                                className="h-9"
+                                data-testid={`lam-faces-${lo.id}`}
                               />
                             </TableCell>
                             <TableCell>
@@ -527,28 +594,28 @@ export default function SoftBoxSurveyPage({
                                 onClick={() => removeLaminationOption(lo.id)}
                                 className="text-destructive"
                                 data-testid={`remove-lam-${lo.id}`}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              />
                             </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </div>
-                  <Button variant="outline" size="sm" onClick={addLaminationOption} className="gap-1.5" data-testid="add-lamination">
-                    <Plus className="w-3.5 h-3.5" /> 添加覆膜类型
-                  </Button>
-                  <div className="flex items-center gap-3 mt-4">
-                    <Label className="text-sm font-semibold whitespace-nowrap">最低消费（元）</Label>
-                    <Input
-                      type="number"
-                      step={1}
-                      value={config.laminationMinCharge || ""}
-                      onChange={(e) => updateConfig({ laminationMinCharge: Number(e.target.value) || 0 })}
-                      className="w-[160px]"
-                      data-testid="input-lam-min-charge"
-                    />
+                  <div className="flex items-center gap-3">
+                    <Button variant="outline" size="sm" onClick={addLaminationOption} className="gap-1.5" data-testid="add-lamination">
+                      <Plus className="w-3.5 h-3.5" /> 添加覆膜类型
+                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground whitespace-nowrap">最低消费（¥）</Label>
+                      <Input
+                        type="number"
+                        step={1}
+                        value={config.laminationMinCharge || ""}
+                        onChange={(e) => updateConfig({ laminationMinCharge: Number(e.target.value) || 0 })}
+                        className="w-[100px] h-9"
+                        data-testid="lam-min-charge"
+                      />
+                    </div>
                   </div>
                   <SectionSaveButton section="lamination" label="覆膜配置" onSave={() => showSaveToast("覆膜配置")} />
                 </div>
@@ -562,74 +629,77 @@ export default function SoftBoxSurveyPage({
                   <div className="text-left">
                     <div className="font-semibold">UV上光</div>
                     <div className="text-sm text-muted-foreground">
-                      配置UV上光选项及单价（{uvCoatings.filter(u => u.enabled).length}/{uvCoatings.length} 种）
+                      {uvConfig.enabled ? "已启用" : "已禁用"} — 版面拼版计算，最低消费 ¥{uvConfig.minTotalCharge}
                     </div>
                   </div>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
-                  <div className="border border-dashed rounded-lg p-6 text-center text-muted-foreground">
-                    <Sparkles className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                    <p className="text-sm">UV上光计算逻辑待配置</p>
+                  <p className="text-sm text-muted-foreground">
+                    UV拼版：将产品展开红框排入版面（两方向取最优），计算所需版数。
+                    总UV成本 = max(版数 × 每版单价, 最低消费)，每只UV成本 = 总成本 ÷ 数量。
+                  </p>
+                  <div className="flex items-center gap-3 mb-2">
+                    <Checkbox
+                      checked={uvConfig.enabled}
+                      onCheckedChange={(v) => updateUVField("enabled", !!v)}
+                      data-testid="toggle-uv-enabled"
+                    />
+                    <Label className="text-sm">启用UV上光选项</Label>
                   </div>
-                  <div className="border rounded-lg overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[50px]">启用</TableHead>
-                          <TableHead>UV上光类型</TableHead>
-                          <TableHead className="w-[140px]">单价（元/m²）</TableHead>
-                          <TableHead className="w-[50px]"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {uvCoatings.map(uv => (
-                          <TableRow key={uv.id}>
-                            <TableCell>
-                              <Checkbox
-                                checked={uv.enabled}
-                                onCheckedChange={(v) => updateUVCoatingField(uv.id, "enabled", !!v)}
-                                data-testid={`toggle-uv-${uv.id}`}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                value={uv.name}
-                                onChange={(e) => updateUVCoatingField(uv.id, "name", e.target.value)}
-                                className="h-9"
-                                data-testid={`uv-name-${uv.id}`}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                step={0.1}
-                                value={uv.pricePerSqm || ""}
-                                onChange={(e) => updateUVCoatingField(uv.id, "pricePerSqm", Number(e.target.value) || 0)}
-                                className="h-9"
-                                data-testid={`uv-price-${uv.id}`}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeUVCoating(uv.id)}
-                                className="text-destructive"
-                                data-testid={`remove-uv-${uv.id}`}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1 block">版面宽度（cm）</Label>
+                      <Input
+                        type="number"
+                        step={1}
+                        value={uvConfig.sheetWidth || ""}
+                        onChange={(e) => updateUVField("sheetWidth", Number(e.target.value) || 0)}
+                        data-testid="uv-sheet-width"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1 block">版面高度（cm）</Label>
+                      <Input
+                        type="number"
+                        step={1}
+                        value={uvConfig.sheetHeight || ""}
+                        onChange={(e) => updateUVField("sheetHeight", Number(e.target.value) || 0)}
+                        data-testid="uv-sheet-height"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1 block">每版单价（¥）</Label>
+                      <Input
+                        type="number"
+                        step={0.01}
+                        value={uvConfig.pricePerSheet || ""}
+                        onChange={(e) => updateUVField("pricePerSheet", Number(e.target.value) || 0)}
+                        data-testid="uv-price-per-sheet"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1 block">每版最多（个）</Label>
+                      <Input
+                        type="number"
+                        step={1}
+                        value={uvConfig.maxPerSheet || ""}
+                        onChange={(e) => updateUVField("maxPerSheet", Number(e.target.value) || 0)}
+                        data-testid="uv-max-per-sheet"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1 block">最低消费（¥）</Label>
+                      <Input
+                        type="number"
+                        step={1}
+                        value={uvConfig.minTotalCharge || ""}
+                        onChange={(e) => updateUVField("minTotalCharge", Number(e.target.value) || 0)}
+                        data-testid="uv-min-charge"
+                      />
+                    </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={addUVCoating} className="gap-1.5" data-testid="add-uv">
-                    <Plus className="w-3.5 h-3.5" /> 添加UV上光类型
-                  </Button>
                   <SectionSaveButton section="uvCoating" label="UV上光配置" onSave={() => showSaveToast("UV上光配置")} />
                 </div>
               </AccordionContent>
@@ -642,7 +712,7 @@ export default function SoftBoxSurveyPage({
                   <div className="text-left">
                     <div className="font-semibold">糊盒配置</div>
                     <div className="text-sm text-muted-foreground">
-                      配置每个盒子的糊盒费用和最低消费
+                      公式：max(每盒费用, 最低消费 ÷ 数量)
                     </div>
                   </div>
                 </div>
@@ -650,27 +720,27 @@ export default function SoftBoxSurveyPage({
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    单盒糊盒费用 = max(每盒价格, 最低消费 ÷ 数量)
+                    每只糊盒成本 = max(每盒费用, 最低消费 ÷ 数量)
                   </p>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-sm font-semibold mb-2 block">每盒糊盒费用（元/个）</Label>
+                      <Label className="text-xs text-muted-foreground mb-1 block">每盒费用（元/个）</Label>
                       <Input
                         type="number"
                         step={0.01}
                         value={gluing.feePerBox || ""}
                         onChange={(e) => updateConfig({ gluing: { ...gluing, feePerBox: Number(e.target.value) || 0 } })}
-                        data-testid="input-gluing-fee"
+                        data-testid="gluing-fee"
                       />
                     </div>
                     <div>
-                      <Label className="text-sm font-semibold mb-2 block">最低消费（元）</Label>
+                      <Label className="text-xs text-muted-foreground mb-1 block">最低消费（¥）</Label>
                       <Input
                         type="number"
                         step={1}
                         value={gluing.minCharge || ""}
                         onChange={(e) => updateConfig({ gluing: { ...gluing, minCharge: Number(e.target.value) || 0 } })}
-                        data-testid="input-gluing-min"
+                        data-testid="gluing-min"
                       />
                     </div>
                   </div>
@@ -680,23 +750,22 @@ export default function SoftBoxSurveyPage({
             </AccordionItem>
 
           </Accordion>
+
+          <div className="flex justify-between gap-3 pt-6">
+            {!hideBack && (
+              <Button variant="outline" onClick={handleBack} className="gap-2" data-testid="button-back">
+                <ArrowLeft className="w-4 h-4" />
+                返回
+              </Button>
+            )}
+            <div className="flex-1" />
+            <Button onClick={handleNext} className="gap-2" data-testid="button-generate">
+              <ArrowRight className="w-4 h-4" />
+              生成报价器
+            </Button>
+          </div>
         </div>
       </main>
-
-      <footer className="border-t bg-card sticky bottom-0 z-50">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-          {!hideBack ? (
-            <Button variant="outline" onClick={handleBack} className="gap-2" data-testid="button-back">
-              <ArrowLeft className="w-4 h-4" />
-              返回
-            </Button>
-          ) : <div />}
-          <Button onClick={handleNext} className="gap-2" data-testid="button-generate">
-            生成报价器
-            <ArrowRight className="w-4 h-4" />
-          </Button>
-        </div>
-      </footer>
     </div>
   );
 }

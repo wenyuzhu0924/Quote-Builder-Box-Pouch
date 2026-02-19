@@ -7,7 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { evaluateSoftBoxAreaFormula, isValidSoftBoxFormula } from "@/lib/softbox-config";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  evaluateSoftBoxFrameAndArea,
+  calcPrintCostPerSide, calcUVPiecesPerSheet,
+} from "@/lib/softbox-config";
 import { useSoftBox } from "@/lib/softbox-store";
 import { ShareQuoteButton } from "@/components/share-quote-button";
 
@@ -30,16 +34,19 @@ export default function SoftBoxQuotePage({
   const { config } = useSoftBox();
 
   const enabledBoxTypes = config.boxTypes.filter(b => b.enabled);
-  const enabledPrinting = config.printingSides.filter(p => p.enabled);
+  const enabledPrintSides = (config.printingSideOptions || []).filter(p => p.enabled);
+  const printingTier = config.printingTier || { baseCost: 450, baseThreshold: 3000, stepCost: 80, stepSize: 1000 };
   const facePapers = config.facePapers || [];
   const laminationOptions = config.laminationOptions || [];
   const laminationMinCharge = config.laminationMinCharge || 0;
+  const uvConfig = config.uvConfig || { enabled: false, sheetWidth: 59, sheetHeight: 88, pricePerSheet: 0.15, maxPerSheet: 8, minTotalCharge: 150 };
   const gluing = config.gluing || { feePerBox: 0, minCharge: 0 };
 
   const [selectedBoxTypeId, setSelectedBoxTypeId] = useState(enabledBoxTypes[0]?.id || "");
-  const [selectedPrintingId, setSelectedPrintingId] = useState(enabledPrinting[0]?.id || "");
+  const [selectedPrintSideId, setSelectedPrintSideId] = useState(enabledPrintSides[0]?.id || "");
   const [selectedFacePaperId, setSelectedFacePaperId] = useState(facePapers[0]?.id || "");
   const [selectedLaminationId, setSelectedLaminationId] = useState(laminationOptions[0]?.id || "");
+  const [uvEnabled, setUvEnabled] = useState(false);
   const [customerName] = useState(() => localStorage.getItem("customerName") || "");
   const quoteTitle = customerName ? `${customerName} - 报价器生成器 - 软盒` : "报价器生成器 - 软盒";
 
@@ -50,10 +57,10 @@ export default function SoftBoxQuotePage({
   }, [enabledBoxTypes, selectedBoxTypeId]);
 
   useEffect(() => {
-    if (!enabledPrinting.find(p => p.id === selectedPrintingId) && enabledPrinting.length > 0) {
-      setSelectedPrintingId(enabledPrinting[0].id);
+    if (!enabledPrintSides.find(p => p.id === selectedPrintSideId) && enabledPrintSides.length > 0) {
+      setSelectedPrintSideId(enabledPrintSides[0].id);
     }
-  }, [enabledPrinting, selectedPrintingId]);
+  }, [enabledPrintSides, selectedPrintSideId]);
 
   useEffect(() => {
     if (!facePapers.find(fp => fp.id === selectedFacePaperId) && facePapers.length > 0) {
@@ -67,7 +74,7 @@ export default function SoftBoxQuotePage({
     }
   }, [laminationOptions, selectedLaminationId]);
 
-  const [dimensions, setDimensions] = useState({ length: 20, width: 15, height: 5 });
+  const [dimensions, setDimensions] = useState({ length: 15.2, width: 10.2, height: 5.1 });
   const [orderInfo, setOrderInfo] = useState({
     qty: 1000,
     exchangeRate: 7.2,
@@ -78,24 +85,22 @@ export default function SoftBoxQuotePage({
   const handleNumInput = (value: string) => value === "" ? 0 : Number(value);
 
   const selectedBoxType = config.boxTypes.find(b => b.id === selectedBoxTypeId);
-  const selectedPrinting = config.printingSides.find(p => p.id === selectedPrintingId);
+  const selectedPrintSide = (config.printingSideOptions || []).find(p => p.id === selectedPrintSideId);
   const selectedFacePaper = facePapers.find(fp => fp.id === selectedFacePaperId);
   const selectedLamination = laminationOptions.find(lo => lo.id === selectedLaminationId);
 
   const calc = useMemo(() => {
     if (!selectedBoxType) return null;
 
-    const L_cm = dimensions.length || 0;
-    const W_cm = dimensions.width || 0;
-    const H_cm = dimensions.height || 0;
-    const validQty = orderInfo.qty || 1;
+    const validQty = Math.max(1, orderInfo.qty || 1);
     const validExchangeRate = orderInfo.exchangeRate || 7.2;
     const validTaxRate = orderInfo.taxRate || 13;
     const validProfitRate = orderInfo.profitRate || 0;
 
-    const { areaCm2, error: formulaError } = evaluateSoftBoxAreaFormula(
-      selectedBoxType.areaFormula,
-      { length: L_cm, width: W_cm, height: H_cm }
+    const { frameLcm, frameWcm, areaCm2, error: formulaError } = evaluateSoftBoxFrameAndArea(
+      selectedBoxType.frameLengthFormula,
+      selectedBoxType.frameWidthFormula,
+      { length: dimensions.length || 0, width: dimensions.width || 0, height: dimensions.height || 0 }
     );
 
     const areaSqm = areaCm2 / 10000;
@@ -104,26 +109,41 @@ export default function SoftBoxQuotePage({
     const paperCostPerBox = areaSqm * facePaperPrice;
     const totalPaperCost = paperCostPerBox * validQty;
 
-    const printingPrice = selectedPrinting?.pricePerSqm || 0;
-    const printingCostPerBox = 0;
-    const totalPrintingCost = 0;
-
-    const uvCoatingPrice = 0;
-    const uvCostPerBox = 0;
-    const totalUVCost = 0;
+    const printSides = selectedPrintSide?.sides || 1;
+    const printCostPerSide = calcPrintCostPerSide(validQty, printingTier);
+    const printTotalFlat = printCostPerSide * printSides;
+    const printingCostPerBox = printTotalFlat / validQty;
+    const totalPrintingCost = printTotalFlat;
 
     const lamPricePerSqm = selectedLamination?.pricePerSqm || 0;
-    const lamCostRaw = areaSqm * lamPricePerSqm * validQty;
-    const totalLaminationCost = lamPricePerSqm > 0 ? Math.max(lamCostRaw, laminationMinCharge) : 0;
-    const lamCostPerBox = totalLaminationCost / validQty;
-    const lamUsedMin = lamPricePerSqm > 0 && lamCostRaw < laminationMinCharge;
+    const lamFaces = selectedLamination?.faces || 0;
+    const lamRealPerBox = areaSqm * lamPricePerSqm * lamFaces;
+    const lamMinPerBox = laminationMinCharge > 0 ? laminationMinCharge / validQty : 0;
+    const lamCostPerBox = lamPricePerSqm > 0 && lamFaces > 0 ? Math.max(lamRealPerBox, lamMinPerBox) : 0;
+    const totalLaminationCost = lamCostPerBox * validQty;
+    const lamUsedMin = lamPricePerSqm > 0 && lamFaces > 0 && lamMinPerBox > lamRealPerBox;
+
+    let uvPiecesPerSheet = 0;
+    let uvSheets = 0;
+    let uvTotalRaw = 0;
+    let uvTotalCost = 0;
+    let uvCostPerBox = 0;
+    let uvUsedMin = false;
+    if (uvEnabled && uvConfig.enabled && frameLcm > 0 && frameWcm > 0) {
+      uvPiecesPerSheet = calcUVPiecesPerSheet(frameLcm, frameWcm, uvConfig.sheetWidth, uvConfig.sheetHeight, uvConfig.maxPerSheet);
+      uvSheets = Math.ceil(validQty / uvPiecesPerSheet);
+      uvTotalRaw = uvConfig.pricePerSheet * uvSheets;
+      uvTotalCost = Math.max(uvTotalRaw, uvConfig.minTotalCharge);
+      uvUsedMin = uvTotalRaw < uvConfig.minTotalCharge;
+      uvCostPerBox = uvTotalCost / validQty;
+    }
 
     const gluingMinPerBox = gluing.minCharge > 0 ? gluing.minCharge / validQty : 0;
     const gluingCostPerBox = gluing.feePerBox > 0 || gluing.minCharge > 0 ? Math.max(gluing.feePerBox, gluingMinPerBox) : 0;
     const totalGluingCost = gluingCostPerBox * validQty;
     const gluingUsedMin = (gluing.feePerBox > 0 || gluing.minCharge > 0) && gluingMinPerBox > gluing.feePerBox;
 
-    const baseCost = totalPaperCost + totalPrintingCost + totalUVCost + totalLaminationCost + totalGluingCost;
+    const baseCost = totalPaperCost + totalPrintingCost + totalLaminationCost + uvTotalCost + totalGluingCost;
     const profitAmount = baseCost * (validProfitRate / 100);
     const totalBeforeTax = baseCost + profitAmount;
     const taxAmount = totalBeforeTax * (validTaxRate / 100);
@@ -133,17 +153,17 @@ export default function SoftBoxQuotePage({
     const totalCostUsd = totalCost / validExchangeRate;
 
     return {
-      areaCm2, areaSqm, formulaError,
+      frameLcm, frameWcm, areaCm2, areaSqm, formulaError,
       facePaperPrice, paperCostPerBox, totalPaperCost,
-      printingPrice, printingCostPerBox, totalPrintingCost,
-      uvCoatingPrice, uvCostPerBox, totalUVCost,
-      lamPricePerSqm, lamCostRaw, totalLaminationCost, lamCostPerBox, lamUsedMin,
+      printSides, printCostPerSide, printTotalFlat, printingCostPerBox, totalPrintingCost,
+      lamPricePerSqm, lamFaces, lamRealPerBox, lamMinPerBox, lamCostPerBox, totalLaminationCost, lamUsedMin,
+      uvPiecesPerSheet, uvSheets, uvTotalRaw, uvTotalCost, uvCostPerBox, uvUsedMin,
       gluingMinPerBox, totalGluingCost, gluingCostPerBox, gluingUsedMin,
       baseCost, profitAmount, totalBeforeTax,
       taxAmount, totalCost, unitCost, unitCostUsd, totalCostUsd,
       validQty, validExchangeRate, validTaxRate, validProfitRate,
     };
-  }, [selectedBoxType, selectedPrinting, selectedFacePaper, selectedLamination, dimensions, orderInfo, config, laminationMinCharge, gluing]);
+  }, [selectedBoxType, selectedPrintSide, selectedFacePaper, selectedLamination, dimensions, orderInfo, config, laminationMinCharge, gluing, uvEnabled, uvConfig, printingTier]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -199,6 +219,7 @@ export default function SoftBoxQuotePage({
                 <Label className="text-xs text-muted-foreground mb-1 block">长（cm）</Label>
                 <Input
                   type="number"
+                  step={0.01}
                   value={dimensions.length || ""}
                   onChange={(e) => setDimensions(p => ({ ...p, length: handleNumInput(e.target.value) }))}
                   data-testid="input-length"
@@ -208,6 +229,7 @@ export default function SoftBoxQuotePage({
                 <Label className="text-xs text-muted-foreground mb-1 block">宽（cm）</Label>
                 <Input
                   type="number"
+                  step={0.01}
                   value={dimensions.width || ""}
                   onChange={(e) => setDimensions(p => ({ ...p, width: handleNumInput(e.target.value) }))}
                   data-testid="input-width"
@@ -217,6 +239,7 @@ export default function SoftBoxQuotePage({
                 <Label className="text-xs text-muted-foreground mb-1 block">高（cm）</Label>
                 <Input
                   type="number"
+                  step={0.01}
                   value={dimensions.height || ""}
                   onChange={(e) => setDimensions(p => ({ ...p, height: handleNumInput(e.target.value) }))}
                   data-testid="input-height"
@@ -302,44 +325,35 @@ export default function SoftBoxQuotePage({
           </Card>
         )}
 
-        {enabledPrinting.length > 0 && (
+        {enabledPrintSides.length > 0 && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold section-title">印刷费用</CardTitle>
             </CardHeader>
             <CardContent>
-              <Select value={selectedPrintingId} onValueChange={setSelectedPrintingId}>
-                <SelectTrigger className="max-w-xs" data-testid="select-printing">
-                  <SelectValue placeholder="选择印刷方式" />
-                </SelectTrigger>
-                <SelectContent>
-                  {enabledPrinting.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedPrinting && (
+              <div className="flex items-center gap-4 flex-wrap">
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">印刷方式</Label>
+                  <Select value={selectedPrintSideId} onValueChange={setSelectedPrintSideId}>
+                    <SelectTrigger className="w-[140px]" data-testid="select-printing">
+                      <SelectValue placeholder="选择" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {enabledPrintSides.map(p => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}（{p.sides}面）</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {calc && (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  单价：{selectedPrinting.pricePerSqm} 元/m²
+                  每面费用 = ¥{fmt(calc.printCostPerSide)}（{calc.validQty}个），{calc.printSides}面 × ¥{fmt(calc.printCostPerSide)} = ¥{fmt(calc.printTotalFlat)}，每只 ¥{fmt(calc.printingCostPerBox, 3)}
                 </p>
               )}
-              <div className="mt-3 border border-dashed rounded-md p-3 text-center text-sm text-muted-foreground" data-testid="printing-pending">
-                计算逻辑待配置
-              </div>
             </CardContent>
           </Card>
         )}
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold section-title">UV上光</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="border border-dashed rounded-md p-3 text-center text-sm text-muted-foreground" data-testid="uv-pending">
-              计算逻辑待配置
-            </div>
-          </CardContent>
-        </Card>
 
         {laminationOptions.length > 0 && (
           <Card>
@@ -359,9 +373,34 @@ export default function SoftBoxQuotePage({
               </Select>
               {selectedLamination && (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {selectedLamination.pricePerSqm > 0
-                    ? `单价：${selectedLamination.pricePerSqm} 元/m²，最低消费：¥${laminationMinCharge}`
+                  {selectedLamination.pricePerSqm > 0 && selectedLamination.faces > 0
+                    ? `单价：${selectedLamination.pricePerSqm} 元/m²，${selectedLamination.faces}面，最低消费：¥${laminationMinCharge}`
                     : "不覆膜"}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {uvConfig.enabled && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold section-title">UV上光</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  checked={uvEnabled}
+                  onCheckedChange={(v) => setUvEnabled(!!v)}
+                  data-testid="toggle-uv-quote"
+                />
+                <Label className="text-sm">启用UV上光</Label>
+              </div>
+              {uvEnabled && calc && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  版面 {uvConfig.sheetWidth}×{uvConfig.sheetHeight}cm，每版可拼 {calc.uvPiecesPerSheet} 个，需 {calc.uvSheets} 版，
+                  总UV = max(¥{fmt(calc.uvTotalRaw)}, ¥{uvConfig.minTotalCharge}) = ¥{fmt(calc.uvTotalCost)}，
+                  每只 ¥{fmt(calc.uvCostPerBox, 3)}
                 </p>
               )}
             </CardContent>
@@ -408,34 +447,40 @@ export default function SoftBoxQuotePage({
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm mt-5" data-testid="cost-breakdown-grid">
                 <div className="p-3 rounded-md border" data-testid="cost-paper">
                   <div className="text-muted-foreground text-xs">纸张</div>
-                  <div className="font-semibold">{fmt(calc.paperCostPerBox, 4)}</div>
+                  <div className="font-semibold">{fmt(calc.paperCostPerBox, 3)}</div>
                 </div>
                 <div className="p-3 rounded-md border" data-testid="cost-printing">
                   <div className="text-muted-foreground text-xs">印刷</div>
-                  <div className="font-semibold">{fmt(calc.printingCostPerBox, 4)}</div>
+                  <div className="font-semibold">{fmt(calc.printingCostPerBox, 3)}</div>
                 </div>
                 {calc.totalLaminationCost > 0 && (
                   <div className="p-3 rounded-md border" data-testid="cost-lamination">
                     <div className="text-muted-foreground text-xs">覆膜</div>
-                    <div className="font-semibold">{fmt(calc.lamCostPerBox, 4)}</div>
+                    <div className="font-semibold">{fmt(calc.lamCostPerBox, 3)}</div>
+                  </div>
+                )}
+                {calc.uvTotalCost > 0 && (
+                  <div className="p-3 rounded-md border" data-testid="cost-uv">
+                    <div className="text-muted-foreground text-xs">UV</div>
+                    <div className="font-semibold">{fmt(calc.uvCostPerBox, 3)}</div>
                   </div>
                 )}
                 {calc.totalGluingCost > 0 && (
                   <div className="p-3 rounded-md border" data-testid="cost-gluing">
                     <div className="text-muted-foreground text-xs">糊盒</div>
-                    <div className="font-semibold">{fmt(calc.gluingCostPerBox, 4)}</div>
+                    <div className="font-semibold">{fmt(calc.gluingCostPerBox, 3)}</div>
                   </div>
                 )}
                 {calc.profitAmount > 0 && (
                   <div className="p-3 rounded-md border" data-testid="cost-profit">
                     <div className="text-muted-foreground text-xs">利润</div>
-                    <div className="font-semibold">{fmt(calc.profitAmount / calc.validQty, 4)}</div>
+                    <div className="font-semibold">{fmt(calc.profitAmount / calc.validQty, 3)}</div>
                   </div>
                 )}
               </div>
 
               <div className="mt-5 text-sm font-medium text-muted-foreground flex items-center gap-1 flex-wrap">
-                <Sparkles className="w-4 h-4 text-primary" /> 核心规则：纸张 + 印刷 + UV上光 + 覆膜 + 糊盒 + 利润 = 税前总成本 → × (1+税率) = 最终价
+                <Sparkles className="w-4 h-4 text-primary" /> 核心规则：纸张 + 印刷 + 覆膜 + UV + 糊盒 + 利润 = 税前总成本 → × (1+税率) = 最终价
               </div>
             </div>
 
@@ -445,24 +490,25 @@ export default function SoftBoxQuotePage({
                   <Badge variant="default" className="text-xs">1</Badge> 展开面积计算
                 </h3>
                 <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
-                  {isValidSoftBoxFormula(selectedBoxType!.areaFormula) ? (
-                    <div className="flex items-start gap-2 flex-wrap">
-                      <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                      <span>公式：{selectedBoxType!.areaFormula}</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-2 text-destructive flex-wrap">
-                      <ChevronRight className="w-3 h-3 mt-1 shrink-0" />
-                      <span>公式格式无效，请返回配置页修改</span>
-                    </div>
-                  )}
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                    <span>红框长公式：{selectedBoxType!.frameLengthFormula}</span>
+                  </div>
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                    <span>红框宽公式：{selectedBoxType!.frameWidthFormula}</span>
+                  </div>
                   <div className="flex items-start gap-2 flex-wrap">
                     <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
                     <span>长 = {dimensions.length} cm，宽 = {dimensions.width} cm，高 = {dimensions.height} cm</span>
                   </div>
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                    <span>红框长 = {fmt(calc.frameLcm)} cm，红框宽 = {fmt(calc.frameWcm)} cm</span>
+                  </div>
                   <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
                     <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                    <span>展开面积 = {fmt(calc.areaCm2)} cm² = {fmt(calc.areaSqm, 4)} m²</span>
+                    <span>展开面积 = {fmt(calc.frameLcm)} × {fmt(calc.frameWcm)} = {fmt(calc.areaCm2)} cm² = {fmt(calc.areaSqm, 4)} m²</span>
                   </div>
                 </div>
               </div>
@@ -478,11 +524,11 @@ export default function SoftBoxQuotePage({
                   </div>
                   <div className="flex items-start gap-2 flex-wrap">
                     <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                    <span>单盒纸张成本 = {fmt(calc.areaSqm, 4)} m² × {calc.facePaperPrice} = {fmt(calc.paperCostPerBox)} 元/个</span>
+                    <span>单盒纸张成本 = {fmt(calc.areaSqm, 4)} m² × {calc.facePaperPrice} = {fmt(calc.paperCostPerBox, 3)} 元/个</span>
                   </div>
                   <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
                     <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                    <span>总纸张成本 = {fmt(calc.paperCostPerBox)} × {calc.validQty} = {fmt(calc.totalPaperCost)} 元</span>
+                    <span>总纸张成本 = {fmt(calc.paperCostPerBox, 3)} × {calc.validQty} = {fmt(calc.totalPaperCost)} 元</span>
                   </div>
                 </div>
               </div>
@@ -494,61 +540,99 @@ export default function SoftBoxQuotePage({
                 <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
                   <div className="flex items-start gap-2 flex-wrap">
                     <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                    <span>印刷方式：{selectedPrinting?.name || "未选择"}，单价 = {calc.printingPrice} 元/m²</span>
+                    <span>印刷方式：{selectedPrintSide?.name || "未选择"}（{calc.printSides}面）</span>
                   </div>
-                  <div className="flex items-start gap-2 text-muted-foreground flex-wrap">
-                    <ChevronRight className="w-3 h-3 mt-1 shrink-0" />
-                    <span>计算逻辑待配置，当前印刷成本 = 0 元</span>
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                    <span>
+                      每面费用({calc.validQty}个) = {calc.validQty <= printingTier.baseThreshold
+                        ? `¥${printingTier.baseCost}（≤${printingTier.baseThreshold}个基础价）`
+                        : `¥${printingTier.baseCost} + ${Math.ceil((calc.validQty - printingTier.baseThreshold) / printingTier.stepSize)} × ¥${printingTier.stepCost} = ¥${fmt(calc.printCostPerSide)}`
+                      }
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                    <span>印刷总价 = ¥{fmt(calc.printCostPerSide)} × {calc.printSides}面 = ¥{fmt(calc.printTotalFlat)}</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                    <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <span>每只印刷成本 = ¥{fmt(calc.printTotalFlat)} ÷ {calc.validQty} = ¥{fmt(calc.printingCostPerBox, 3)}/只</span>
                   </div>
                 </div>
               </div>
 
               <div>
                 <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
-                  <Badge variant="default" className="text-xs">4</Badge> UV上光成本
-                </h3>
-                <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
-                  <div className="flex items-start gap-2 text-muted-foreground flex-wrap">
-                    <ChevronRight className="w-3 h-3 mt-1 shrink-0" />
-                    <span>计算逻辑待配置，当前UV上光成本 = 0 元</span>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
-                  <Badge variant="default" className="text-xs">5</Badge> 覆膜成本
+                  <Badge variant="default" className="text-xs">4</Badge> 覆膜成本
                 </h3>
                 <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
                   <div className="flex items-start gap-2 flex-wrap">
                     <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                    <span>覆膜方式：{selectedLamination?.name || "未选择"}</span>
+                    <span>覆膜：{selectedLamination?.name || "未选择"}，单价 = {calc.lamPricePerSqm} 元/m²，面数 = {calc.lamFaces}</span>
                   </div>
-                  {calc.lamPricePerSqm > 0 ? (
+                  {calc.lamPricePerSqm > 0 && calc.lamFaces > 0 ? (
                     <>
                       <div className="flex items-start gap-2 flex-wrap">
                         <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                        <span>覆膜单价 = {calc.lamPricePerSqm} 元/m²，最低消费 = ¥{laminationMinCharge}</span>
+                        <span>每只覆膜 = {fmt(calc.areaSqm, 4)} m² × {calc.lamPricePerSqm} × {calc.lamFaces} = ¥{fmt(calc.lamRealPerBox, 3)}</span>
                       </div>
                       <div className="flex items-start gap-2 flex-wrap">
                         <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                        <span>计算：{fmt(calc.areaSqm, 4)} m² × {calc.lamPricePerSqm} × {calc.validQty} = {fmt(calc.lamCostRaw)} 元</span>
+                        <span>最低消费 = ¥{laminationMinCharge} ÷ {calc.validQty} = ¥{fmt(calc.lamMinPerBox, 3)}/只</span>
                       </div>
-                      {calc.lamUsedMin && (
-                        <div className="flex items-start gap-2 flex-wrap text-muted-foreground">
-                          <ChevronRight className="w-3 h-3 mt-1 shrink-0" />
-                          <span>低于最低消费 ¥{laminationMinCharge}，按最低消费计算</span>
-                        </div>
-                      )}
                       <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
                         <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                        <span>总覆膜成本 = max({fmt(calc.lamCostRaw)}, {laminationMinCharge}) = {fmt(calc.totalLaminationCost)} 元</span>
+                        <span>
+                          每只覆膜成本 = max(¥{fmt(calc.lamRealPerBox, 3)}, ¥{fmt(calc.lamMinPerBox, 3)}) = ¥{fmt(calc.lamCostPerBox, 3)}
+                          {calc.lamUsedMin && <Badge variant="secondary" className="ml-2 text-xs">触发最低消费</Badge>}
+                        </span>
                       </div>
                     </>
                   ) : (
-                    <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
-                      <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                      <span>不覆膜，覆膜成本 = 0 元</span>
+                    <div className="flex items-start gap-2 text-muted-foreground flex-wrap">
+                      <ChevronRight className="w-3 h-3 mt-1 shrink-0" />
+                      <span>不覆膜，覆膜成本 = ¥0</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2 flex-wrap">
+                  <Badge variant="default" className="text-xs">5</Badge> UV上光成本
+                </h3>
+                <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
+                  {uvEnabled && calc.uvTotalCost > 0 ? (
+                    <>
+                      <div className="flex items-start gap-2 flex-wrap">
+                        <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                        <span>版面 {uvConfig.sheetWidth}×{uvConfig.sheetHeight}cm，红框 {fmt(calc.frameLcm)}×{fmt(calc.frameWcm)}cm</span>
+                      </div>
+                      <div className="flex items-start gap-2 flex-wrap">
+                        <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                        <span>每版可拼 {calc.uvPiecesPerSheet} 个（两方向取大，上限{uvConfig.maxPerSheet}）</span>
+                      </div>
+                      <div className="flex items-start gap-2 flex-wrap">
+                        <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                        <span>所需版数 = ceil({calc.validQty} ÷ {calc.uvPiecesPerSheet}) = {calc.uvSheets} 版</span>
+                      </div>
+                      <div className="flex items-start gap-2 flex-wrap">
+                        <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                        <span>UV总成本 = max({calc.uvSheets} × ¥{uvConfig.pricePerSheet} = ¥{fmt(calc.uvTotalRaw)}, 最低¥{uvConfig.minTotalCharge}) = ¥{fmt(calc.uvTotalCost)}</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                        <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <span>
+                          每只UV成本 = ¥{fmt(calc.uvTotalCost)} ÷ {calc.validQty} = ¥{fmt(calc.uvCostPerBox, 3)}/只
+                          {calc.uvUsedMin && <Badge variant="secondary" className="ml-2 text-xs">触发最低消费</Badge>}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-start gap-2 text-muted-foreground flex-wrap">
+                      <ChevronRight className="w-3 h-3 mt-1 shrink-0" />
+                      <span>{uvConfig.enabled ? "未勾选UV上光" : "UV上光未启用"}，UV成本 = ¥0</span>
                     </div>
                   )}
                 </div>
@@ -559,35 +643,24 @@ export default function SoftBoxQuotePage({
                   <Badge variant="default" className="text-xs">6</Badge> 糊盒成本
                 </h3>
                 <div className="border-l-2 border-muted pl-4 space-y-1 text-sm">
-                  <div className="flex items-start gap-2 flex-wrap">
-                    <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                    <span>每盒糊盒费用 = {gluing.feePerBox} 元/个，最低消费 = ¥{gluing.minCharge}</span>
-                  </div>
-                  {gluing.feePerBox > 0 || gluing.minCharge > 0 ? (
+                  {calc.totalGluingCost > 0 ? (
                     <>
                       <div className="flex items-start gap-2 flex-wrap">
                         <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                        <span>最低消费分摊 = {gluing.minCharge} ÷ {calc.validQty} = {fmt(calc.gluingMinPerBox, 4)} 元/个</span>
+                        <span>每盒费用 = ¥{gluing.feePerBox}，最低消费 = ¥{gluing.minCharge} ÷ {calc.validQty} = ¥{fmt(calc.gluingMinPerBox, 3)}/只</span>
                       </div>
-                      <div className="flex items-start gap-2 flex-wrap">
-                        <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                        <span>单盒糊盒费用 = max({gluing.feePerBox}, {fmt(calc.gluingMinPerBox, 4)}) = {fmt(calc.gluingCostPerBox, 4)} 元/个</span>
-                      </div>
-                      {calc.gluingUsedMin && (
-                        <div className="flex items-start gap-2 flex-wrap text-muted-foreground">
-                          <ChevronRight className="w-3 h-3 mt-1 shrink-0" />
-                          <span>最低消费分摊高于每盒价格，按最低消费分摊计算</span>
-                        </div>
-                      )}
                       <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
                         <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                        <span>总糊盒成本 = {fmt(calc.gluingCostPerBox, 4)} × {calc.validQty} = {fmt(calc.totalGluingCost)} 元</span>
+                        <span>
+                          每只糊盒成本 = max(¥{gluing.feePerBox}, ¥{fmt(calc.gluingMinPerBox, 3)}) = ¥{fmt(calc.gluingCostPerBox, 3)}
+                          {calc.gluingUsedMin && <Badge variant="secondary" className="ml-2 text-xs">触发最低消费</Badge>}
+                        </span>
                       </div>
                     </>
                   ) : (
-                    <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
-                      <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                      <span>糊盒费用未配置，糊盒成本 = 0 元</span>
+                    <div className="flex items-start gap-2 text-muted-foreground flex-wrap">
+                      <ChevronRight className="w-3 h-3 mt-1 shrink-0" />
+                      <span>糊盒成本 = ¥0</span>
                     </div>
                   )}
                 </div>
@@ -604,11 +677,7 @@ export default function SoftBoxQuotePage({
                   </div>
                   <div className="flex items-start gap-2 flex-wrap">
                     <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                    <span>印刷成本：¥{fmt(calc.totalPrintingCost)}（待配置）</span>
-                  </div>
-                  <div className="flex items-start gap-2 flex-wrap">
-                    <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                    <span>UV上光成本：¥{fmt(calc.totalUVCost)}（待配置）</span>
+                    <span>印刷成本：¥{fmt(calc.totalPrintingCost)}</span>
                   </div>
                   <div className="flex items-start gap-2 flex-wrap">
                     <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
@@ -616,7 +685,15 @@ export default function SoftBoxQuotePage({
                   </div>
                   <div className="flex items-start gap-2 flex-wrap">
                     <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                    <span>UV成本：¥{fmt(calc.uvTotalCost)}</span>
+                  </div>
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
                     <span>糊盒成本：¥{fmt(calc.totalGluingCost)}</span>
+                  </div>
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
+                    <span>基础总成本：¥{fmt(calc.baseCost)}</span>
                   </div>
                   {calc.profitAmount > 0 && (
                     <div className="flex items-start gap-2 flex-wrap">
@@ -624,17 +701,21 @@ export default function SoftBoxQuotePage({
                       <span>利润（{calc.validProfitRate}%）：¥{fmt(calc.profitAmount)}</span>
                     </div>
                   )}
-                  <div className="flex items-start gap-2 flex-wrap font-semibold">
+                  <div className="flex items-start gap-2 flex-wrap">
                     <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
-                    <span>税前总计：¥{fmt(calc.totalBeforeTax)}</span>
+                    <span>税前总价：¥{fmt(calc.totalBeforeTax)}</span>
                   </div>
                   <div className="flex items-start gap-2 flex-wrap">
                     <ChevronRight className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
                     <span>税额（{calc.validTaxRate}%）：¥{fmt(calc.taxAmount)}</span>
                   </div>
-                  <div className="flex items-start gap-2 text-primary font-bold flex-wrap">
+                  <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
                     <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                    <span>含税总计：¥{fmt(calc.totalCost)} ≈ ${fmt(calc.totalCostUsd)}</span>
+                    <span>含税总价：¥{fmt(calc.totalCost)} ≈ ${fmt(calc.totalCostUsd)}</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-primary font-medium flex-wrap">
+                    <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <span>每只单价：¥{fmt(calc.unitCost, 3)} ≈ ${fmt(calc.unitCostUsd, 3)}/pc</span>
                   </div>
                 </div>
               </div>

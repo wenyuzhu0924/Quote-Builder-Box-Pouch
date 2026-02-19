@@ -2,21 +2,30 @@ export interface SoftBoxTypeConfig {
   id: string;
   name: string;
   enabled: boolean;
-  areaFormula: string;
+  frameLengthFormula: string;
+  frameWidthFormula: string;
   requiredDimensions: string[];
 }
 
-export interface SoftBoxPrintingConfig {
+export interface SoftBoxPrintingSideOption {
   id: string;
   name: string;
+  sides: number;
   enabled: boolean;
-  pricePerSqm: number;
+}
+
+export interface SoftBoxPrintingTierConfig {
+  baseCost: number;
+  baseThreshold: number;
+  stepCost: number;
+  stepSize: number;
 }
 
 export interface SoftBoxLaminationOption {
   id: string;
   name: string;
   pricePerSqm: number;
+  faces: number;
 }
 
 export interface SoftBoxFacePaperConfig {
@@ -25,11 +34,13 @@ export interface SoftBoxFacePaperConfig {
   pricePerSqm: number;
 }
 
-export interface SoftBoxUVCoatingConfig {
-  id: string;
-  name: string;
+export interface SoftBoxUVConfig {
   enabled: boolean;
-  pricePerSqm: number;
+  sheetWidth: number;
+  sheetHeight: number;
+  pricePerSheet: number;
+  maxPerSheet: number;
+  minTotalCharge: number;
 }
 
 export interface SoftBoxGluingConfig {
@@ -39,11 +50,12 @@ export interface SoftBoxGluingConfig {
 
 export interface SoftBoxSurveyConfig {
   boxTypes: SoftBoxTypeConfig[];
-  printingSides: SoftBoxPrintingConfig[];
+  printingSideOptions: SoftBoxPrintingSideOption[];
+  printingTier: SoftBoxPrintingTierConfig;
   facePapers: SoftBoxFacePaperConfig[];
   laminationOptions: SoftBoxLaminationOption[];
   laminationMinCharge: number;
-  uvCoatings: SoftBoxUVCoatingConfig[];
+  uvConfig: SoftBoxUVConfig;
   gluing: SoftBoxGluingConfig;
 }
 
@@ -67,6 +79,15 @@ export function parseSoftBoxDimensionsFromFormula(formula: string): string[] {
   if (formula.includes("长")) dims.push("length");
   if (formula.includes("宽")) dims.push("width");
   if (formula.includes("高")) dims.push("height");
+  return dims;
+}
+
+export function parseSoftBoxDimensionsFromDualFormulas(fL: string, fW: string): string[] {
+  const combined = fL + fW;
+  const dims: string[] = [];
+  if (combined.includes("长")) dims.push("length");
+  if (combined.includes("宽")) dims.push("width");
+  if (combined.includes("高")) dims.push("height");
   return dims;
 }
 
@@ -148,23 +169,55 @@ function safeEvalMath(expr: string): number | null {
   return result;
 }
 
+function substituteFormula(formula: string, dims: { length: number; width: number; height: number }): string {
+  let expr = formula;
+  expr = expr.replace(/长/g, `(${dims.length})`);
+  expr = expr.replace(/宽/g, `(${dims.width})`);
+  expr = expr.replace(/高/g, `(${dims.height})`);
+  expr = expr.replace(/×/g, "*");
+  expr = expr.replace(/÷/g, "/");
+  expr = expr.replace(/（/g, "(");
+  expr = expr.replace(/）/g, ")");
+  expr = expr.replace(/[\u4e00-\u9fff]/g, "");
+  return expr.trim();
+}
+
+export function evaluateSoftBoxFormula(
+  formula: string,
+  dims: { length: number; width: number; height: number }
+): number | null {
+  try {
+    const expr = substituteFormula(formula, dims);
+    if (!expr) return null;
+    return safeEvalMath(expr);
+  } catch {
+    return null;
+  }
+}
+
+export function evaluateSoftBoxFrameAndArea(
+  frameLengthFormula: string,
+  frameWidthFormula: string,
+  dims: { length: number; width: number; height: number }
+): { frameLcm: number; frameWcm: number; areaCm2: number; error: boolean } {
+  try {
+    const frameLcm = evaluateSoftBoxFormula(frameLengthFormula, dims);
+    const frameWcm = evaluateSoftBoxFormula(frameWidthFormula, dims);
+    if (frameLcm === null || frameWcm === null || frameLcm <= 0 || frameWcm <= 0) {
+      return { frameLcm: 0, frameWcm: 0, areaCm2: 0, error: true };
+    }
+    return { frameLcm, frameWcm, areaCm2: frameLcm * frameWcm, error: false };
+  } catch {
+    return { frameLcm: 0, frameWcm: 0, areaCm2: 0, error: true };
+  }
+}
+
 export function evaluateSoftBoxAreaFormula(
   formula: string,
   dims: { length: number; width: number; height: number }
 ): { areaCm2: number; error: boolean } {
   try {
-    let expr = formula;
-    expr = expr.replace(/长/g, `(${dims.length})`);
-    expr = expr.replace(/宽/g, `(${dims.width})`);
-    expr = expr.replace(/高/g, `(${dims.height})`);
-    expr = expr.replace(/×/g, "*");
-    expr = expr.replace(/÷/g, "/");
-    expr = expr.replace(/（/g, "(");
-    expr = expr.replace(/）/g, ")");
-    expr = expr.replace(/[\u4e00-\u9fff]/g, "");
-    expr = expr.trim();
-    if (!expr) return { areaCm2: 0, error: true };
-    const result = safeEvalMath(expr);
+    const result = evaluateSoftBoxFormula(formula, dims);
     if (result !== null) {
       return { areaCm2: result, error: false };
     }
@@ -174,40 +227,75 @@ export function evaluateSoftBoxAreaFormula(
   }
 }
 
+export function calcPrintCostPerSide(qty: number, tier: SoftBoxPrintingTierConfig): number {
+  if (qty <= tier.baseThreshold) return tier.baseCost;
+  const extra = Math.ceil((qty - tier.baseThreshold) / tier.stepSize);
+  return tier.baseCost + tier.stepCost * extra;
+}
+
+export function calcUVPiecesPerSheet(
+  frameLcm: number, frameWcm: number,
+  sheetW: number, sheetH: number, maxPerSheet: number
+): number {
+  const a = Math.floor(sheetW / frameLcm) * Math.floor(sheetH / frameWcm);
+  const b = Math.floor(sheetW / frameWcm) * Math.floor(sheetH / frameLcm);
+  let n = Math.max(a, b);
+  if (n < 1) n = 1;
+  if (n > maxPerSheet) n = maxPerSheet;
+  return n;
+}
+
 export const DEFAULT_SOFTBOX_CONFIG: SoftBoxSurveyConfig = {
   boxTypes: [
     {
       id: "airplane",
       name: "飞机盒",
       enabled: true,
-      areaFormula: "(2×长)×(2×宽+3×高)",
+      frameLengthFormula: "长+4×高+2",
+      frameWidthFormula: "2×宽+3×高",
       requiredDimensions: ["length", "width", "height"],
     },
     {
       id: "whiteCard",
       name: "白卡盒",
       enabled: true,
-      areaFormula: "(2×(长+宽)+20)×(高+2×宽+40)",
+      frameLengthFormula: "(长+宽)×2+2",
+      frameWidthFormula: "2×宽+高+4",
       requiredDimensions: ["length", "width", "height"],
     },
   ],
-  printingSides: [
-    { id: "single", name: "单面印刷", enabled: true, pricePerSqm: 0 },
-    { id: "double", name: "双面印刷", enabled: true, pricePerSqm: 0 },
+  printingSideOptions: [
+    { id: "single", name: "单面", sides: 1, enabled: true },
+    { id: "double", name: "双面", sides: 2, enabled: true },
   ],
+  printingTier: {
+    baseCost: 450,
+    baseThreshold: 3000,
+    stepCost: 80,
+    stepSize: 1000,
+  },
   facePapers: [
-    { id: "eLeng", name: "300gE楞单面", pricePerSqm: 0 },
-    { id: "sbsBaika", name: "350g单层白卡", pricePerSqm: 0 },
+    { id: "eLeng", name: "300gE楞单面", pricePerSqm: 3.41 },
+    { id: "sbsBaika", name: "350g单层白卡", pricePerSqm: 1.995 },
   ],
   laminationOptions: [
-    { id: "none", name: "无覆膜", pricePerSqm: 0 },
-    { id: "glossy", name: "亮单面覆膜", pricePerSqm: 0 },
-    { id: "matte", name: "哑单面覆膜", pricePerSqm: 0 },
+    { id: "none", name: "无覆膜", pricePerSqm: 0, faces: 0 },
+    { id: "matteSingle", name: "哑单面", pricePerSqm: 1.10, faces: 1 },
+    { id: "glossSingle", name: "亮单面", pricePerSqm: 0.80, faces: 1 },
+    { id: "matteDouble", name: "哑双面", pricePerSqm: 1.10, faces: 2 },
+    { id: "glossDouble", name: "亮双面", pricePerSqm: 0.80, faces: 2 },
   ],
   laminationMinCharge: 150,
-  uvCoatings: [],
+  uvConfig: {
+    enabled: true,
+    sheetWidth: 59,
+    sheetHeight: 88,
+    pricePerSheet: 0.15,
+    maxPerSheet: 8,
+    minTotalCharge: 150,
+  },
   gluing: {
-    feePerBox: 0,
-    minCharge: 0,
+    feePerBox: 0.10,
+    minCharge: 150,
   },
 };

@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>包装盒报价计算器（飞机盒 / 白卡盒）</title>
+  <style>
+    :root { --bg:#0b1324; --card:#11182c; --muted:#93a0b4; --accent:#3b82f6; --ok:#16a34a; }
+    body{margin:0;background:var(--bg);color:#e5ecff;font-family:Inter,system-ui,Segoe UI,Helvetica,Arial;}
+    .wrap{max-width:1100px;margin:32px auto;padding:0 16px;}
+    h1{font-size:22px;margin:0 0 16px;}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    .card{background:var(--card);border:1px solid #1e273b;border-radius:14px;padding:16px;}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;}
+    input,select{width:100%;padding:10px 12px;border:1px solid #223155;border-radius:10px;background:#0f1628;color:#e5ecff;outline:none}
+    input:focus,select:focus{border-color:var(--accent)}
+    .row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .btn{display:inline-block;margin-top:8px;background:var(--accent);border:none;color:#fff;padding:10px 14px;border-radius:10px;cursor:pointer}
+    .muted{color:var(--muted);font-size:12px}
+    table{width:100%;border-collapse:collapse;margin-top:6px}
+    th,td{padding:8px 10px;border-bottom:1px solid #1f2942;text-align:right}
+    th:first-child,td:first-child{text-align:left}
+    .tot{font-weight:700;color:#fff}
+    .ok{color:var(--ok)}
+    .hint{font-size:12px;color:#cbd5e1;margin-top:6px}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .badge{display:inline-block;background:#1b2b4d;border:1px solid #2a3c66;border-radius:8px;padding:2px 8px;font-size:12px;margin-left:6px}
+    .hl{color:#fff}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>包装盒报价计算器 <span class="badge">飞机盒 (E楞) & 白卡盒（单层）</span></h1>
+
+  <div class="grid">
+    <!-- 输入区 -->
+    <div class="card">
+      <div class="two">
+        <div>
+          <label>盒型</label>
+          <select id="boxType">
+            <option>飞机盒</option>
+            <option>白卡盒</option>
+          </select>
+        </div>
+        <div>
+          <label>印刷方式</label>
+          <select id="printType">
+            <option>单面</option>
+            <option>双面</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div>
+          <label>尺寸单位</label>
+          <select id="unit">
+            <option>厘米 cm</option>
+            <option>英寸 in</option>
+          </select>
+        </div>
+        <div>
+          <label>数量 Q（个）</label>
+          <input id="qty" type="number" value="1000" min="1" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:8px">
+        <div>
+          <label>长 L</label>
+          <input id="L" type="number" step="0.01" value="15.2" />
+        </div>
+        <div>
+          <label>宽 W</label>
+          <input id="W" type="number" step="0.01" value="10.2" />
+        </div>
+        <div>
+          <label>高 H</label>
+          <input id="H" type="number" step="0.01" value="5.1" />
+        </div>
+      </div>
+
+      <div class="two" style="margin-top:8px">
+        <div>
+          <label>覆膜</label>
+          <select id="lam">
+            <option>无</option>
+            <option>哑单面</option>
+            <option>亮单面</option>
+            <option>哑双面</option>
+            <option>亮双面</option>
+          </select>
+        </div>
+        <div>
+          <label>是否 UV</label>
+          <select id="uv">
+            <option>否</option>
+            <option>是</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="two" style="margin-top:8px">
+        <div>
+          <label>美元汇率（¥ → $）</label>
+          <input id="fx" type="number" step="0.0001" value="7.20" />
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button class="btn" id="calc">计算价格</button>
+        </div>
+      </div>
+
+      <div class="hint">
+        规则要点：覆膜/UV均含<strong>最低消费</strong>；UV为 <span class="hl">59×88cm</span> 版面拼版（可旋转），
+        单张最多 <span class="hl">8</span> 个；白卡盒含糊盒最低；飞机盒含裱瓦+模切最低；飞机盒材料 Q&lt;1000 ×1.20。
+      </div>
+    </div>
+
+    <!-- 输出区 -->
+    <div class="card" id="outCard">
+      <div style="margin-bottom:8px">
+        <div class="muted">展开红框与面积</div>
+        <div id="frameInfo" class="hl" style="margin-top:4px"></div>
+      </div>
+      <table>
+        <thead>
+          <tr><th>费用项</th><th>单价（¥/只）</th></tr>
+        </thead>
+        <tbody id="tb"></tbody>
+        <tfoot>
+          <tr><td class="tot">合计</td><td class="tot" id="sumRmb">-</td></tr>
+          <tr><td class="ok">USD（按汇率）</td><td class="ok" id="sumUsd">-</td></tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================== 常量（按最新口径） ===================== */
+// 纸价：¥/㎡ = gsm * 0.0057
+const P300 = 300 * 0.0057;    // 1.71
+const P250 = 250 * 0.0057;    // 1.425
+const P350 = 350 * 0.0057;    // 1.995
+
+// E 楞（飞机盒）
+const E_FLUTE = 1.70;
+
+// 飞机盒材料价：单面 / 双面
+const MAT_MAILER_SINGLE = P300 + E_FLUTE;              // 1.71 + 1.70
+const MAT_MAILER_DOUBLE = P300 + P250 + E_FLUTE;       // 1.71 + 1.425 + 1.70
+
+// 白卡盒材料：350g 单层
+const MAT_CARD_350 = P350;
+
+// 小单上浮（仅飞机盒材料）
+const SMALL_Q = 1000;
+const SMALL_UP = 1.20;
+
+// 裱瓦+模切（飞机盒）
+const MOUNT_DIE = 1.10;    // ¥/㎡
+const MOUNT_MIN = 500;     // 最低消费
+
+// 覆膜（哑/亮）及最低消费
+const LAM_MATTE = 1.10;    // ¥/㎡/面
+const LAM_GLOSS = 0.80;    // ¥/㎡/面
+const LAM_MIN   = 150;     // 最低消费
+
+// UV：59×88 cm 版面，封顶 8 / 张；最低消费 150
+const UV_W = 59, UV_H = 88;
+const UV_PER_SHEET = 0.15;
+const UV_MAX_PER_SHEET = 8;
+const UV_MIN_TOTAL = 150;
+
+// 印刷
+const PRINT_BASE = 450;    // ≤3000 每面
+const PRINT_STEP = 80;     // >3000 每+1000/面
+
+// 糊盒（白卡盒）
+const GLUE_MIN_PER_PC = 0.10;
+const GLUE_MIN_TOTAL  = 150;
+
+/* ===================== 工具函数 ===================== */
+// 英寸转厘米
+const in2cm = v => v * 2.54;
+
+// 计算飞机盒红框与面积
+function calcMailerFrame(L, W, H) {
+  const frameL = L + 4*H + 2;
+  const frameW = 2*W + 3*H;
+  const A = (frameL * frameW) / 10000.0;
+  return {frameL, frameW, A};
+}
+// 计算白卡盒红框与面积
+function calcCardFrame(L, W, H) {
+  const frameL = (L + W)*2 + 2;
+  const frameW = 2*W + H + 4;
+  const A = (frameL * frameW) / 10000.0;
+  return {frameL, frameW, A};
+}
+
+// UV 单张可拼数（59×88cm 版面；两方向取大；封顶8，下限1）
+function uvPiecesPerSheet(frameL, frameW) {
+  const a = Math.floor(UV_W / frameL) * Math.floor(UV_H / frameW);
+  const b = Math.floor(UV_W / frameW) * Math.floor(UV_H / frameL);
+  let n = Math.max(a, b);
+  if (n < 1) n = 1;
+  if (n > UV_MAX_PER_SHEET) n = UV_MAX_PER_SHEET;
+  return n;
+}
+
+// 覆膜 /只（按类型，含最低消费）
+function lamPerPc(A, lam, Q) {
+  if (!lam || lam === '无') return 0;
+  let rate = 0, faces = 1;
+  if (lam === '哑单面') { rate = LAM_MATTE; faces = 1; }
+  else if (lam === '亮单面') { rate = LAM_GLOSS; faces = 1; }
+  else if (lam === '哑双面') { rate = LAM_MATTE; faces = 2; }
+  else if (lam === '亮双面') { rate = LAM_GLOSS; faces = 2; }
+  const real = A * rate * faces;
+  const minv = LAM_MIN / Q;
+  return Math.max(real, minv);
+}
+
+// 印刷每面价格
+function printPerSide(Q) {
+  if (Q <= 3000) return PRINT_BASE;
+  const extra = Math.ceil((Q - 3000)/1000);
+  return PRINT_BASE + PRINT_STEP * extra;
+}
+
+// 四舍五入显示
+const r3 = v => (Math.round(v*1000)/1000).toFixed(3);
+
+/* ===================== 主计算 ===================== */
+function calc() {
+  const boxType   = document.getElementById('boxType').value;   // 飞机盒 / 白卡盒
+  const unit      = document.getElementById('unit').value;      // 厘米 / 英寸
+  let   L         = parseFloat(document.getElementById('L').value || 0);
+  let   W         = parseFloat(document.getElementById('W').value || 0);
+  let   H         = parseFloat(document.getElementById('H').value || 0);
+  const Q         = Math.max(1, parseInt(document.getElementById('qty').value || 1, 10));
+  const printType = document.getElementById('printType').value; // 单面 / 双面
+  const lam       = document.getElementById('lam').value;       // 覆膜类型
+  const uvFlag    = document.getElementById('uv').value;        // 是 / 否
+  const fx        = parseFloat(document.getElementById('fx').value || 7.2);
+
+  // 单位换算
+  if (unit === '英寸 in') {
+    L = in2cm(L); W = in2cm(W); H = in2cm(H);
+  }
+
+  // 1) 红框与面积
+  const frame = (boxType === '白卡盒') ? calcCardFrame(L,W,H) : calcMailerFrame(L,W,H);
+  const {frameL, frameW, A} = frame;
+  document.getElementById('frameInfo').innerText =
+    `红框长×宽：${r3(frameL)} cm × ${r3(frameW)} cm　|　展开面积 A：${r3(A)} ㎡/只`;
+
+  // 2) 材料
+  let matPerM2 = 0;
+  if (boxType === '白卡盒') {
+    matPerM2 = MAT_CARD_350; // 单层 350g
+  } else {
+    matPerM2 = (printType === '双面') ? MAT_MAILER_DOUBLE : MAT_MAILER_SINGLE;
+    if (Q < SMALL_Q) matPerM2 *= SMALL_UP; // 小单上浮
+  }
+  const costMaterial = A * matPerM2;
+
+  // 3) 裱瓦+模切（仅飞机盒，最低500）
+  let costMountDie = 0;
+  if (boxType !== '白卡盒') {
+    costMountDie = Math.max(A * MOUNT_DIE, MOUNT_MIN / Q);
+  }
+
+  // 4) 覆膜（最低150）
+  const costLam = lamPerPc(A, lam, Q);
+
+  // 5) UV（59×88；封顶8/张；最低150）
+  let costUV = 0;
+  if (uvFlag === '是') {
+    const n = uvPiecesPerSheet(frameL, frameW);
+    const sheets = Math.ceil(Q / n);
+    const uvTotal = Math.max(UV_MIN_TOTAL, UV_PER_SHEET * sheets);
+    costUV = uvTotal / Q;
+  }
+
+  // 6) 印刷
+  const sides = (printType === '双面') ? 2 : 1;
+  const costPrint = (printPerSide(Q) * sides) / Q;
+
+  // 7) 糊盒（仅白卡盒：max(0.10, 150/Q)）
+  let costGlue = 0;
+  if (boxType === '白卡盒') {
+    costGlue = Math.max(GLUE_MIN_PER_PC, GLUE_MIN_TOTAL / Q);
+  }
+
+  // 8) 合计
+  const unitPriceRmb = costMaterial + costMountDie + costLam + costUV + costPrint + costGlue;
+  const unitPriceUsd = unitPriceRmb / fx;
+
+  // 渲染表格
+  const rows = [];
+  rows.push(['材料', r3(costMaterial)]);
+  if (boxType !== '白卡盒') rows.push(['裱瓦+模切（飞机盒）', r3(costMountDie)]);
+  rows.push(['覆膜', r3(costLam)]);
+  rows.push(['UV', r3(costUV)]);
+  rows.push(['印刷', r3(costPrint)]);
+  if (boxType === '白卡盒') rows.push(['糊盒（白卡盒）', r3(costGlue)]);
+
+  const tb = document.getElementById('tb');
+  tb.innerHTML = rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('');
+  document.getElementById('sumRmb').innerText = '¥ ' + r3(unitPriceRmb) + ' /只';
+  document.getElementById('sumUsd').innerText = '$ ' + r3(unitPriceUsd) + ' /ea';
+}
+
+// 事件绑定
+document.getElementById('calc').addEventListener('click', calc);
+// 默认计算一次
+calc();
+</script>
+</body>
+</html>
