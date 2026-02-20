@@ -126,6 +126,24 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
     areaCoefficient: 1.0,
     quantityUnit: 1,
   });
+  const [dimUnit, setDimUnit] = useState<"mm" | "inch">("mm");
+  const mmToInch = (mm: number) => mm / 25.4;
+  const inchToMm = (inch: number) => inch * 25.4;
+  const dimDisplay = (mmVal: number | string) => {
+    const v = typeof mmVal === "string" ? Number(mmVal) : mmVal;
+    if (!v) return "";
+    return dimUnit === "inch" ? +(mmToInch(v)).toFixed(4) : v;
+  };
+  const dimOnChange = (dim: string, inputVal: string) => {
+    if (inputVal === "") { setDimensions(d => ({ ...d, [dim]: "" })); return; }
+    const n = Number(inputVal);
+    setDimensions(d => ({ ...d, [dim]: dimUnit === "inch" ? +inchToMm(n).toFixed(2) : n }));
+  };
+  const dimHint = (mmVal: number | string) => {
+    const v = typeof mmVal === "string" ? Number(mmVal) : mmVal;
+    if (!v) return null;
+    return dimUnit === "mm" ? `${mmToInch(v).toFixed(3)} inch` : `${v} mm`;
+  };
   const [quantity, setQuantity] = useState<number | string>(30000);
   const [skuCount, setSkuCount] = useState<number | string>(1);
   const [taxRate, setTaxRate] = useState<number | string>(13);
@@ -798,7 +816,12 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
           <div className="max-w-5xl mx-auto space-y-8">
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg section-title">袋型与尺寸</CardTitle>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <CardTitle className="text-lg section-title">袋型与尺寸</CardTitle>
+                  <Button variant="outline" size="sm" onClick={() => setDimUnit(u => u === "mm" ? "inch" : "mm")} className="gap-1.5 text-xs" data-testid="toggle-dim-unit">
+                    {dimUnit === "mm" ? "切换为 inch" : "切换为 mm"}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -820,16 +843,18 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                   {requiredDimensions.filter(d => d !== "quantityUnit" && d !== "areaCoefficient").map((dim) => (
                     <div key={dim}>
                       <Label className="text-sm text-muted-foreground mb-2 block">
-                        {dimensionLabels[dim]} (mm)
+                        {dimensionLabels[dim]} ({dimUnit})
                       </Label>
                       <Input
                         type="number"
-                        value={numStr(dimensions[dim as keyof typeof dimensions])}
-                        onChange={(e) =>
-                          setDimensions({ ...dimensions, [dim]: e.target.value === "" ? "" : Number(e.target.value) })
-                        }
+                        step={dimUnit === "inch" ? 0.001 : 1}
+                        value={dimDisplay(dimensions[dim as keyof typeof dimensions])}
+                        onChange={(e) => dimOnChange(dim, e.target.value)}
                         data-testid={`input-${dim}`}
                       />
+                      {dimHint(dimensions[dim as keyof typeof dimensions]) && (
+                        <span className="text-xs text-muted-foreground mt-0.5 block">{dimHint(dimensions[dim as keyof typeof dimensions])}</span>
+                      )}
                     </div>
                   ))}
                   <div>
@@ -1565,7 +1590,12 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
         <div className="max-w-5xl mx-auto space-y-6">
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg section-title">袋型</CardTitle>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <CardTitle className="text-lg section-title">袋型</CardTitle>
+                <Button variant="outline" size="sm" onClick={() => setDimUnit(u => u === "mm" ? "inch" : "mm")} className="gap-1.5 text-xs" data-testid="toggle-dim-unit-gravure">
+                  {dimUnit === "mm" ? "切换为 inch" : "切换为 mm"}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1586,16 +1616,18 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                 {requiredDimensions.map((dim) => (
                   <div key={dim}>
                     <Label className="text-sm text-muted-foreground mb-2 block">
-                      {dimensionLabels[dim]} (mm)
+                      {dimensionLabels[dim]} ({dimUnit})
                     </Label>
                     <Input
                       type="number"
-                      value={numStr(dimensions[dim as keyof typeof dimensions])}
-                      onChange={(e) =>
-                        setDimensions({ ...dimensions, [dim]: e.target.value === "" ? "" : Number(e.target.value) })
-                      }
+                      step={dimUnit === "inch" ? 0.001 : 1}
+                      value={dimDisplay(dimensions[dim as keyof typeof dimensions])}
+                      onChange={(e) => dimOnChange(dim, e.target.value)}
                       data-testid={`input-${dim}`}
                     />
+                    {dimHint(dimensions[dim as keyof typeof dimensions]) && (
+                      <span className="text-xs text-muted-foreground mt-0.5 block">{dimHint(dimensions[dim as keyof typeof dimensions])}</span>
+                    )}
                   </div>
                 ))}
                 <div>

@@ -77,6 +77,22 @@ export default function SoftBoxQuotePage({
   }, [laminationOptions, selectedLaminationId]);
 
   const [dimensions, setDimensions] = useState({ length: 15.2, width: 10.2, height: 5.1 });
+  const [dimUnit, setDimUnit] = useState<"cm" | "inch">("cm");
+  const cmToInch = (cm: number) => cm / 2.54;
+  const inchToCm = (inch: number) => inch * 2.54;
+  const dimDisplayCm = (cmVal: number) => {
+    if (!cmVal) return "";
+    return dimUnit === "inch" ? +(cmToInch(cmVal)).toFixed(4) : cmVal;
+  };
+  const dimOnChangeCm = (field: "length" | "width" | "height", inputVal: string) => {
+    if (inputVal === "") { setDimensions(p => ({ ...p, [field]: 0 })); return; }
+    const n = Number(inputVal);
+    setDimensions(p => ({ ...p, [field]: dimUnit === "inch" ? +inchToCm(n).toFixed(3) : n }));
+  };
+  const dimHintCm = (cmVal: number) => {
+    if (!cmVal) return null;
+    return dimUnit === "cm" ? `${cmToInch(cmVal).toFixed(3)} inch` : `${cmVal} cm`;
+  };
   const [orderInfo, setOrderInfo] = useState({
     qty: 1000,
     exchangeRate: 7.2,
@@ -228,7 +244,12 @@ export default function SoftBoxQuotePage({
       <main className="flex-1 container mx-auto px-4 py-6 max-w-4xl space-y-6">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold section-title">盒型与尺寸</CardTitle>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <CardTitle className="text-base font-semibold section-title">盒型与尺寸</CardTitle>
+              <Button variant="outline" size="sm" onClick={() => setDimUnit(u => u === "cm" ? "inch" : "cm")} className="gap-1.5 text-xs" data-testid="toggle-dim-unit">
+                {dimUnit === "cm" ? "切换为 inch" : "切换为 cm"}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-4 gap-3">
@@ -246,34 +267,37 @@ export default function SoftBoxQuotePage({
                 </Select>
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">长（cm）</Label>
+                <Label className="text-xs text-muted-foreground mb-1 block">长（{dimUnit}）</Label>
                 <Input
                   type="number"
-                  step={0.01}
-                  value={dimensions.length || ""}
-                  onChange={(e) => setDimensions(p => ({ ...p, length: handleNumInput(e.target.value) }))}
+                  step={dimUnit === "inch" ? 0.001 : 0.01}
+                  value={dimDisplayCm(dimensions.length)}
+                  onChange={(e) => dimOnChangeCm("length", e.target.value)}
                   data-testid="input-length"
                 />
+                {dimHintCm(dimensions.length) && <span className="text-xs text-muted-foreground mt-0.5 block">{dimHintCm(dimensions.length)}</span>}
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">宽（cm）</Label>
+                <Label className="text-xs text-muted-foreground mb-1 block">宽（{dimUnit}）</Label>
                 <Input
                   type="number"
-                  step={0.01}
-                  value={dimensions.width || ""}
-                  onChange={(e) => setDimensions(p => ({ ...p, width: handleNumInput(e.target.value) }))}
+                  step={dimUnit === "inch" ? 0.001 : 0.01}
+                  value={dimDisplayCm(dimensions.width)}
+                  onChange={(e) => dimOnChangeCm("width", e.target.value)}
                   data-testid="input-width"
                 />
+                {dimHintCm(dimensions.width) && <span className="text-xs text-muted-foreground mt-0.5 block">{dimHintCm(dimensions.width)}</span>}
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">高（cm）</Label>
+                <Label className="text-xs text-muted-foreground mb-1 block">高（{dimUnit}）</Label>
                 <Input
                   type="number"
-                  step={0.01}
-                  value={dimensions.height || ""}
-                  onChange={(e) => setDimensions(p => ({ ...p, height: handleNumInput(e.target.value) }))}
+                  step={dimUnit === "inch" ? 0.001 : 0.01}
+                  value={dimDisplayCm(dimensions.height)}
+                  onChange={(e) => dimOnChangeCm("height", e.target.value)}
                   data-testid="input-height"
                 />
+                {dimHintCm(dimensions.height) && <span className="text-xs text-muted-foreground mt-0.5 block">{dimHintCm(dimensions.height)}</span>}
               </div>
             </div>
           </CardContent>
