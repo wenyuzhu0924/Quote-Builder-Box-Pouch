@@ -484,6 +484,58 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
     }
   };
 
+  const digitalLayerLabel = (cat: "print" | "composite" | "seal") => cat === "print" ? "印刷层" : cat === "composite" ? "复合层" : "热封层";
+  const getDigitalMaterials = (cat: "print" | "composite" | "seal") => cat === "print" ? digitalConfig.printLayerMaterials : cat === "composite" ? digitalConfig.compositeLayerMaterials : digitalConfig.sealLayerMaterials;
+
+  const exportDigitalMaterialCSV = (category: "print" | "composite" | "seal") => {
+    const materials = getDigitalMaterials(category);
+    const label = digitalLayerLabel(category);
+    const headers = ["材料名", "厚度(μm)", "密度(g/cm³)", "价格(元/kg)", "平方米价(元/㎡)", "备注"];
+    const escCSV = (v: string | number) => { const s = String(v); return (s.includes(",") || s.includes('"') || s.includes("\n")) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const rows = materials.map(m => [m.name, m.thickness, m.density, m.price, m.squarePrice, m.notes].map(escCSV).join(","));
+    const csv = "\uFEFF" + [headers.map(escCSV).join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `${label}材料库_${new Date().toLocaleDateString("zh-CN")}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "导出成功", description: `已导出 ${materials.length} 种${label}材料` });
+  };
+
+  const importDigitalMaterialCSV = (category: "print" | "composite" | "seal", file: File) => {
+    const label = digitalLayerLabel(category);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        let text = (e.target?.result as string) || "";
+        if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+        const rows = parseCSVRows(text);
+        if (rows.length < 2) { toast({ title: "导入失败", description: "CSV文件为空或格式错误", variant: "destructive" }); return; }
+        const imported: DigitalMaterial[] = [];
+        for (let i = 1; i < rows.length; i++) {
+          const cols = rows[i];
+          const name = (cols[0] || "").trim();
+          if (!name) continue;
+          imported.push({
+            id: `${category}_${Date.now()}_${i}`,
+            name,
+            thickness: Number(cols[1]) || 0,
+            density: Number(cols[2]) || 0,
+            price: Number(cols[3]) || 0,
+            squarePrice: Number(cols[4]) || 0,
+            category,
+            notes: (cols[5] || "").trim(),
+          });
+        }
+        if (imported.length === 0) { toast({ title: "导入失败", description: "未找到有效材料数据", variant: "destructive" }); return; }
+        if (category === "print") updateDigitalConfig({ printLayerMaterials: imported });
+        else if (category === "composite") updateDigitalConfig({ compositeLayerMaterials: imported });
+        else updateDigitalConfig({ sealLayerMaterials: imported });
+        toast({ title: "导入成功", description: `已导入 ${imported.length} 种${label}材料，替换原有材料库` });
+      } catch { toast({ title: "导入失败", description: "CSV文件解析出错", variant: "destructive" }); }
+    };
+    reader.readAsText(file);
+  };
+
   const toggleDigitalPrintMode = (id: string) => {
     updateDigitalConfig({
       printModes: digitalConfig.printModes.map((m) =>
@@ -1013,6 +1065,15 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                         添加材料
                       </Button>
                     </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button variant="outline" size="sm" onClick={() => exportDigitalMaterialCSV("print")} className="gap-1.5" data-testid="export-print-material-csv">
+                        <Download className="w-3.5 h-3.5" /> 导出材料库CSV
+                      </Button>
+                      <Button variant="outline" size="sm" className="gap-1.5" data-testid="import-print-material-csv" onClick={() => document.getElementById("digital-print-material-csv-input")?.click()}>
+                        <Upload className="w-3.5 h-3.5" /> 从CSV导入材料库
+                      </Button>
+                      <input id="digital-print-material-csv-input" type="file" accept=".csv" className="hidden" data-testid="file-input-digital-print-csv" onChange={(e) => { const f = e.target.files?.[0]; if (f) { importDigitalMaterialCSV("print", f); e.target.value = ""; } }} />
+                    </div>
                   </div>
                   <SectionSaveButton section="printMaterials" label="印刷层材料" onSave={() => showSaveToast("印刷层材料")} />
                 </AccordionContent>
@@ -1123,6 +1184,15 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                         添加材料
                       </Button>
                     </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button variant="outline" size="sm" onClick={() => exportDigitalMaterialCSV("composite")} className="gap-1.5" data-testid="export-composite-material-csv">
+                        <Download className="w-3.5 h-3.5" /> 导出材料库CSV
+                      </Button>
+                      <Button variant="outline" size="sm" className="gap-1.5" data-testid="import-composite-material-csv" onClick={() => document.getElementById("digital-composite-material-csv-input")?.click()}>
+                        <Upload className="w-3.5 h-3.5" /> 从CSV导入材料库
+                      </Button>
+                      <input id="digital-composite-material-csv-input" type="file" accept=".csv" className="hidden" data-testid="file-input-digital-composite-csv" onChange={(e) => { const f = e.target.files?.[0]; if (f) { importDigitalMaterialCSV("composite", f); e.target.value = ""; } }} />
+                    </div>
                   </div>
                   <SectionSaveButton section="compositeMaterials" label="复合层材料" onSave={() => showSaveToast("复合层材料")} />
                 </AccordionContent>
@@ -1232,6 +1302,15 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                         <Plus className="w-4 h-4" />
                         添加材料
                       </Button>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button variant="outline" size="sm" onClick={() => exportDigitalMaterialCSV("seal")} className="gap-1.5" data-testid="export-seal-material-csv">
+                        <Download className="w-3.5 h-3.5" /> 导出材料库CSV
+                      </Button>
+                      <Button variant="outline" size="sm" className="gap-1.5" data-testid="import-seal-material-csv" onClick={() => document.getElementById("digital-seal-material-csv-input")?.click()}>
+                        <Upload className="w-3.5 h-3.5" /> 从CSV导入材料库
+                      </Button>
+                      <input id="digital-seal-material-csv-input" type="file" accept=".csv" className="hidden" data-testid="file-input-digital-seal-csv" onChange={(e) => { const f = e.target.files?.[0]; if (f) { importDigitalMaterialCSV("seal", f); e.target.value = ""; } }} />
                     </div>
                   </div>
                   <SectionSaveButton section="sealMaterials" label="热封层材料" onSave={() => showSaveToast("热封层材料")} />
