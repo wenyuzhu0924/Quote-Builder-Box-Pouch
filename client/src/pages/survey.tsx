@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, ArrowRight, Plus, Trash2, Save, Package, Layers, Printer, Combine, Scissors, Grid3X3, Calculator, Settings, Zap, Archive } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Trash2, Save, Package, Layers, Printer, Combine, Scissors, Grid3X3, Calculator, Settings, Zap, Archive, Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -206,6 +206,69 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
 
   const saveMaterialLibrary = () => {
     toast({ title: "材料库已保存", description: `共 ${config.materialLibrary.length} 种材料` });
+  };
+
+  const exportMaterialCSV = () => {
+    const headers = ["材料名", "厚度(μm)", "密度(g/cm³)", "克重(g/㎡)", "价格(元/kg)", "备注"];
+    const escCSV = (v: string | number) => { const s = String(v); return (s.includes(",") || s.includes('"') || s.includes("\n")) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const rows = config.materialLibrary.map(m => [m.name, m.thickness, m.density, m.grammage, m.price, m.notes].map(escCSV).join(","));
+    const csv = "\uFEFF" + [headers.map(escCSV).join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `材料库_${new Date().toLocaleDateString("zh-CN")}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "导出成功", description: `已导出 ${config.materialLibrary.length} 种材料` });
+  };
+
+  const parseCSVRows = (text: string): string[][] => {
+    const rows: string[][] = []; let cols: string[] = []; let cur = ""; let inQuote = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (inQuote) {
+        if (ch === '"' && text[i + 1] === '"') { cur += '"'; i++; }
+        else if (ch === '"') { inQuote = false; }
+        else { cur += ch; }
+      } else {
+        if (ch === '"') { inQuote = true; }
+        else if (ch === ',') { cols.push(cur); cur = ""; }
+        else if (ch === '\n' || (ch === '\r' && text[i + 1] === '\n')) { if (ch === '\r') i++; cols.push(cur); cur = ""; if (cols.some(c => c.trim())) rows.push(cols); cols = []; }
+        else if (ch === '\r') { cols.push(cur); cur = ""; if (cols.some(c => c.trim())) rows.push(cols); cols = []; }
+        else { cur += ch; }
+      }
+    }
+    cols.push(cur); if (cols.some(c => c.trim())) rows.push(cols);
+    return rows;
+  };
+
+  const importMaterialCSV = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        let text = (e.target?.result as string) || "";
+        if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+        const rows = parseCSVRows(text);
+        if (rows.length < 2) { toast({ title: "导入失败", description: "CSV文件为空或格式错误", variant: "destructive" }); return; }
+        const imported: CustomMaterial[] = [];
+        for (let i = 1; i < rows.length; i++) {
+          const cols = rows[i];
+          const name = (cols[0] || "").trim();
+          if (!name) continue;
+          imported.push({
+            id: Date.now().toString() + "_" + i,
+            name,
+            thickness: Number(cols[1]) || 0,
+            density: Number(cols[2]) || 0,
+            grammage: Number(cols[3]) || 0,
+            price: Number(cols[4]) || 0,
+            notes: (cols[5] || "").trim(),
+          });
+        }
+        if (imported.length === 0) { toast({ title: "导入失败", description: "未找到有效材料数据", variant: "destructive" }); return; }
+        updateConfig({ materialLibrary: imported });
+        toast({ title: "导入成功", description: `已导入 ${imported.length} 种材料，替换原有材料库` });
+      } catch { toast({ title: "导入失败", description: "CSV文件解析出错", variant: "destructive" }); }
+    };
+    reader.readAsText(file);
   };
 
   const updatePrintingPrice = (index: number, field: keyof PrintingPriceRule, value: string | number) => {
@@ -2371,6 +2434,15 @@ export default function SurveyPage({ backPath = "/", nextPath = "/quote", hideBa
                         </TableRow>
                       </TableBody>
                     </Table>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button variant="outline" size="sm" onClick={exportMaterialCSV} className="gap-1.5" data-testid="export-material-csv">
+                      <Download className="w-3.5 h-3.5" /> 导出材料库CSV
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-1.5 relative" data-testid="import-material-csv" onClick={() => document.getElementById("gravure-material-csv-input")?.click()}>
+                      <Upload className="w-3.5 h-3.5" /> 从CSV导入材料库
+                    </Button>
+                    <input id="gravure-material-csv-input" type="file" accept=".csv" className="hidden" data-testid="file-input-gravure-material-csv" onChange={(e) => { const f = e.target.files?.[0]; if (f) { importMaterialCSV(f); e.target.value = ""; } }} />
                   </div>
                   <SectionSaveButton section="gravure-materials" label="材料库" onSave={() => { saveMaterialLibrary(); showSaveToast("材料库"); }} />
                 </div>
