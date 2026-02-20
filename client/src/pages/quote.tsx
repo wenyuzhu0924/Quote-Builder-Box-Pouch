@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useQuote, type CustomMaterial, type CustomBagType, type DigitalMaterial, type PostProcessingOptionConfig, isValidBagFormula, isValidMakingFormula, safeEvalMakingFormula } from "@/lib/quote-store";
 import { calculateDigital, type DigitalCalcResult } from "@/lib/digital-calc";
 import { ShareQuoteButton } from "@/components/share-quote-button";
+import { QuoteHistoryPanel } from "@/components/quote-history-panel";
+import type { QuoteRecord } from "@/lib/quote-history";
 
 function calcPostProcessingCost(
   opt: PostProcessingOptionConfig,
@@ -646,6 +648,67 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
     eightSideMode,
   ]);
 
+  const currentQuote = useMemo((): Omit<QuoteRecord, "id" | "timestamp"> | null => {
+    const _qty = toNum(String(quantity));
+    const _exr = toNum(String(exchangeRate));
+    const _tax = toNum(String(taxRate));
+    if (_qty <= 0) return null;
+
+    if (isDigital && digitalCalcResult) {
+      const q = digitalCalcResult.quote;
+      const cb = digitalCalcResult.costBreakdown;
+      const breakdown: Record<string, number> = {};
+      if (cb.material > 0) breakdown["材料"] = cb.material / _qty;
+      if (cb.lamination > 0) breakdown["覆膜"] = cb.lamination / _qty;
+      if (cb.print > 0) breakdown["印刷"] = cb.print / _qty;
+      if (cb.bagMaking > 0) breakdown["制袋"] = cb.bagMaking / _qty;
+      if (cb.accessories > 0) breakdown["辅料"] = cb.accessories / _qty;
+      if (cb.specialProcess > 0) breakdown["特殊工艺"] = cb.specialProcess / _qty;
+      if (cb.custom > 0) breakdown["自定义"] = cb.custom / _qty;
+      if (cb.fileFee > 0) breakdown["文件费"] = cb.fileFee / _qty;
+      return {
+        label: `${selectedBagType?.name || "数码"} ${dimensions.width || 0}×${dimensions.height || 0}mm`,
+        boxType: selectedBagType?.name,
+        qty: _qty,
+        unitPriceCNY: q.withTax.unit,
+        totalPriceCNY: q.withTax.total,
+        unitPriceUSD: q.withTax.unitUSD,
+        totalPriceUSD: q.withTax.totalUSD,
+        taxRate: _tax,
+        exchangeRate: _exr,
+        costBreakdown: breakdown,
+      };
+    }
+
+    if (isGravure) {
+      const gc = gravureCosts;
+      const breakdown: Record<string, number> = {
+        "材料": gc.materialCostPerUnit,
+        "印刷": gc.printCostPerUnit,
+        "复合": gc.laminationCostPerUnit,
+        "制袋": gc.makingCostPerUnit,
+      };
+      if (gc.postProcessingCostPerUnit > 0) breakdown["后加工"] = gc.postProcessingCostPerUnit;
+      return {
+        label: `${selectedBagType?.name || "凹版"} ${dimensions.width || 0}×${dimensions.height || 0}mm`,
+        boxType: selectedBagType?.name,
+        qty: _qty,
+        unitPriceCNY: gc.withPlateFreightTaxUnit,
+        totalPriceCNY: gc.withPlateFreightTaxTotal,
+        unitPriceUSD: gc.withPlateFreightTaxUnit / _exr,
+        totalPriceUSD: gc.withPlateFreightTaxTotal / _exr,
+        taxRate: _tax,
+        exchangeRate: _exr,
+        costBreakdown: breakdown,
+        extra: {
+          "版费": gc.plateCost,
+        },
+      };
+    }
+
+    return null;
+  }, [isDigital, isGravure, digitalCalcResult, gravureCosts, quantity, exchangeRate, taxRate, dimensions, selectedBagType]);
+
   const handleEditParams = () => {
     navigate(surveyPath);
   };
@@ -1137,6 +1200,8 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
                 </div>
               </CardContent>
             </Card>
+
+            <QuoteHistoryPanel quoteType="digital" currentQuote={currentQuote} />
 
             {(() => {
               const bd = digitalCalcResult.breakdownDetails;
@@ -2233,6 +2298,8 @@ export default function QuotePage({ surveyPath = "/survey", homePath = "/", hide
               </div>
             </CardContent>
           </Card>
+
+          <QuoteHistoryPanel quoteType="gravure" currentQuote={currentQuote} />
 
           {(() => {
             const f4 = (n: number) => n.toFixed(4);

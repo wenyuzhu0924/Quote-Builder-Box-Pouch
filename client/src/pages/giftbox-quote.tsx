@@ -11,6 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { getBoxPriceByQty, getMoldFeeInfo, evaluateGiftBoxAreaFormula, isValidGiftBoxFormula } from "@/lib/giftbox-config";
 import { useGiftBox } from "@/lib/giftbox-store";
 import { ShareQuoteButton } from "@/components/share-quote-button";
+import { QuoteHistoryPanel } from "@/components/quote-history-panel";
+import type { QuoteRecord } from "@/lib/quote-history";
 
 interface GiftBoxQuotePageProps {
   surveyPath?: string;
@@ -206,6 +208,34 @@ export default function GiftBoxQuotePage({
       validQty, validExchangeRate, validTaxRate, validGiftBoxesPerCarton,
     };
   }, [config, selectedBoxType, selectedPaper, selectedLiner, selectedCraftIds, dimensions, orderInfo, linerParams, craftAreas]);
+
+  const currentQuote = useMemo((): Omit<QuoteRecord, "id" | "timestamp"> | null => {
+    if (!calc || !selectedBoxType) return null;
+    const breakdown: Record<string, number> = {
+      "灰板": calc.boardCostPerBox,
+      "面纸": calc.paperCostPerBox,
+      "内衬": calc.totalLinerCost / calc.validQty,
+      "盒价": calc.totalBoxCost / calc.validQty,
+    };
+    if (calc.totalCraftCost > 0) breakdown["工艺"] = calc.totalCraftCost / calc.validQty;
+    if (calc.totalCartonCost > 0) breakdown["纸箱"] = calc.cartonCostPerBox;
+    return {
+      label: `${selectedBoxType.name} ${dimensions.length}×${dimensions.width}×${dimensions.height}cm`,
+      boxType: selectedBoxType.name,
+      qty: calc.validQty,
+      unitPriceCNY: calc.unitCost,
+      totalPriceCNY: calc.totalCost,
+      unitPriceUSD: calc.unitCostUsd,
+      totalPriceUSD: calc.totalCostUsd,
+      taxRate: calc.validTaxRate,
+      exchangeRate: calc.validExchangeRate,
+      costBreakdown: breakdown,
+      extra: {
+        "面纸类型": selectedPaper?.name || "",
+        "内衬类型": selectedLiner?.name || "",
+      },
+    };
+  }, [calc, selectedBoxType, selectedPaper, selectedLiner, dimensions]);
 
   const handleNumInput = (value: string) => value === "" ? 0 : Number(value);
 
@@ -548,6 +578,8 @@ export default function GiftBoxQuotePage({
             </div>
           </CardContent>
         </Card>
+
+        <QuoteHistoryPanel quoteType="giftbox" currentQuote={currentQuote} />
 
         <div className="space-y-0" data-testid="calculation-breakdown">
           <div className="summary-panel mb-8">

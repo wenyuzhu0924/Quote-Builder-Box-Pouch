@@ -14,6 +14,8 @@ import {
 } from "@/lib/softbox-config";
 import { useSoftBox } from "@/lib/softbox-store";
 import { ShareQuoteButton } from "@/components/share-quote-button";
+import { QuoteHistoryPanel } from "@/components/quote-history-panel";
+import type { QuoteRecord } from "@/lib/quote-history";
 
 interface SoftBoxQuotePageProps {
   surveyPath?: string;
@@ -164,6 +166,34 @@ export default function SoftBoxQuotePage({
       validQty, validExchangeRate, validTaxRate, validProfitRate,
     };
   }, [selectedBoxType, selectedPrintSide, selectedFacePaper, selectedLamination, dimensions, orderInfo, config, laminationMinCharge, gluing, uvEnabled, uvConfig, printingTier]);
+
+  const currentQuote = useMemo((): Omit<QuoteRecord, "id" | "timestamp"> | null => {
+    if (!calc || calc.formulaError) return null;
+    const breakdown: Record<string, number> = {
+      "纸张": calc.paperCostPerBox,
+      "印刷": calc.printingCostPerBox,
+    };
+    if (calc.lamCostPerBox > 0) breakdown["覆膜"] = calc.lamCostPerBox;
+    if (calc.uvCostPerBox > 0) breakdown["UV"] = calc.uvCostPerBox;
+    if (calc.gluingCostPerBox > 0) breakdown["糊盒"] = calc.gluingCostPerBox;
+    return {
+      label: `${selectedBoxType?.name || "软盒"} ${dimensions.length}×${dimensions.width}×${dimensions.height}cm`,
+      boxType: selectedBoxType?.name,
+      qty: calc.validQty,
+      unitPriceCNY: calc.unitCost,
+      totalPriceCNY: calc.totalCost,
+      unitPriceUSD: calc.unitCostUsd,
+      totalPriceUSD: calc.totalCostUsd,
+      taxRate: calc.validTaxRate,
+      exchangeRate: calc.validExchangeRate,
+      costBreakdown: breakdown,
+      extra: {
+        "面纸": selectedFacePaper?.name || "",
+        "覆膜类型": selectedLamination?.name || "",
+        "印刷面": selectedPrintSide?.name || "",
+      },
+    };
+  }, [calc, selectedBoxType, selectedFacePaper, selectedLamination, selectedPrintSide, dimensions]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -419,6 +449,8 @@ export default function SoftBoxQuotePage({
             </CardContent>
           </Card>
         )}
+
+        <QuoteHistoryPanel quoteType="softbox" currentQuote={currentQuote} />
 
         {calc && !calc.formulaError && (
           <div className="space-y-0" data-testid="calculation-breakdown">
